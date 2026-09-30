@@ -6,7 +6,12 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
+    "generate": "openapi-typescript ../spec/openapi.yaml -o src/generated/api.d.ts",
+    "check:generated": "tmp=$(mktemp) && trap 'rm -f \"$tmp\"' EXIT && openapi-typescript ../spec/openapi.yaml -o \"$tmp\" > /dev/null && diff -u src/generated/api.d.ts \"$tmp\" || { echo 'src/generated/api.d.ts is out of date: run pnpm --filter @dynjandi/sdk run generate'; exit 1; }",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.13.0"
   }
 }

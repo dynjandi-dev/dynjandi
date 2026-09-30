@@ -9,9 +9,10 @@ The public integration surface for Dynjandi, an image CDN at `cdn.dynjandi.dev`:
 TypeScript SDK (`@dynjandi/sdk`). The service itself lives in a separate private repository; this one was
 split out of it on 2026-09-30 so the spec and SDK can be public and permissively licensed.
 
-**The spec exists; the SDK is still a shell.** `packages/spec/openapi.yaml` describes `POST /upload` and the
-variant URL grammar, and is linted by `pnpm lint`; `packages/sdk` holds an empty entry point and a
-placeholder test. Both packages are `private`. The design is in issue #1
+**The spec exists; the SDK can upload but not yet build URLs.** `packages/spec/openapi.yaml` describes
+`POST /upload` and the variant URL grammar, and is linted by `pnpm lint`. `packages/sdk` has
+`createClient`, `upload` and `DynjandiError`, with request and response types generated from the spec;
+`url()` is not written yet. Both packages are `private`. The design is in issue #1
 (`sdk-ecosystem`), not here.
 
 | Concern | Target |
@@ -32,8 +33,9 @@ placeholder test. Both packages are `private`. The design is in issue #1
 package.json, pnpm-workspace.yaml, pnpm-lock.yaml   workspace root and scripts
 tsconfig.base.json, biome.json, LICENSE (MIT)        shared config
 packages/spec/    openapi.yaml (OpenAPI 3.1, upload + URL grammar prose), README.md
-packages/sdk/     @dynjandi/sdk: src/, tests/, tsconfig.json (shell)
-.github/workflows/ci.yml                             lint, format, typecheck, test
+packages/sdk/     @dynjandi/sdk: src/ (client, upload, errors, generated/api.d.ts), tests/, tsconfig.json
+.pnpmfile.cjs     gives openapi-typescript its own TypeScript 5 (it cannot run on TypeScript 7)
+.github/workflows/ci.yml                             lint, format, typecheck, test, generated-types drift
 context/   workflow state and project answers (verify, git, tracking, release, executors, standards)
 ```
 
@@ -41,11 +43,12 @@ context/   workflow state and project answers (verify, git, tracking, release, e
 
 - Tooling versions are pinned exactly — shared tools in the root `package.json`, a package's own tools (Redocly
   in `packages/spec`) in that package's; GitHub Actions are pinned to a major tag.
-- Root scripts are the single entry points (`lint`, `format`, `format:check`, `typecheck`, `test`); the
-  workspace scripts they fan out to (`pnpm -r run`, or `pnpm --filter` for the spec lint) live in each
-  package.
+- Root scripts are the single entry points (`lint`, `format`, `format:check`, `typecheck`, `test`,
+  `check:generated`); the workspace scripts they fan out to (`pnpm -r run`, or `pnpm --filter` for the
+  spec lint and `check:generated`) live in each package.
 - Each package extends `tsconfig.base.json`; generated code goes under a `generated/` directory, which Biome
-  ignores.
+  ignores. It is committed, never edited by hand: `pnpm --filter @dynjandi/sdk run generate` rewrites
+  `packages/sdk/src/generated/api.d.ts` from the spec, and `pnpm check:generated` fails if it is stale.
 - Licence is MIT, copyright "Dynjandi contributors".
 
 ## Documentation

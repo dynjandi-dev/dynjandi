@@ -1,2 +1,3 @@
-// Shell only: the client, upload and URL builder land in later phases.
-export {};
+export { type Client, type ClientOptions, createClient } from "./client";
+export { DynjandiError } from "./errors";
+export type { UploadOptions, UploadResult } from "./upload";

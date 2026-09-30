@@ -31,3 +31,18 @@ deletes it.
 - The stable raw-GitHub URL 404s until the branch merges to `main`.
 - `packages/spec/README.md` promises to say how tagged spec URLs work once releases are cut — phase 6.
 - The service already has `GET /files/<id>` (`X-Public-Key`, file metadata), not in the spec by D6.
+
+## Phase 3 — SDK: client, upload and errors
+
+- `resolveOnOrigin`'s `catch` drops the `new URL` parse error, so the `DynjandiError` for an unparseable
+  `url` has no `cause` (the shape and off-origin failures have none either).
+- Key redaction (`replaceAll(publicKey, "[redacted]")`) garbles a message when the key is very short, and
+  misses a percent-encoded echo — neither matters for today's 64-hex keys. `cause` is not redacted.
+- `createClient` normalises `origin` with `new URL(...).origin`: a path is dropped silently, and a
+  non-`http(s)` scheme is accepted and only fails at upload (status 0). An `undefined` key from plain JS is
+  accepted.
+- "Both or neither" focal is enforced by the `focal?: { x, y }` type; no `@ts-expect-error` test pins it.
+- One cast in `errors.test.ts` (`focalFailure as DynjandiError`) after an `instanceof` assertion.
+- A non-JSON error body (e.g. an HTML 502) is not kept on the error; `cause` is the JSON parse error.
+- `.pnpmfile.cjs` is pinned to `openapi-typescript@7.13.0`; bumping it silently turns the hook off (the drift
+  check would then fail loudly). Remove the hook once `openapi-typescript` supports TypeScript 7.

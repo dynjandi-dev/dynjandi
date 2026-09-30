@@ -14,8 +14,8 @@ ones that exit 0.** Filling them in by hand is fine too; running them first is n
 What each section takes, and the alternative answers written out, are in
 [`verify.notes.md`](verify.notes.md). `/onboard` reads that file when it fills this one.
 
-**Build is empty on purpose.** Nothing here compiles to a shippable artefact yet: `@dynjandi/sdk` is a
-private shell and typechecking is `tsc --noEmit`. The publish phase adds a build when `dist/` exists.
+**Build is empty on purpose.** Nothing here compiles to a shippable artefact yet: `@dynjandi/sdk` is
+private with no build output, and typechecking is `tsc --noEmit`. The publish phase adds a build when `dist/` exists.
 
 All commands run from the repository root and were run, exit 0, on 2026-09-30 (Node 24, pnpm 10.32.1).
 Install first with `pnpm install --frozen-lockfile`. `.github/workflows/ci.yml` runs the same commands.
@@ -46,6 +46,17 @@ pnpm typecheck
 ```bash
 pnpm test
 ```
+
+## Generated types
+
+```bash
+pnpm check:generated
+```
+
+Regenerates the SDK's types from `packages/spec/openapi.yaml` into a temporary file and diffs it against
+`packages/sdk/src/generated/api.d.ts` **on disk** (not git HEAD), so it is right on an uncommitted tree. It
+fails when the spec and the committed file disagree; fix with `pnpm --filter @dynjandi/sdk run generate`.
+`openapi-typescript` needs TypeScript 5, so `.pnpmfile.cjs` gives it its own copy; the repo stays on 7.
 
 ## Not run by Gate 1
 

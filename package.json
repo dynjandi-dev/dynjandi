@@ -14,7 +14,8 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "typecheck": "pnpm -r run typecheck",
-    "test": "pnpm -r run test"
+    "test": "pnpm -r run test",
+    "check:generated": "pnpm --filter @dynjandi/sdk run check:generated"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
