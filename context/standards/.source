@@ -1,0 +1,12 @@
+# Origin of this standards tree, recorded so `update` can report when upstream has moved.
+# Managed by @baldurpan/create-ai-workflow. Replace this whole directory with:
+#   npx @baldurpan/create-ai-workflow standards add <git-url>
+# Vendored verbatim, with two mechanical renames:
+#   - npm cannot publish a file called `.gitignore`, so it ships as `templates/_dot_gitignore` and is
+#     written back with its leading dot at install time.
+#   - `templates/biome.json` ships and installs as `templates/biome-example.json`. Biome discovers
+#     nested configs by name, so a file called `biome.json` anywhere under a repository is a live
+#     config for the files beside it — here and in every project this tree is installed into.
+origin=https://github.com/baldurpan/ai-engineering-standards
+ref=dd8b7e206ff46d7555aabb2522c792d9272510b9
+vendored=2026-05-19T22:07:27+00:00
