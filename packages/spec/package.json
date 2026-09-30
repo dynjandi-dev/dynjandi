@@ -1,0 +1,7 @@
+{
+  "name": "@dynjandi/spec",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The OpenAPI description of Dynjandi's upload API.",
+  "license": "MIT"
+}

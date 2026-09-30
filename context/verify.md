@@ -14,19 +14,23 @@ ones that exit 0.** Filling them in by hand is fine too; running them first is n
 What each section takes, and the alternative answers written out, are in
 [`verify.notes.md`](verify.notes.md). `/onboard` reads that file when it fills this one.
 
-**Every section is empty because there is nothing to run yet.** On 2026-09-30 this repository held one
-empty `README.md`: no `package.json`, no build config and no CI workflow, so `/onboard` found no candidate
-command. Until a section is filled, Gate 1 stops and says so — the phase that adds the workspace fills
-this file, with commands it has run, as part of that phase.
+**Build is empty on purpose.** Nothing here compiles to a shippable artefact yet: `@dynjandi/sdk` is a
+private shell and typechecking is `tsc --noEmit`. The publish phase adds a build when `dist/` exists.
+
+All commands run from the repository root and were run, exit 0, on 2026-09-30 (Node 24, pnpm 10.32.1).
+Install first with `pnpm install --frozen-lockfile`. `.github/workflows/ci.yml` runs the same commands.
 
 ## Lint
 
 ```bash
+pnpm lint
+pnpm format:check
 ```
 
 ## Typecheck
 
 ```bash
+pnpm typecheck
 ```
 
 ## Build
@@ -37,6 +41,7 @@ this file, with commands it has run, as part of that phase.
 ## Test
 
 ```bash
+pnpm test
 ```
 
 ## Not run by Gate 1
