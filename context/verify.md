@@ -27,6 +27,9 @@ pnpm lint
 pnpm format:check
 ```
 
+`pnpm lint` also lints the OpenAPI spec: Biome over the code, then Redocly CLI (`recommended-strict`) over
+`packages/spec/openapi.yaml`. A spec that does not validate fails it.
+
 ## Typecheck
 
 ```bash

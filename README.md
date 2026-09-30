@@ -3,7 +3,8 @@
 The public integration surface for [Dynjandi](https://cdn.dynjandi.dev), an image CDN: an OpenAPI
 description of its upload API and a TypeScript SDK, `@dynjandi/sdk`.
 
-**Status: early.** Nothing here is published to npm yet, and both packages are currently empty shells.
+**Status: early.** Nothing here is published to npm yet. The OpenAPI spec for uploads is written
+([`packages/spec`](packages/spec/README.md)); the SDK is still an empty shell.
 
 ## What is in here
 

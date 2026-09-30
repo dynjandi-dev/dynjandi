@@ -20,7 +20,11 @@ importers:
 
   packages/sdk: {}
 
-  packages/spec: {}
+  packages/spec:
+    devDependencies:
+      '@redocly/cli':
+        specifier: 2.57.0
+        version: 2.57.0
 
 packages:
 
@@ -93,6 +97,11 @@ packages:
 
   '@oxc-project/types@0.152.0':
     resolution: {integrity: sha512-oM/5rLBm2tPkg0iBgkH/FOeR3PCDpY19GTgAZjMFM8h9WI9VW7cLgzp6nwtarYKmovavIQZ+Fe/RKX/8C8O/Rw==}
+
+  '@redocly/cli@2.57.0':
+    resolution: {integrity: sha512-1d5fVyUaYlMNgCHUoyE2vUyxBhs/jmOHgsX/kFmfWzESw4f/G/OV/SU9E55rU7aUNmw9rHj1vXmL6yUdIn+KKQ==}
+    engines: {node: '>=22.12.0 || >=20.19.0 <21.0.0', npm: '>=10'}
+    hasBin: true
 
   '@rolldown/binding-android-arm-eabi@1.2.12':
     resolution: {integrity: sha512-dB/a1214qKfHMXCpgqR4OZT+jS4kTyEXbQGJPqzobt5EwH5rX080pxE37alt3RzvR1bf1Yz/yGqRfrYAxuPw0A==}
@@ -634,6 +643,8 @@ snapshots:
       '@jridgewell/sourcemap-codec': 1.6.0
 
   '@oxc-project/types@0.152.0': {}
+
+  '@redocly/cli@2.57.0': {}
 
   '@rolldown/binding-android-arm-eabi@1.2.12':
     optional: true

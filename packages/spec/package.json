@@ -3,5 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "description": "The OpenAPI description of Dynjandi's upload API.",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@redocly/cli": "2.57.0"
+  },
+  "scripts": {
+    "lint": "redocly lint --extends recommended-strict openapi.yaml"
+  }
 }

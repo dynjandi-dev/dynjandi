@@ -9,8 +9,9 @@ The public integration surface for Dynjandi, an image CDN at `cdn.dynjandi.dev`:
 TypeScript SDK (`@dynjandi/sdk`). The service itself lives in a separate private repository; this one was
 split out of it on 2026-09-30 so the spec and SDK can be public and permissively licensed.
 
-**Two package shells exist and nothing else yet.** `packages/spec` holds no spec yet and `packages/sdk` holds
-an empty entry point and a placeholder test; both are `private`. The design is in issue #1
+**The spec exists; the SDK is still a shell.** `packages/spec/openapi.yaml` describes `POST /upload` and the
+variant URL grammar, and is linted by `pnpm lint`; `packages/sdk` holds an empty entry point and a
+placeholder test. Both packages are `private`. The design is in issue #1
 (`sdk-ecosystem`), not here.
 
 | Concern | Target |
@@ -18,7 +19,7 @@ an empty entry point and a placeholder test; both are `private`. The design is i
 | Runtime | Node 22 and 24 (`engines.node >=22`); the SDK targets `fetch`, `FormData` and `Blob` only |
 | Language | TypeScript 7 (strict, `tsconfig.base.json`), ESM |
 | Package manager | pnpm 10 workspaces, no Nx (`packageManager` in `package.json`) |
-| Lint and format | Biome 2 (`biome.json`), scoped to code: `context/`, `.claude/` and `.agents/` are ignored |
+| Lint and format | Biome 2 (`biome.json`), scoped to code: `context/`, `.claude/` and `.agents/` are ignored; the OpenAPI spec is linted by Redocly CLI (`recommended-strict`), called from the root `lint` script |
 | Test | Vitest 5 |
 | CI | GitHub Actions, `.github/workflows/ci.yml`, Node 22 and 24 |
 | Database | None |
@@ -30,7 +31,7 @@ an empty entry point and a placeholder test; both are `private`. The design is i
 ```
 package.json, pnpm-workspace.yaml, pnpm-lock.yaml   workspace root and scripts
 tsconfig.base.json, biome.json, LICENSE (MIT)        shared config
-packages/spec/    OpenAPI spec package (shell)
+packages/spec/    openapi.yaml (OpenAPI 3.1, upload + URL grammar prose), README.md
 packages/sdk/     @dynjandi/sdk: src/, tests/, tsconfig.json (shell)
 .github/workflows/ci.yml                             lint, format, typecheck, test
 context/   workflow state and project answers (verify, git, tracking, release, executors, standards)
@@ -38,9 +39,11 @@ context/   workflow state and project answers (verify, git, tracking, release, e
 
 ## Conventions
 
-- Tooling versions are pinned exactly in the root `package.json`; GitHub Actions are pinned to a major tag.
+- Tooling versions are pinned exactly — shared tools in the root `package.json`, a package's own tools (Redocly
+  in `packages/spec`) in that package's; GitHub Actions are pinned to a major tag.
 - Root scripts are the single entry points (`lint`, `format`, `format:check`, `typecheck`, `test`); the
-  workspace scripts they fan out to (`pnpm -r run`) live in each package.
+  workspace scripts they fan out to (`pnpm -r run`, or `pnpm --filter` for the spec lint) live in each
+  package.
 - Each package extends `tsconfig.base.json`; generated code goes under a `generated/` directory, which Biome
   ignores.
 - Licence is MIT, copyright "Dynjandi contributors".
@@ -49,6 +52,8 @@ context/   workflow state and project answers (verify, git, tracking, release, e
 
 - `README.md` — the repository's front page, for anyone arriving from GitHub or npm. First version written;
   it owes updates when the spec and SDK become publishable.
+- `packages/spec/README.md` — the spec's stable URL, versioning rule and contract summary. Changes to
+  `openapi.yaml` that move `info.version` or the contract owe it an update.
 
 Nothing is published outside this repository. The private service repository describes the upload
 contract and URL grammar for its own maintainers, but it is not a surface a change here has to reach.

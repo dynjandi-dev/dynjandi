@@ -1,0 +1,271 @@
+openapi: 3.1.0
+info:
+  title: Dynjandi upload API
+  version: 0.1.0
+  summary: Upload images to Dynjandi and address their variants by URL.
+  license:
+    name: MIT
+    identifier: MIT
+  description: |
+    Dynjandi is an image CDN at `https://cdn.dynjandi.dev`. This document describes its upload API:
+    a single operation, `POST /upload`. Variants of an uploaded image are addressed by URL, not by an
+    API call; the URL grammar is described below.
+
+    The spec is versioned on its own (semantic versioning of this document, see `info.version`). It is
+    upload-only until the management API has key-based authentication.
+
+    ## Uploads are server-side only
+
+    The service sends no CORS headers, and answers a preflight `OPTIONS` request with `405`. A
+    cross-origin `POST /upload` from a browser is therefore blocked. Call the upload API from a server
+    or another non-browser runtime. Variants and originals load normally in `<img>`, CSS and other
+    non-CORS contexts, but GET responses carry no CORS headers either, so a cross-origin `fetch()` from
+    a browser cannot read their bodies.
+
+    ## Authentication
+
+    `POST /upload` takes a project's public key in the `X-Public-Key` header. The public key is a
+    publishable identifier for a project, not a secret, but it still selects the project that receives
+    the file and is checked on every request: a missing key is `401`, an unknown key is `401`.
+
+    ## Relative URLs
+
+    The `url` in a successful upload response is relative to the service origin (`/<id>`). Clients
+    resolve it against the origin they sent the request to (the server URL below by default) to get the
+    image's address.
+
+    ## Errors
+
+    Every error response has the same body, `{ "error": "<message>" }`, and carries
+    `Cache-Control: no-store`.
+
+    ## Variant URL grammar
+
+    An uploaded image is served at `/<id>`. A variant is addressed by appending a chain of operations to
+    the file id. Each operation is written as `-/<operation>/<arguments>/` and operations apply in the
+    order given:
+
+    ```
+    /<id>/-/resize/800x600/-/format/webp/-/quality/80/
+    ```
+
+    This is a description of what the service accepts, not an operation per route. A variant URL
+    (`/<id>/-/...`) whose operations do not parse is answered with `400` and a message naming the
+    problem (for example `Unknown operation: <name>`). The operations are:
+
+    - **`resize/<width>x<height>/`** scales the image. Either dimension may be left out (`800x`,
+      `x600`) but not both. Each given dimension is an integer from 1 to 10000.
+    - **`format/<format>/`** sets the output format: `jpeg`, `png`, `webp` or `avif`. `jpg` is accepted
+      as an alias for `jpeg`.
+    - **`quality/<value>/`** sets output quality, an integer from 1 to 100, or one of the named levels
+      `lightest` (55), `lighter` (70), `normal` (80), `smart` (80), `better` (88), `best` (95).
+    - **`crop/<width>x<height>/<position>/`** crops to exactly that size. Both dimensions are
+      required integers from 1 to 10000. `<position>` is one of:
+      - a compass position: `center`, `north`, `south`, `east`, `west`, `northeast`, `northwest`,
+        `southeast`, `southwest`;
+      - a content-aware position: `attention` or `entropy`;
+      - a face-detection chain, `face,<position>`, where `<position>` is any position above. The
+        crop centres on a detected face and falls back to the named position when none is found.
+        `face` alone means `face,center`, and `smart` is an alias for `face,center`;
+      - `focal/<x>x<y>/`, the focal point as two decimals from 0 to 1 inclusive, for example
+        `crop/1280x400/focal/0.42x0.18/`. `0,0` is the top left of the image.
+    - **`scale_crop/<width>x<height>/`** is an Uploadcare-compatible alias of `crop`. The position is
+      optional and defaults to `center`; `focal/<x>x<y>/` is accepted as for `crop`.
+
+    Empty segments and lone `-` segments between operations are ignored, as is one trailing filename
+    such as `photo.jpg`. `/<id>/-/` with nothing after it is answered with `400`.
+
+    Examples:
+
+    - `/<id>/-/resize/800x600/`
+    - `/<id>/-/format/webp/`
+    - `/<id>/-/quality/80/`
+    - `/<id>/-/crop/400x400/center/`
+    - `/<id>/-/crop/1280x400/focal/0.42x0.18/`
+    - `/<id>/-/crop/600x600/face,attention/`
+servers:
+  - url: https://cdn.dynjandi.dev
+    description: Production
+tags:
+  - name: Upload
+    description: Adding an image to a project.
+paths:
+  /upload:
+    post:
+      operationId: uploadFile
+      tags:
+        - Upload
+      summary: Upload an image
+      description: |
+        Stores the file in the project identified by the public key and returns its id. The service
+        stores any non-empty file; it does not check the file's type. The request is
+        `multipart/form-data` with a `file` part and, optionally, a focal point given as both
+        `focalX` and `focalY`. Giving only one of them is an error, as is an empty value.
+
+        The file must be non-empty, and must fit the project's maximum file size and remaining storage
+        quota.
+
+        Uploads are server-side only; see the API description on CORS.
+      security:
+        - publicKey: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/UploadRequest"
+      responses:
+        "201":
+          description: The file was stored.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControlNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadResponse"
+              example:
+                file: 00000000-0000-4000-8000-000000000000
+                id: 00000000-0000-4000-8000-000000000000
+                url: /00000000-0000-4000-8000-000000000000
+                focalX: 0.42
+                focalY: 0.18
+        "400":
+          description: |
+            The request is malformed. The `error` message is one of:
+            `Expected multipart/form-data` (wrong content type),
+            `Invalid multipart body` (the body cannot be parsed),
+            `No file provided` (`file` is missing, not a file, or empty),
+            `Both focalX and focalY are required` (only one given, or an empty value),
+            `Invalid focal coordinates` (not a number, or outside 0 to 1).
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControlNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: No file provided
+        "401":
+          description: |
+            The public key is missing (`Missing X-Public-Key`) or unknown (`Invalid public key`).
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControlNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: Invalid public key
+        "413":
+          description: |
+            The file is too large. The `error` message is `File exceeds maximum allowed size` (over the
+            project's per-file limit) or `File exceeds project storage quota`.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControlNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: File exceeds maximum allowed size
+        "500":
+          description: An unexpected error. The `error` message is always `Internal server error`.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControlNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: Internal server error
+components:
+  securitySchemes:
+    publicKey:
+      type: apiKey
+      in: header
+      name: X-Public-Key
+      description: |
+        A project's public key. It is a publishable identifier, not a secret, and identifies the
+        project that receives the upload. It is an opaque string, shown on the project's page in the
+        dashboard.
+  headers:
+    CacheControlNoStore:
+      description: Always `no-store`; responses from this API must not be cached.
+      required: true
+      schema:
+        type: string
+        const: no-store
+  schemas:
+    UploadRequest:
+      type: object
+      required:
+        - file
+      properties:
+        file:
+          type: string
+          format: binary
+          description: The file to store, normally an image. Must be non-empty; its type is not checked.
+        focalX:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: |
+            Horizontal focal point, 0 (left) to 1 (right), inclusive. Send together with `focalY` or
+            not at all. Multipart values are text, so send it as a decimal such as `0.42`.
+        focalY:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: |
+            Vertical focal point, 0 (top) to 1 (bottom), inclusive. Send together with `focalX` or
+            not at all.
+    UploadResponse:
+      type: object
+      required:
+        - file
+        - id
+        - url
+        - focalX
+        - focalY
+      properties:
+        file:
+          type: string
+          format: uuid
+          description: The file id. Always the same value as `id`.
+        id:
+          type: string
+          format: uuid
+          description: The file id, as used in variant URLs.
+        url:
+          type: string
+          pattern: "^/"
+          description: |
+            The image's path, `/<id>`, relative to the service origin. Resolve it against the origin
+            the request was sent to.
+        focalX:
+          type:
+            - number
+            - "null"
+          minimum: 0
+          maximum: 1
+          description: The stored horizontal focal point, or `null` when none was given.
+        focalY:
+          type:
+            - number
+            - "null"
+          minimum: 0
+          maximum: 1
+          description: The stored vertical focal point, or `null` when none was given.
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: A human-readable message. It is stable enough to show, not to branch on; branch on the status code.

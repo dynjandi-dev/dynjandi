@@ -10,7 +10,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "lint": "biome check --formatter-enabled=false .",
+    "lint": "biome check --formatter-enabled=false . && pnpm --filter @dynjandi/spec run lint",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "typecheck": "pnpm -r run typecheck",

@@ -16,3 +16,18 @@ deletes it.
 - The reason Build is empty sits in `verify.md`'s preamble, not under `## Build`.
 - `README.md`'s package table describes what the packages will be; the "empty shells" status line above it is
   what keeps it true today.
+
+## Phase 2 — The OpenAPI spec
+
+- **For the user:** the spec calls the public key "a publishable identifier, not a secret", yet whoever holds
+  it can upload any file into the project up to its quota. A wording decision, left as is.
+- **For the user:** Redocly CLI sends telemetry on every lint run (local and CI) unless
+  `REDOCLY_TELEMETRY=off` is set.
+- Focal both-or-neither is prose only; OpenAPI 3.1 `dependentRequired` could express it
+  (`openapi-typescript` ignores it, so phase 3's client-side check is needed either way).
+- Root `engines.node` says `>=22`; `@redocly/cli` 2.57.0 and rolldown (phase 1) need `>=22.12`.
+- Two version numbers: `packages/spec/package.json` `0.0.0` vs `info.version` `0.1.0` — phase 6 decides
+  which one moves a publish.
+- The stable raw-GitHub URL 404s until the branch merges to `main`.
+- `packages/spec/README.md` promises to say how tagged spec URLs work once releases are cut — phase 6.
+- The service already has `GET /files/<id>` (`X-Public-Key`, file metadata), not in the spec by D6.
