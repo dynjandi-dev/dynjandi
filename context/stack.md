@@ -9,15 +9,15 @@ The public integration surface for Dynjandi, an image CDN at `cdn.dynjandi.dev`:
 TypeScript SDK (`@dynjandi/sdk`). The service itself lives in a separate private repository; this one was
 split out of it on 2026-09-30 so the spec and SDK can be public and permissively licensed.
 
-**The spec exists; the SDK can upload but not yet build URLs.** `packages/spec/openapi.yaml` describes
-`POST /upload` and the variant URL grammar, and is linted by `pnpm lint`. `packages/sdk` has
-`createClient`, `upload` and `DynjandiError`, with request and response types generated from the spec;
-`url()` is not written yet. Both packages are `private`. The design is in issue #1
+**The spec and the SDK's two operations exist; nothing is published.** `packages/spec/openapi.yaml`
+describes `POST /upload` and the variant URL grammar, and is linted by `pnpm lint`. `packages/sdk` has
+`createClient`, `upload`, `url` and `DynjandiError`; upload types are generated from the spec, and `url()`
+maps its options onto `@dynjandi/transform-grammar`'s operations and builder. Both packages are `private`. The design is in issue #1
 (`sdk-ecosystem`), not here.
 
 | Concern | Target |
 |---|---|
-| Runtime | Node 22 and 24 (`engines.node >=22`); the SDK targets `fetch`, `FormData` and `Blob` only |
+| Runtime | Node 22 and 24 (`engines.node >=22`); the SDK targets `fetch`, `FormData` and `Blob` only, with one runtime dependency, `@dynjandi/transform-grammar` (which brings `zod`) |
 | Language | TypeScript 7 (strict, `tsconfig.base.json`), ESM |
 | Package manager | pnpm 10 workspaces, no Nx (`packageManager` in `package.json`) |
 | Lint and format | Biome 2 (`biome.json`), scoped to code: `context/`, `.claude/` and `.agents/` are ignored; the OpenAPI spec is linted by Redocly CLI (`recommended-strict`), called from the root `lint` script |
@@ -33,7 +33,7 @@ split out of it on 2026-09-30 so the spec and SDK can be public and permissively
 package.json, pnpm-workspace.yaml, pnpm-lock.yaml   workspace root and scripts
 tsconfig.base.json, biome.json, LICENSE (MIT)        shared config
 packages/spec/    openapi.yaml (OpenAPI 3.1, upload + URL grammar prose), README.md
-packages/sdk/     @dynjandi/sdk: src/ (client, upload, errors, generated/api.d.ts), tests/, tsconfig.json
+packages/sdk/     @dynjandi/sdk: src/ (client, upload, url, errors, generated/api.d.ts), tests/, tsconfig.json
 .pnpmfile.cjs     gives openapi-typescript its own TypeScript 5 (it cannot run on TypeScript 7)
 .github/workflows/ci.yml                             lint, format, typecheck, test, generated-types drift
 context/   workflow state and project answers (verify, git, tracking, release, executors, standards)

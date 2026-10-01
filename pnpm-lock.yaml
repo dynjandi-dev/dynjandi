@@ -21,6 +21,10 @@ importers:
         version: 5.0.3(vite@8.3.1)
 
   packages/sdk:
+    dependencies:
+      '@dynjandi/transform-grammar':
+        specifier: ^0.1.0
+        version: 0.1.0
     devDependencies:
       openapi-typescript:
         specifier: 7.13.0
@@ -98,6 +102,9 @@ packages:
     engines: {node: '>=14.21.3'}
     cpu: [x64]
     os: [win32]
+
+  '@dynjandi/transform-grammar@0.1.0':
+    resolution: {integrity: sha512-otc8WI5+6X34ZjXCjoiFyMaI4lU4Vn8Z+Y0AoOzL/fbaUgk8eAq6qk4LDoYH1aHyMbmzPiaqjzmXZP6mUXIFqg==}
 
   '@jridgewell/resolve-uri@3.1.2':
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
@@ -723,6 +730,9 @@ packages:
     resolution: {integrity: sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw==}
     engines: {node: '>=12'}
 
+  zod@4.6.5:
+    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
+
 snapshots:
 
   '@babel/code-frame@7.29.7':
@@ -767,6 +777,10 @@ snapshots:
 
   '@biomejs/cli-win32-x64@2.5.15':
     optional: true
+
+  '@dynjandi/transform-grammar@0.1.0':
+    dependencies:
+      zod: 4.6.5
 
   '@jridgewell/resolve-uri@3.1.2': {}
 
@@ -1187,3 +1201,5 @@ snapshots:
   yaml-ast-parser@0.0.43: {}
 
   yargs-parser@21.1.1: {}
+
+  zod@4.6.5: {}

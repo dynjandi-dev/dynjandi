@@ -11,6 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@dynjandi/transform-grammar": "^0.1.0"
+  },
   "devDependencies": {
     "openapi-typescript": "7.13.0"
   }

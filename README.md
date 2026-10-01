@@ -4,8 +4,8 @@ The public integration surface for [Dynjandi](https://cdn.dynjandi.dev), an imag
 description of its upload API and a TypeScript SDK, `@dynjandi/sdk`.
 
 **Status: early.** Nothing here is published to npm yet. The OpenAPI spec for uploads is written
-([`packages/spec`](packages/spec/README.md)). The SDK can upload files; building image URLs is not
-written yet.
+([`packages/spec`](packages/spec/README.md)). The SDK can upload files (server-side) and build
+image variant URLs.
 
 ## What is in here
 

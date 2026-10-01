@@ -1,5 +1,6 @@
 import { DynjandiError } from "./errors";
 import { type UploadOptions, type UploadResult, upload } from "./upload";
+import { type UrlOptions, url } from "./url";
 
 export const DEFAULT_ORIGIN = "https://cdn.dynjandi.dev";
 
@@ -15,6 +16,11 @@ export interface ClientOptions {
 export interface Client {
   /** Uploads a file. Server-side only: the CDN sends no CORS headers. See `upload`. */
   upload(file: Blob, options?: UploadOptions): Promise<UploadResult>;
+  /**
+   * The URL of a variant of `fileId` on the client's origin. Synchronous, and safe in browsers.
+   * Throws `DynjandiError` (status 0) for options the grammar refuses. See `UrlOptions`.
+   */
+  url(fileId: string, options: UrlOptions): string;
 }
 
 export function createClient(options: ClientOptions): Client {
@@ -37,5 +43,6 @@ export function createClient(options: ClientOptions): Client {
 
   return {
     upload: (file, uploadOptions) => upload(config, file, uploadOptions),
+    url: (fileId, urlOptions) => url(config.origin, fileId, urlOptions),
   };
 }

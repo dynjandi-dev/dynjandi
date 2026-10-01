@@ -46,3 +46,21 @@ deletes it.
 - A non-JSON error body (e.g. an HTML 502) is not kept on the error; `cause` is the JSON parse error.
 - `.pnpmfile.cjs` is pinned to `openapi-typescript@7.13.0`; bumping it silently turns the hook off (the drift
   check would then fail loudly). Remove the hook once `openapi-typescript` supports TypeScript 7.
+
+## Phase 4 — SDK: URL builder
+
+- **For the user:** `@dynjandi/transform-grammar` is a caret range (`^0.1.0`, so 0.1.x). `url()` delegates its
+  strings to the grammar, so a grammar patch can change the URLs consumers get (focal rounding,
+  `FACE_DETECTOR_VERSION`). Plan §9 Q9 says "the SDK pins whatever ships" — decide whether that means exact.
+- Upstream (dynjandi-core, not this repo): the grammar's `resizeOperationSchema` lets both dimensions be
+  `null`, so `{ width: null }` from untyped JS builds `/-/resize/x/`, which the server rejects; and
+  `buildVariantUrl` leaves a `.`/`..` file id unencoded, giving a dot-segment URL.
+- The fixed operation order (crop → resize → format → quality) is documented only on the private
+  `toOperations`, not on the public `UrlOptions`.
+- `url.ts` JSDoc contradicts itself: the `UrlOptions` comment says the ranges are not repeated, while the
+  width/height fields say "Integer from 1 to 10000".
+- `null` options from plain JS let a `TypeError` escape `url()` (not the grammar's error, so D4 holds).
+- NaN, Infinity and fractional values get zod's union message (`resize: Invalid input`), less specific than
+  the out-of-range messages.
+- `url.ts` throws a `DynjandiError` inside its own `try` and re-throws it; moving the `safeParse` check out of
+  the `try` would read more plainly.
