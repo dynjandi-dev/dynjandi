@@ -5,12 +5,18 @@ any variant of it.
 
 ## Install
 
-**Not published yet.** Once it is, the install command will be `npm i @dynjandi/sdk`. Until then the package
-is private to this repository's workspace.
+```bash
+npm i @dynjandi/sdk
+```
+
+**Until the first version has been published to npm, that command fails** (the package is built and
+packaged but the first publish is a manual step). Once it is on npm, releases after the first are published
+by [`publish.yml`](https://github.com/dynjandi-dev/dynjandi/blob/main/.github/workflows/publish.yml) with
+npm provenance. ESM only.
 
 ## Requirements
 
-Node 22 or newer is the only runtime the tests run on. The SDK uses `fetch`, `FormData` and `Blob` and
+Node 22 or newer (`engines.node`) is the only runtime the tests run on. The SDK uses `fetch`, `FormData` and `Blob` and
 nothing else, so it is intended to work in browsers and Workers too, but nothing here tests either: treat
 that as untested.
 
@@ -97,5 +103,5 @@ if the key is unset.
 pnpm --filter @dynjandi/sdk run test:live
 ```
 
-See [`context/verify.md`](../../context/verify.md) for loading the key locally without printing it.
+See [`context/verify.md`](https://github.com/dynjandi-dev/dynjandi/blob/main/context/verify.md) for loading the key locally without printing it.
 `.github/workflows/smoke.yml` runs it daily and on demand.

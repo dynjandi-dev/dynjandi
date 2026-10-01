@@ -11,3 +11,6 @@ coverage/
 *.key
 
 .DS_Store
+
+# Copied from the root by the SDK's prepack so the tarball carries the licence
+packages/sdk/LICENSE

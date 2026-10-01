@@ -1,5 +1,5 @@
-import { DynjandiError } from "./errors";
-import type { components } from "./generated/api";
+import { DynjandiError } from "./errors.js";
+import type { components } from "./generated/api.js";
 
 type UploadRequest = components["schemas"]["UploadRequest"];
 type UploadResponse = components["schemas"]["UploadResponse"];

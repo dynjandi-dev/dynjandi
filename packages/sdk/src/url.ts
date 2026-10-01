@@ -7,7 +7,7 @@ import {
   normalizedOperationsSchema,
   type OutputFormat,
 } from "@dynjandi/transform-grammar";
-import { DynjandiError } from "./errors";
+import { DynjandiError } from "./errors.js";
 
 /** The grammar's face-detection crop position, `face,<position>`, taken from its own types. */
 export type FaceCropPosition = Extract<CropOperation, { detector: unknown }>["position"];

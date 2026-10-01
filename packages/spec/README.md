@@ -9,8 +9,19 @@ variant URL grammar in prose. The document is [`openapi.yaml`](openapi.yaml).
 https://raw.githubusercontent.com/dynjandi-dev/dynjandi/main/packages/spec/openapi.yaml
 ```
 
-This always serves the latest spec on `main`. There are no tagged releases yet; once releases are cut,
-tagged versions of the spec will be addressable at a fixed URL as well, and this section will say how.
+This always serves the latest spec on `main`.
+
+**Versioned URLs.** Each release of `@dynjandi/sdk` is tagged `sdk-v<version>` (by the publish workflow,
+after the package is on npm), and the spec as it was at that release is at
+
+```
+https://raw.githubusercontent.com/dynjandi-dev/dynjandi/<tag>/packages/spec/openapi.yaml
+```
+
+for example `.../dynjandi/sdk-v0.1.1/packages/spec/openapi.yaml`. **No such tag exists yet**: the first
+release is published by hand and is tagged only if someone tags it by hand (see `context/release.md`), so the
+first tagged URL may not appear until the next release. The tag
+names the SDK's version, not the spec's: read `info.version` in the document for the spec's own.
 
 ## The contract
 
@@ -31,8 +42,9 @@ The URL grammar for variants (`/<id>/-/resize/800x600/` and so on) is described 
 
 ## Versioning
 
-The spec is versioned on its own with semantic versioning, in `info.version` of `openapi.yaml`. It is
-pre-1.0, so a breaking change may land in a minor version until 1.0.0.
+The spec is versioned on its own with semantic versioning, in `info.version` of `openapi.yaml`. That is the
+spec's only version: this package is private and never published, so the `version` in its `package.json` is
+unused and is not kept in step. It is pre-1.0, so a breaking change may land in a minor version until 1.0.0.
 
 - **Major** (after 1.0.0; minor before it): a change that breaks an existing client, such as removing or
   renaming a field, operation or parameter, making an optional field required, or narrowing what the

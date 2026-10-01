@@ -1,6 +1,6 @@
-import { DynjandiError } from "./errors";
-import { type UploadOptions, type UploadResult, upload } from "./upload";
-import { type UrlOptions, url } from "./url";
+import { DynjandiError } from "./errors.js";
+import { type UploadOptions, type UploadResult, upload } from "./upload.js";
+import { type UrlOptions, url } from "./url.js";
 
 export const DEFAULT_ORIGIN = "https://cdn.dynjandi.dev";
 

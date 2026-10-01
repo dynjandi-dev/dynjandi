@@ -3,16 +3,29 @@
 The public integration surface for [Dynjandi](https://cdn.dynjandi.dev), an image CDN: an OpenAPI
 description of its upload API and a TypeScript SDK, `@dynjandi/sdk`.
 
-**Status: early.** Nothing here is published to npm yet. The OpenAPI spec for uploads is written
-([`packages/spec`](packages/spec/README.md)). The SDK can upload files (server-side) and build
-image variant URLs.
+**Status: early.** `@dynjandi/sdk` is built to be published to npm, but **it is not on npm until the first
+release has been published by hand** (see [`context/release.md`](context/release.md)); until then
+`npm i @dynjandi/sdk` fails. The OpenAPI spec for uploads is written
+([`packages/spec`](packages/spec/README.md)). The SDK can upload files (server-side) and build image
+variant URLs.
 
 ## What is in here
 
 | Path | What |
 |---|---|
-| `packages/spec` | The OpenAPI spec for the upload API |
+| [`packages/spec`](packages/spec/README.md) | The OpenAPI spec for the upload API (not published to npm; served from this repository) |
 | [`packages/sdk`](packages/sdk/README.md) | `@dynjandi/sdk`, a TypeScript client built on `fetch`, `FormData` and `Blob` |
+
+## Using it
+
+```bash
+npm i @dynjandi/sdk
+```
+
+Once it is on npm, that is the install command; usage is in [`packages/sdk/README.md`](packages/sdk/README.md).
+The spec is at
+`https://raw.githubusercontent.com/dynjandi-dev/dynjandi/main/packages/spec/openapi.yaml`
+([how it is versioned](packages/spec/README.md)).
 
 ## Developing
 
@@ -23,13 +36,16 @@ pnpm install --frozen-lockfile
 pnpm lint
 pnpm format:check
 pnpm typecheck
+pnpm build
+pnpm check:package
 pnpm test
 pnpm check:generated
 ```
 
 `pnpm format` rewrites files to the Biome style. The commands CI and the review gate run are listed in
 [`context/verify.md`](context/verify.md). A live smoke test against the real CDN runs separately and needs
-a test project's key; see [`packages/sdk/README.md`](packages/sdk/README.md).
+a test project's key; see [`packages/sdk/README.md`](packages/sdk/README.md). A push to `main` that bumps
+`packages/sdk/package.json`'s version publishes it; [`context/release.md`](context/release.md) says how.
 
 ## Licence
 

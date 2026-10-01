@@ -83,3 +83,17 @@ deletes it.
 - Workflows pin actions to major tags, not commit SHAs (the stated convention); worth revisiting for workflows
   that hold a secret.
 - `smoke.yml`'s comment says "a precondition for the publish workflow" — true once phase 6 adds it.
+
+## Phase 6 — Publish pipeline
+
+- If someone else publishes the version while `build` runs, `publish`'s re-check exits 0 and `release` tags
+  `$GITHUB_SHA`, which may not be the commit that was published (inherited from dynjandi-core's workflow).
+- `check` and `build` use `actions/checkout` with credentials persisted (a `contents: read` token on a public
+  repo), so dependency code in `build` can read it; `check` uses the runner image's npm, no `setup-node`.
+- `pnpm check:package` (Gate 1) calls `npm view`; with no registry it stays green, and the reviewer could
+  not construct a realistic case where it goes red with nothing in the diff.
+- The change reaches past §6.2's Files line (`ci.yml`, `smoke.yml`, `.gitignore`, root `package.json`,
+  `verify.md`, `src/*.ts` import extensions, `scripts/check-package.mjs`, `tsconfig.build.json`), each for
+  the build or dry-run scope; `packages/spec/package.json` is listed but unchanged (the spec stays private).
+- Root `engines.node` stays `>=22`; the dev toolchain needs `>=22.12` (phase 2 note). The SDK's own
+  `engines.node` is `>=22` — consumers need only `fetch`, `FormData` and `Blob`.

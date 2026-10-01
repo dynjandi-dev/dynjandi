@@ -7,8 +7,8 @@ name: Smoke
 # - schedule: daily. Drift is found within a day, and a run costs one ~70-byte upload to a test project.
 #   The time is off the hour to stay clear of the top-of-hour rush on GitHub's scheduler.
 # - workflow_dispatch: run it by hand.
-# - workflow_call: a precondition for the publish workflow. The caller must provide the secret, either
-#   with `secrets: inherit` (simplest) or `secrets: { DYNJANDI_SMOKE_PUBLIC_KEY: ${{ secrets.DYNJANDI_SMOKE_PUBLIC_KEY }} }`.
+# - workflow_call: the precondition `publish.yml` runs before it publishes, only when there is a version to
+#   publish. The caller must provide the secret, which publish.yml does explicitly (not `secrets: inherit`).
 #
 # The key is read from the secret store only, and only by the test step.
 on:
