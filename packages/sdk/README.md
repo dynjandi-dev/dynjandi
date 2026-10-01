@@ -9,9 +9,8 @@ any variant of it.
 npm i @dynjandi/sdk
 ```
 
-**Until the first version has been published to npm, that command fails** (the package is built and
-packaged but the first publish is a manual step). Once it is on npm, releases after the first are published
-by [`publish.yml`](https://github.com/dynjandi-dev/dynjandi/blob/main/.github/workflows/publish.yml) with
+Releases are published by
+[`publish.yml`](https://github.com/dynjandi-dev/dynjandi/blob/main/.github/workflows/publish.yml) with
 npm provenance. ESM only.
 
 ## Requirements
