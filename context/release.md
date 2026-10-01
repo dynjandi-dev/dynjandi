@@ -98,8 +98,9 @@ As of 2026-10-01, one line each:
 
 - **Bumps a version** — `changeset:prepare-release`, run by a person on the feature branch (`/feature-close
   --release` runs it): it consumes the pending notes into `packages/sdk/CHANGELOG.md` and moves `version`.
-  It cannot be run twice over the same notes. Nothing in CI runs it. **Written, never run** — its first run
-  cuts `0.1.0` (see *The first publish*).
+  It cannot be run twice over the same notes. Nothing in CI runs it. **Run once, on 2026-10-01**, on the
+  feature branch: it consumed the first note and cut `0.1.0` with its `CHANGELOG.md` entry (see *The first
+  publish*). Nothing it produced has been published yet.
 - **Tags** — `publish.yml`, after a successful publish: `sdk-v<version>` on the commit the run is for. The
   name has no `/` so it is safe inside a `raw.githubusercontent.com` URL. **Written, never run**: the
   repository has no tags until the first run that publishes.
