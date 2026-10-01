@@ -1,0 +1,40 @@
+name: Smoke
+
+# Uploads one tiny image to the dedicated test project on the live service and fetches a variant of it
+# (packages/sdk/tests/live/smoke.test.ts). It is the drift detector between the spec and the service, so
+# it runs on a schedule as well as before a release.
+#
+# - schedule: daily. Drift is found within a day, and a run costs one ~70-byte upload to a test project.
+#   The time is off the hour to stay clear of the top-of-hour rush on GitHub's scheduler.
+# - workflow_dispatch: run it by hand.
+# - workflow_call: a precondition for the publish workflow. The caller must provide the secret, either
+#   with `secrets: inherit` (simplest) or `secrets: { DYNJANDI_SMOKE_PUBLIC_KEY: ${{ secrets.DYNJANDI_SMOKE_PUBLIC_KEY }} }`.
+#
+# The key is read from the secret store only, and only by the test step.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      DYNJANDI_SMOKE_PUBLIC_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @dynjandi/sdk run test:live
+        env:
+          DYNJANDI_SMOKE_PUBLIC_KEY: ${{ secrets.DYNJANDI_SMOKE_PUBLIC_KEY }}

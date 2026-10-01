@@ -21,8 +21,8 @@ maps its options onto `@dynjandi/transform-grammar`'s operations and builder. Bo
 | Language | TypeScript 7 (strict, `tsconfig.base.json`), ESM |
 | Package manager | pnpm 10 workspaces, no Nx (`packageManager` in `package.json`) |
 | Lint and format | Biome 2 (`biome.json`), scoped to code: `context/`, `.claude/` and `.agents/` are ignored; the OpenAPI spec is linted by Redocly CLI (`recommended-strict`), called from the root `lint` script |
-| Test | Vitest 5 |
-| CI | GitHub Actions, `.github/workflows/ci.yml`, Node 22 and 24 |
+| Test | Vitest 5. `pnpm test` runs the offline tests only; `packages/sdk/tests/live/` is a live smoke test against `cdn.dynjandi.dev`, run by `test:live` and never by `pnpm test` |
+| CI | GitHub Actions: `ci.yml` on Node 22 and 24; `smoke.yml` runs the live smoke test daily, on demand, and as a callable precondition for a release |
 | Database | None |
 | Storage | None |
 | Hosting | None; nothing is deployed from here |
@@ -33,9 +33,11 @@ maps its options onto `@dynjandi/transform-grammar`'s operations and builder. Bo
 package.json, pnpm-workspace.yaml, pnpm-lock.yaml   workspace root and scripts
 tsconfig.base.json, biome.json, LICENSE (MIT)        shared config
 packages/spec/    openapi.yaml (OpenAPI 3.1, upload + URL grammar prose), README.md
-packages/sdk/     @dynjandi/sdk: src/ (client, upload, url, errors, generated/api.d.ts), tests/, tsconfig.json
+packages/sdk/     @dynjandi/sdk: src/ (client, upload, url, errors, generated/api.d.ts), tests/ (live/ = smoke test),
+                  tsconfig.json, README.md
 .pnpmfile.cjs     gives openapi-typescript its own TypeScript 5 (it cannot run on TypeScript 7)
 .github/workflows/ci.yml                             lint, format, typecheck, test, generated-types drift
+.github/workflows/smoke.yml                          live smoke test: daily, workflow_dispatch, workflow_call
 context/   workflow state and project answers (verify, git, tracking, release, executors, standards)
 ```
 
@@ -50,6 +52,8 @@ context/   workflow state and project answers (verify, git, tracking, release, e
   ignores. It is committed, never edited by hand: `pnpm --filter @dynjandi/sdk run generate` rewrites
   `packages/sdk/src/generated/api.d.ts` from the spec, and `pnpm check:generated` fails if it is stale.
 - Licence is MIT, copyright "Dynjandi contributors".
+- The live smoke test's key is `DYNJANDI_SMOKE_PUBLIC_KEY`: an Actions secret in CI, a gitignored `.env` at the
+  repository root locally. It belongs to a dedicated test project, and no tracked file holds it.
 
 ## Documentation
 
@@ -57,6 +61,9 @@ context/   workflow state and project answers (verify, git, tracking, release, e
   it owes updates when the spec and SDK become publishable.
 - `packages/spec/README.md` — the spec's stable URL, versioning rule and contract summary. Changes to
   `openapi.yaml` that move `info.version` or the contract owe it an update.
+- `packages/sdk/README.md` — the SDK's usage (`upload`, `url`, errors), what is tested where, the gzipped
+  bundle-size baseline and the command that measured it, and how to run the live smoke test. A change to the
+  SDK's public API or its dependencies owes it an update.
 
 Nothing is published outside this repository. The private service repository describes the upload
 contract and URL grammar for its own maintainers, but it is not a surface a change here has to reach.

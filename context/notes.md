@@ -64,3 +64,22 @@ deletes it.
   the out-of-range messages.
 - `url.ts` throws a `DynjandiError` inside its own `try` and re-throws it; moving the `safeParse` check out of
   the `try` would read more plainly.
+
+## Phase 5 — Live smoke test and bundle-size record
+
+- **For the user:** the gzipped browser bundle is 94,306 bytes, and ~453 KB of its 459 KB minified is `zod`,
+  brought in by `@dynjandi/transform-grammar` (the SDK's own code is ~1.5 KB gzipped). Plan §5 said to set a
+  budget "from the number"; phase 5 recorded it as a baseline only. A budget, or a zod-free check in the
+  grammar, is a decision for later.
+- The live test uploads a ~70-byte PNG to the test project daily and never deletes it; headroom was
+  confirmed by the user when the project was set up.
+- A bare `vitest` (not `pnpm test`) picks up `tests/live/` — it fails loudly without the key. A
+  `vitest.config.ts` exclude would be sturdier.
+- `/// <reference types="node" />` in the live test adds Node globals to the whole SDK program, `src/` included
+  (`tsconfig.json` includes `src` and `tests`); a Node-only global in `src/` would now typecheck. None exist.
+  A separate tests tsconfig would close it.
+- The live test could assert `image/webp` (what it asked for) rather than `^image/`.
+- The SDK README calls `url()` "safe in browsers" — true by construction (no request), but untested.
+- Workflows pin actions to major tags, not commit SHAs (the stated convention); worth revisiting for workflows
+  that hold a secret.
+- `smoke.yml`'s comment says "a precondition for the publish workflow" — true once phase 6 adds it.

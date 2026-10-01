@@ -12,7 +12,7 @@ image variant URLs.
 | Path | What |
 |---|---|
 | `packages/spec` | The OpenAPI spec for the upload API |
-| `packages/sdk` | `@dynjandi/sdk`, a TypeScript client built on `fetch`, `FormData` and `Blob` |
+| [`packages/sdk`](packages/sdk/README.md) | `@dynjandi/sdk`, a TypeScript client built on `fetch`, `FormData` and `Blob` |
 
 ## Developing
 
@@ -28,7 +28,8 @@ pnpm check:generated
 ```
 
 `pnpm format` rewrites files to the Biome style. The commands CI and the review gate run are listed in
-[`context/verify.md`](context/verify.md).
+[`context/verify.md`](context/verify.md). A live smoke test against the real CDN runs separately and needs
+a test project's key; see [`packages/sdk/README.md`](packages/sdk/README.md).
 
 ## Licence
 

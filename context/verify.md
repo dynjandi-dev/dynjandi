@@ -47,6 +47,8 @@ pnpm typecheck
 pnpm test
 ```
 
+This excludes `packages/sdk/tests/live/`, which needs a secret and the network: see *Not run by Gate 1*.
+
 ## Generated types
 
 ```bash
@@ -59,6 +61,32 @@ fails when the spec and the committed file disagree; fix with `pnpm --filter @dy
 `openapi-typescript` needs TypeScript 5, so `.pnpmfile.cjs` gives it its own copy; the repo stays on 7.
 
 ## Not run by Gate 1
+
+### Live smoke test
+
+```bash
+pnpm --filter @dynjandi/sdk run test:live
+```
+
+Uploads a 1x1 PNG to the dedicated test project on the live service, then fetches one SDK-built variant
+and expects 200 with an `image/*` content type. It needs the project's key in `DYNJANDI_SMOKE_PUBLIC_KEY`
+and the network (`https://cdn.dynjandi.dev`), so `pnpm test` excludes `tests/live/` and never touches
+either. It fails, rather than skips, when the key is unset.
+
+It is not in the gate because it can go red with nothing in the diff: the service changes, the network
+drops, the test project's quota fills. It belongs to whatever watches the service, not the change:
+`.github/workflows/smoke.yml` runs it daily and on demand, and is callable (`workflow_call`) as a
+precondition for a publish workflow, with the key from the Actions secret `DYNJANDI_SMOKE_PUBLIC_KEY`.
+
+By hand, load the key from the gitignored `.env` at the repository root into the one command's
+environment, without printing it:
+
+```bash
+(set -a; . ./.env; set +a; pnpm --filter @dynjandi/sdk run test:live)
+```
+
+Never `cat` the file or echo the variable. The test and the SDK keep the key out of their output, but a
+shell trace or a pasted log would not.
 
 ## Rules
 
