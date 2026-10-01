@@ -36,6 +36,7 @@ packages/spec/    openapi.yaml (OpenAPI 3.1, upload + URL grammar prose), README
 packages/sdk/     @dynjandi/sdk: src/ (client, upload, url, errors, generated/api.d.ts), tests/ (live/ = smoke test),
                   scripts/check-package.mjs, tsconfig.json, tsconfig.build.json (emits dist/, gitignored), README.md
 .pnpmfile.cjs     gives openapi-typescript its own TypeScript 5 (it cannot run on TypeScript 7)
+.changeset/       release notes, one file each; consumed by changeset:prepare-release (context/release.md)
 .github/workflows/ci.yml                             lint, format, typecheck, build, package check, test, generated-types drift
 .github/workflows/smoke.yml                          live smoke test: daily, workflow_dispatch, workflow_call
 .github/workflows/publish.yml                        publishes @dynjandi/sdk when its version is not on npm

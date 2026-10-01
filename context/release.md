@@ -26,10 +26,13 @@ What each section takes, and the alternative answers written out, are in
 
 ## What announces a change, and to whom
 
-**Nothing here announces a change.** No path is recorded below, so no change owes a note and every command
-reads this section and moves on. **That is a statement about what is written down here, not a claim that
-this project publishes nothing** — which is what makes it the one answer that is true of every repository
-before anyone has looked at it.
+Set by `/onboard` on 2026-10-01, after `release-init` put changesets in place.
+
+| Path | Announces to | Deserves a note when | A bump means |
+|---|---|---|---|
+| `packages/sdk` | people installing `@dynjandi/sdk` from npm | its public API, runtime behaviour, dependencies or supported runtimes change — **not** tests, internal refactors, README wording or CI | while `0.x`: **minor is a breaking change**, patch is everything else (additions and fixes); ordinary semver from `1.0` |
+| `packages/spec` | integrators reading the spec at its raw GitHub URL | **never on its own.** A contract change regenerates the SDK's types (`pnpm check:generated` fails until it does), so it is announced by the SDK's note | nothing changesets moves: the spec's version is `info.version` in `openapi.yaml`, bumped by hand by the rule in `packages/spec/README.md` |
+| everything else — `context/`, `.github/`, `.changeset/`, root config | nobody | never | — |
 
 **A path with no row is not the same as a path whose row says nothing.** A change touching a path this table
 does not cover is **named in the report, given no note, and left alone** — this file is missing an answer,
@@ -42,14 +45,28 @@ none.
 
 ## What records a note
 
-**Nothing records a note here.** There is no notes directory and no changelog section this workflow writes
-to.
+**A note file per change, collected by changesets** (`@changesets/cli` 3.x, set up by `release-init`
+0.23.0 on 2026-10-01; configuration in `.changeset/config.json`).
 
-**This is a gap in a repository that publishes.** `publish.yml` (below) publishes `@dynjandi/sdk` to npm and
-the OpenAPI spec has a stable URL, so *nothing announces a change* above records that no answer has been
-set yet — not that this project has nothing to announce. Once a `package.json`
-exists, `npx @baldurpan/create-ai-workflow release-init` sets up a note mechanism (it writes nothing into
-this file); re-run `/onboard` afterwards to write the per-path answer here.
+- **Where and what:** one file per note in `.changeset/`, named at random so two branches never collide.
+  YAML front matter names the package and its level, then one or two sentences for whoever reads the
+  release — `.changeset/README.md` shows the format. An agent writes the file by hand; `changeset:add` is
+  the interactive way to make one.
+- **Scripts:** `changeset:add` writes a note, `changeset:status` reports whether changed packages carry one
+  (against `origin/main`), and `changeset:prepare-release` consumes the notes — the Bump wire below.
+- **Settings:** private packages are neither versioned nor tagged (`privatePackages: { version: false, tag:
+  false }`). That is right here: the one private package, `packages/spec`, is not deployed and its version
+  is not a `package.json` field (table above). **No dependent can be dragged into a release**: the SDK
+  depends on no workspace package. `access: "restricted"` only governs `changeset publish`, which nothing
+  here runs — `publish.yml` publishes with `npm publish --access public`.
+- **The changelog is generated** into `packages/sdk/CHANGELOG.md` by `changeset:prepare-release`. It is an
+  output, not a documentation surface, so `stack.md` does not index it.
+
+**Nothing asks for a note on a change — a gap.** No CI job runs `changeset:status`, and no pull request is
+asked whether it carries one. If a check is added, it must **exempt a commit where `packages/sdk`'s
+`version` moved** — the commit where the notes were consumed has none pending and owes nothing, and that is
+the same condition `publish.yml` keys on. **Never silence such a check with an empty note** on a release
+commit.
 
 ## At what granularity
 
@@ -72,24 +89,39 @@ release. `/feature-close` shows the notes a feature carries and confirms their l
 
 ## What a release ships, and on what event
 
-**One event ships anything: a push to `main` that changes `packages/sdk/package.json`'s `version` to one npm
-does not hold.** What fires on it is [`publish.yml`](../.github/workflows/publish.yml), not this workflow's
+**One event ships anything: the merge to `main` of the pull request where `changeset:prepare-release` ran,
+moving `packages/sdk/package.json`'s `version` to one npm does not hold.** What fires on it is [`publish.yml`](../.github/workflows/publish.yml), not this workflow's
 skills, which still bump nothing, tag nothing and publish nothing. A merge that does not move the version
 ships nothing, and landing a change is still not shipping it.
 
 As of 2026-10-01, one line each:
 
-- **Bumps a version** — a person, by editing `version` in `packages/sdk/package.json` (plain `x.y.z`; the
-  workflow refuses anything else) in the change that should ship. Nothing bumps it automatically.
+- **Bumps a version** — `changeset:prepare-release`, run by a person on the feature branch (`/feature-close
+  --release` runs it): it consumes the pending notes into `packages/sdk/CHANGELOG.md` and moves `version`.
+  It cannot be run twice over the same notes. Nothing in CI runs it. **Written, never run** — its first run
+  cuts `0.1.0` (see *The first publish*).
 - **Tags** — `publish.yml`, after a successful publish: `sdk-v<version>` on the commit the run is for. The
-  name has no `/` so it is safe inside a `raw.githubusercontent.com` URL. The repository has no tags until
-  the first run that publishes.
+  name has no `/` so it is safe inside a `raw.githubusercontent.com` URL. **Written, never run**: the
+  repository has no tags until the first run that publishes.
 - **Cuts a GitHub release** — `publish.yml`, in the same job as the tag. It is idempotent: a tag or release
-  that already exists for the version is a notice, not a failure.
+  that already exists for the version is a notice, not a failure. **Written, never run.** **Gap:** its text
+  is fixed (an npm link and the spec URL); it does not carry the version's `CHANGELOG.md` entry, so the
+  note never reaches the page written for its reader.
 - **Publishes** — `publish.yml`, on a push to `main` when the version is not on npm, after the live smoke
-  test passes. `@dynjandi/sdk` goes to npm; **the spec is not published by anything**: its stable URL is the
+  test passes. **Written, never run** — nothing has been pushed yet. `@dynjandi/sdk` goes to npm; **the spec is not published by anything**: its stable URL is the
   raw GitHub one on `main`, and a release makes `sdk-v<version>` addressable as a snapshot of it (below).
-- **Deploys** — nothing. Nothing is deployed from this repository.
+- **Deploys** — nothing. Nothing is deployed from this repository. **But the spec's stable URL serves
+  `main`**, so a change to `openapi.yaml` is live at that URL on every merge, released or not; only the
+  `sdk-v<version>` snapshot waits for a release. Acceptable while the spec describes the live service,
+  which ships from another repository — and written down so nobody reads the stable URL as released.
+
+**A feature's merge lands a note and ships nothing.** It ships only when it is the merge where
+`changeset:prepare-release` moved the version.
+
+| Path | On the release merge | Leaves behind |
+|---|---|---|
+| `packages/sdk` | published to npm by `publish.yml` (written, never run) | `sdk-v<version>` tag + GitHub release, by `publish.yml` (written, never run) |
+| `packages/spec` | nothing — it is already live on `main`; the release's tag makes a snapshot of it addressable | the SDK's tag |
 
 ### How the SDK is published
 
@@ -107,7 +139,10 @@ As of 2026-10-01, one line each:
 ### The first publish is by hand, and the trusted publisher names `publish.yml`
 
 A trusted publisher can only be configured on npmjs.com **for a package that already exists**, so CI cannot
-publish `0.1.0`. **The first publish of `@dynjandi/sdk` is a person's, and it is permanent**: a published
+publish `0.1.0`. **`0.1.0` is cut by changesets first**: `packages/sdk` stays `0.0.0` on the feature branch
+until its first note is consumed by `changeset:prepare-release`, which moves it to `0.1.0` and writes the
+first `CHANGELOG.md` entry. That runs on the branch before `/feature-close`, because npm needs the first
+publish before the merge — the one release cut ahead of the feature's close. Publish only after it. **The first publish of `@dynjandi/sdk` is a person's, and it is permanent**: a published
 version can be neither changed nor reused. Do it before the change that adds `publish.yml` merges to `main`,
 from the commit that will merge. If the merge comes first, the run finds `0.1.0` absent, runs the smoke
 test and then fails at `npm publish`, because no publisher is configured yet (nothing is published, and the
@@ -143,10 +178,12 @@ The Actions secret `DYNJANDI_SMOKE_PUBLIC_KEY` must exist for the smoke test to 
 
 ### How a release is cut
 
-1. In the change that should ship, bump `version` in `packages/sdk/package.json` (plain `x.y.z`).
-2. Merge it to `main`. `publish.yml` finds the version absent from npm, runs the smoke test, builds, publishes
+1. Every change that deserves a note (table above) carries one in `.changeset/`.
+2. On the feature branch, `pnpm changeset:prepare-release` (or `/feature-close --release`): it consumes the
+   notes, writes `packages/sdk/CHANGELOG.md` and moves `version`. Commit that separately from the work.
+3. Merge it to `main`. `publish.yml` finds the version absent from npm, runs the smoke test, builds, publishes
    with provenance, then tags `sdk-v<version>` and cuts the GitHub release.
-3. The spec at that version is
+4. The spec at that version is
    `https://raw.githubusercontent.com/dynjandi-dev/dynjandi/sdk-v<version>/packages/spec/openapi.yaml`.
 
 **A published version is permanent.** The gate means a version is never published twice, and never
