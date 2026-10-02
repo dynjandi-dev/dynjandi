@@ -1,0 +1,46 @@
+# AGENTS.md
+
+The agent-neutral entry point for this repository.
+
+<!-- ai-workflow:start -->
+## Planning workflow
+
+Planning artifacts live in [`context/`](context/README.md). Read
+[`context/workflow.md`](context/workflow.md) before using any command below — it holds the tier model and
+the standing rules, and every command cites it rather than restating it.
+
+| Command | Does |
+|---|---|
+| `/roadmap` | prints the Tier-1 backlog, or appends one `pending` entry to it |
+| `/feature-plan` | turns a backlog entry into `context/plans/<NAME>-PLAN.md` and **stops** — it never implements |
+| `/feature-implement` | activates a planned feature and runs its phases, through both gates |
+| `/feature-status` | read-only "where do things stand". **Never a prerequisite** for anything |
+| `/feature-close` | retires a finished or abandoned feature into `context/archive/` |
+| `/orchestrate` | one ad-hoc, gated, commit-sized change — no roadmap entry, no ledger |
+| `/prototype` | a throwaway HTML/CSS mockup under `prototypes/` — no gates, no ledger, no application code |
+| `/onboard` | fills in this project's own stubs — `verify.md`, `executors.md`, `git.md`, `tracking.md`, `release.md`, `stack.md` — adopting what an existing `AGENTS.md` already said |
+| `/tracking-migrate` | moves existing entries, drafts and plans onto the substrate `tracking.md` names — after `/onboard` sets it, never instead |
+
+| Read | For |
+|---|---|
+| [`context/stack.md`](context/stack.md) | runtime, layout, conventions, and where this project documents itself |
+| [`context/standards/README.md`](context/standards/README.md) | engineering standards — load per its conditional table |
+| [`context/verify.md`](context/verify.md) | the real lint / typecheck / build / test commands — the only file that names one |
+| [`context/git.md`](context/git.md) | who commits, where work lands, whether it is pushed, and at what granularity — read it before any `git` or `gh` command; absent, the user commits |
+| [`context/tracking.md`](context/tracking.md) | where the backlog, the plans and the phase ledgers live — a file in `context/`, or the issue tracker |
+
+**Phase status lives in the active plan's status ledger and nowhere else.** Work the lowest-numbered phase
+that is not `done` and whose `Depends on` are all `done`; state which you picked before starting; update
+the row as part of the same change as the work. **If the ledger disagrees with the repo, stop and say so.**
+
+**Never stage, commit, branch, create a worktree, push or open a pull request on your own initiative.** Do
+it where [`context/git.md`](context/git.md) says so, or where the user asked in this session — nowhere else.
+
+**A phase is `done` only when its scope landed and both gates passed** — never on a self-report.
+
+**Documentation is part of the change.** Whatever a change makes untrue in this project's own docs is fixed
+by the phase that makes it untrue, not by a follow-up.
+
+**Require evidence, not assertion.** A claim about what a file contains needs the file read, not recalled —
+yours as much as a subagent's.
+<!-- ai-workflow:end -->

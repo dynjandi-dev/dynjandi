@@ -1,0 +1,31 @@
+{
+  "name": "dynjandi-sdk-ecosystem",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The public OpenAPI spec and TypeScript SDK for Dynjandi, an image CDN.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "lint": "biome check --formatter-enabled=false . && pnpm --filter @dynjandi/spec run lint",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "typecheck": "pnpm -r run typecheck",
+    "build": "pnpm --filter @dynjandi/sdk run build",
+    "check:package": "pnpm --filter @dynjandi/sdk run check:package",
+    "test": "pnpm -r run test",
+    "check:generated": "pnpm --filter @dynjandi/sdk run check:generated",
+    "changeset:add": "changeset",
+    "changeset:prepare-release": "changeset version",
+    "changeset:status": "changeset status --since=origin/main"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@changesets/cli": "^3.0.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  }
+}

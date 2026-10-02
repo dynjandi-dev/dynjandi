@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Secrets: never tracked (context/standards/security/secrets.md)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+.DS_Store
+
+# Copied from the root by the SDK's prepack so the tarball carries the licence
+packages/sdk/LICENSE

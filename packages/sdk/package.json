@@ -1,0 +1,50 @@
+{
+  "name": "@dynjandi/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for Dynjandi, an image CDN.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dynjandi-dev/dynjandi.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/dynjandi-dev/dynjandi/tree/main/packages/sdk#readme",
+  "bugs": {
+    "url": "https://github.com/dynjandi-dev/dynjandi/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "generate": "openapi-typescript ../spec/openapi.yaml -o src/generated/api.d.ts",
+    "check:generated": "tmp=$(mktemp) && trap 'rm -f \"$tmp\"' EXIT && openapi-typescript ../spec/openapi.yaml -o \"$tmp\" > /dev/null && diff -u src/generated/api.d.ts \"$tmp\" || { echo 'src/generated/api.d.ts is out of date: run pnpm --filter @dynjandi/sdk run generate'; exit 1; }",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && mkdir -p dist/generated && cp src/generated/api.d.ts dist/generated/api.d.ts",
+    "check:package": "node scripts/check-package.mjs",
+    "prepack": "pnpm run build && cp ../../LICENSE LICENSE",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --exclude \"tests/live/**\"",
+    "test:live": "vitest run tests/live"
+  },
+  "dependencies": {
+    "@dynjandi/transform-grammar": "^0.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "openapi-typescript": "7.13.0"
+  }
+}
