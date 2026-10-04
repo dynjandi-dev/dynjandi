@@ -6,7 +6,7 @@ description of its upload API and a TypeScript SDK, `@dynjandi/sdk`.
 **Status: early.** `@dynjandi/sdk` is published to npm (`npm i @dynjandi/sdk`).
 The OpenAPI spec for uploads is written
 ([`packages/spec`](packages/spec/README.md)). The SDK can upload files (server-side) and build image
-variant URLs.
+variant URLs, including responsive `srcset`, `<picture>` source and placeholder helpers.
 
 ## What is in here
 

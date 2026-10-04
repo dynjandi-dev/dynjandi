@@ -25,3 +25,12 @@ Branch-local review observations. Read by nothing; deleted whole by `/feature-cl
 - `failureOf`'s message "Expected srcset() to throw" now also covers `pictureSources`.
 - `PictureSource.type` is `string`; could be `` `image/${OutputFormat}` ``.
 - Timing: `url()` ~0.73–0.80 µs/call; `pictureSources` with defaults ~9.0–9.2 µs/call (10 `url()` calls).
+
+## Phase 3
+
+- `responsive.test.ts:277` casts `{ height: 24 } as Parameters<...>[1]`; a widened variable (as the srcset
+  height test does) would avoid the assertion. Test-only.
+- Bundle: 94,306 → 94,762 B gzipped (+456) and SDK-own code ~1.5 KB → 2,110 B; the old baseline predates
+  phases 1–2, so the delta covers phases 1–3.
+- `packages/sdk/README.md:146` wraps at ~131 chars against ~110 around it. Cosmetic.
+- `"height" in options` refuses `{ height: undefined }` too, same as `srcset`.

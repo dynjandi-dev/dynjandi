@@ -130,3 +130,41 @@ export function pictureSources(
     ...(sizes === undefined ? {} : { sizes }),
   }));
 }
+
+/** The `placeholder` defaults. A tiny, low-quality image: it is one more variant per image. */
+const PLACEHOLDER_WIDTH = 24;
+const PLACEHOLDER_QUALITY = 20;
+const PLACEHOLDER_FORMAT: OutputFormat = "webp";
+
+/**
+ * `url()`'s options without `height`, so the placeholder keeps the final image's aspect ratio: pass the
+ * same `crop` as the image it stands in for. `width`, `format` and `quality` default as `placeholder` says.
+ */
+export interface PlaceholderOptions extends Omit<UrlOptions, "height"> {}
+
+/**
+ * The URL of a small, low-quality stand-in for the image: `width` 24, `quality` 20, `format` `webp`,
+ * each unless the caller passes its own, with the caller's `crop` kept. It is a small resize, not a blur.
+ * It is one more variant per image, counted against the plan cap like any other.
+ *
+ * Throws `DynjandiError` (status 0) for a `height` and for a value `url()` refuses.
+ */
+export function placeholder(
+  origin: string,
+  fileId: FileId,
+  options: PlaceholderOptions = {},
+): string {
+  if ("height" in options) {
+    throw new DynjandiError(
+      "Cannot build a placeholder: height cannot be set; pass crop for a fixed aspect ratio.",
+      0,
+    );
+  }
+  const {
+    width = PLACEHOLDER_WIDTH,
+    quality = PLACEHOLDER_QUALITY,
+    format = PLACEHOLDER_FORMAT,
+    ...rest
+  } = options;
+  return url(origin, fileId, { ...rest, width, quality, format });
+}

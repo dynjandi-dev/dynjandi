@@ -242,3 +242,55 @@ describe("client.pictureSources refusals", () => {
     expect(failureOf(() => client.pictureSources(ID, { widths: [0] })).message).toContain("width");
   });
 });
+
+describe("client.placeholder", () => {
+  test("defaults to a 24 pixel wide, quality 20 webp, in url()'s order", () => {
+    expect(client.placeholder(ID)).toBe(`${CDN}/${ID}/-/resize/24x/-/format/webp/-/quality/20/`);
+  });
+
+  test("uses the client's origin", () => {
+    const other = createClient({ publicKey: PUBLIC_KEY, origin: "https://img.example.com" });
+    expect(other.placeholder(ID)).toBe(
+      `https://img.example.com/${ID}/-/resize/24x/-/format/webp/-/quality/20/`,
+    );
+  });
+
+  test("each default can be overridden on its own", () => {
+    expect(client.placeholder(ID, { width: 32 })).toBe(
+      `${CDN}/${ID}/-/resize/32x/-/format/webp/-/quality/20/`,
+    );
+    expect(client.placeholder(ID, { quality: 40 })).toBe(
+      `${CDN}/${ID}/-/resize/24x/-/format/webp/-/quality/40/`,
+    );
+    expect(client.placeholder(ID, { format: "jpeg" })).toBe(
+      `${CDN}/${ID}/-/resize/24x/-/format/jpeg/-/quality/20/`,
+    );
+  });
+
+  test("keeps the crop, before the resize, so the aspect ratio is the image's", () => {
+    expect(client.placeholder(ID, { crop: { width: 1600, height: 900 } })).toBe(
+      `${CDN}/${ID}/-/crop/1600x900/center/-/resize/24x/-/format/webp/-/quality/20/`,
+    );
+  });
+
+  test("refuses a height, naming it", () => {
+    const options = { height: 24 } as Parameters<typeof client.placeholder>[1];
+    const error = failureOf(() => client.placeholder(ID, options));
+    expect(error.status).toBe(0);
+    expect(error.message).toContain("height");
+  });
+
+  test("passes url()'s refusals through", () => {
+    expect(failureOf(() => client.placeholder(ID, { width: 0 })).status).toBe(0);
+  });
+
+  test("makes no request", () => {
+    const fetchMock = fakeFetch(() => new Response(null, { status: 200 }));
+    const offline = createClient({ publicKey: PUBLIC_KEY, fetch: fetchMock });
+    const globalFetch = vi.spyOn(globalThis, "fetch");
+    offline.placeholder(ID);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(globalFetch).not.toHaveBeenCalled();
+    globalFetch.mockRestore();
+  });
+});

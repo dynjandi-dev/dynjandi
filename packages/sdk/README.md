@@ -129,7 +129,24 @@ your project's plan cap. Variants per image = widths x formats:
 | the same, plus the `jpeg` fallback `<img>` | 5 x 3 = 15 |
 | `pictureSources(id, { widths: [640, 1280] })` plus a fallback with the same `widths` | 2 x 3 = 6 |
 
-A smaller `widths` or `formats` is how you spend less.
+A smaller `widths` or `formats` is how you spend less. `placeholder()` adds one more variant per image to
+any of these.
+
+### `placeholder(fileId, options?)`
+
+Builds the URL of a small, low-quality stand-in for the image: `width` 24, `quality` 20 and `format`
+`webp`, each unless you pass your own. Show it while the real image loads. Like `url()`, it is synchronous,
+makes no request, and is safe in browsers.
+
+```ts
+client.placeholder(id); // .../-/resize/24x/-/format/webp/-/quality/20/
+client.placeholder(id, { width: 32, crop: { width: 1600, height: 900 } });
+```
+
+This is a small, low-quality image, not a blur: the grammar has no blur operation. Pass the same `crop` as the image it stands in for,
+so it has the same aspect ratio. `options` is `url()`'s without `height`, which is refused with a
+`DynjandiError` (status `0`). It is one more variant per image, and counts against your project's plan cap
+like any other (the table above does not include it).
 
 **Upscaling.** The SDK does not know the original's width (the upload response carries no dimensions), and
 this SDK has not observed whether the service upscales a resize beyond it. Trim `widths` to no wider than
@@ -159,14 +176,14 @@ part of a message.
 ## Bundle size
 
 The browser bundle of `src/index.ts`, with `@dynjandi/transform-grammar` and its `zod` included, was
-**94,306 bytes gzipped** (458,625 bytes minified) on 2026-10-01, with `@dynjandi/transform-grammar` 0.1.1.
+**94,762 bytes gzipped** (460,058 bytes minified) on 2026-10-04, with `@dynjandi/transform-grammar` 0.1.1.
 Measured from this directory:
 
 ```bash
 pnpm dlx esbuild@0.28.2 --bundle --minify --platform=browser --format=esm src/index.ts | gzip -9 -c | wc -c
 ```
 
-Almost all of it is the grammar package's dependency: the SDK's own code is about 1.5 KB gzipped
+Almost all of it is the grammar package's dependency: the SDK's own code is about 2.1 KB gzipped
 (add `--external:@dynjandi/transform-grammar` to the command to see it), the grammar package's own code
 about 2 KB minified, and `zod` about 453 KB minified. This is a baseline to compare later changes
 against, not a budget.

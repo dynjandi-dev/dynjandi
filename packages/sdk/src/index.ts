@@ -6,6 +6,7 @@ export {
   type PictureFormat,
   type PictureSource,
   type PictureSourcesOptions,
+  type PlaceholderOptions,
   type SrcsetOptions,
 } from "./responsive.js";
 export type { UploadOptions, UploadResult } from "./upload.js";

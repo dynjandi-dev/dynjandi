@@ -2,7 +2,9 @@ import { DynjandiError } from "./errors.js";
 import {
   type PictureSource,
   type PictureSourcesOptions,
+  type PlaceholderOptions,
   pictureSources,
+  placeholder,
   type SrcsetOptions,
   srcset,
 } from "./responsive.js";
@@ -41,6 +43,12 @@ export interface Client {
    * Throws `DynjandiError` (status 0) for options it refuses. See `PictureSourcesOptions`.
    */
   pictureSources(fileId: string, options?: PictureSourcesOptions): PictureSource[];
+  /**
+   * The URL of a small, low-quality stand-in: width 24, quality 20, webp unless overridden, with your
+   * `crop` kept. Not a blur. One more variant per image. Synchronous, and safe in browsers.
+   * Throws `DynjandiError` (status 0) for a `height` or options `url()` refuses. See `PlaceholderOptions`.
+   */
+  placeholder(fileId: string, options?: PlaceholderOptions): string;
 }
 
 export function createClient(options: ClientOptions): Client {
@@ -67,5 +75,7 @@ export function createClient(options: ClientOptions): Client {
     srcset: (fileId, srcsetOptions) => srcset(config.origin, fileId, srcsetOptions),
     pictureSources: (fileId, pictureOptions) =>
       pictureSources(config.origin, fileId, pictureOptions),
+    placeholder: (fileId, placeholderOptions) =>
+      placeholder(config.origin, fileId, placeholderOptions),
   };
 }
