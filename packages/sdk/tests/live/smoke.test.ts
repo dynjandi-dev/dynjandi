@@ -42,7 +42,7 @@ async function fetchVariant(url: string): Promise<Response> {
 }
 
 // Each new variant counts against the test project's cap, so the responsive checks below create exactly
-// three (a 320w png, a 320w avif and the placeholder) on top of the 16w webp above. Keep it at three.
+// three (a 320w png, a 320w avif and the placeholder) on top of the first test's two. Keep it at three.
 const CANDIDATE_WIDTH = 320;
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
@@ -72,7 +72,9 @@ describe("live service", () => {
   const client = createClient({ publicKey: requirePublicKey() });
   let fileId: string;
 
-  test("uploads an image and serves a variant of it", { timeout: 30_000 }, async () => {
+  test("uploads an image, reads its record back and serves variants of it", {
+    timeout: 30_000,
+  }, async () => {
     const png = Uint8Array.from(atob(PNG_1X1_BASE64), (char) => char.charCodeAt(0));
 
     const uploaded = await client.upload(new File([png], "smoke.png", { type: "image/png" }), {
@@ -90,6 +92,23 @@ describe("live service", () => {
 
     expect(response.status, `GET ${variantUrl}`).toBe(200);
     expect(response.headers.get("content-type") ?? "").toMatch(/^image\//);
+
+    // The record read back carries the point the upload stored.
+    const record = await client.getFile(uploaded.id);
+
+    expect(record.id).toBe(uploaded.id);
+    expect(record.focalX).toBe(0.5);
+    expect(record.focalY).toBe(0.5);
+
+    // A crop that names neither `focal` nor `position` uses the record's stored point.
+    const focalUrl = client.url(record, { crop: { width: 16, height: 16 } });
+
+    expect(focalUrl).toMatch(/focal\/0\.5x0\.5\/$/);
+
+    const focalResponse = await fetchVariant(focalUrl);
+
+    expect(focalResponse.status, `GET ${focalUrl}`).toBe(200);
+    expect(focalResponse.headers.get("content-type") ?? "").toMatch(/^image\//);
   });
 
   // The tests below reuse the file the first test uploaded, so they run after it, in order.

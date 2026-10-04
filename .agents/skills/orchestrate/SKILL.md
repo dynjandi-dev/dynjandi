@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: "Run one ad-hoc, commit-sized change through the same verification and review gates the feature loop uses, without a roadmap entry or a phase ledger. Explicit invocation only — run this when the user types /orchestrate. Do NOT match on 'build X', 'implement X', 'orchestrate the work', or any request that belongs to a planned feature."
+description: "Run one ad-hoc, commit-sized change through the same verification and review gates the feature loop uses, without a roadmap entry or a phase ledger — or, with --pr, end that run at a pull request instead of in the working tree. Explicit invocation only — run this when the user types /orchestrate. Do NOT match on 'build X', 'implement X', 'orchestrate the work', or any request that belongs to a planned feature."
 ---
 
 # /orchestrate
@@ -20,6 +20,8 @@ Read [`context/workflow.md`](../../../context/workflow.md) for the gate contract
 ```
 /orchestrate "<what to do>"
 /orchestrate #<issue>              # the issue is the brief
+/orchestrate --pr "<what to do>"   # end at a pull request, not in the working tree (step 7)
+/orchestrate --pr #<issue>
 ```
 
 **The second form is how a bug reaches this loop.** A defect too small to plan has no backlog entry and
@@ -133,17 +135,20 @@ in the report and dies with the session.**
 
 ## 6. Land it — read [`context/git.md`](../../../context/git.md)
 
-**Do not commit unless that file says the agent does.** If it does not exist, the answer is *the user
-commits*: say so once, and name `/onboard`.
+**Do not commit unless that file says the agent does, or `--pr` was typed** — that flag is the same file's
+other source of permission and step 7 is where it is spent. If the file does not exist, the answer is *the
+user commits*: say so once, and name `/onboard`.
 
-**Nothing here branches, worktrees or pushes**, whatever *Where work lands* and *Push and pull request*
-say. Both of those answers are about a feature — one branch or tree per entry, one push at
+**Without `--pr`, nothing here branches, worktrees or pushes**, whatever *Where work lands* and *Push and
+pull request* say. Both of those answers are about a feature — one branch or tree per entry, one push at
 `/feature-close` — and an ad-hoc change has no entry and no feature to close. It lands on whatever branch
 is already checked out. **A worktree answer is not permission to move an ad-hoc change into a tree of its
-own**; that is the commonest way this rule gets read backwards.
+own**; that is the commonest way this rule gets read backwards, and **the flag does not change it** — step 7
+pushes a branch and creates no tree.
 
 - **The user commits** → leave the change **unstaged** in the working tree and hand it over. Staging it is
-  not a head start; it is half a commit.
+  not a head start; it is half a commit. **Under `--pr`, go to step 7 instead**: a pull request with nothing
+  committed to it is not a smaller version of this flag, it is nothing.
 - **The agent commits** → one commit, at the granularity that file names.
 
 **Run from `#<issue>`, the commit is what closes it.** Put `Closes #<issue>` in the commit message, the
@@ -153,12 +158,73 @@ user commits, say the line rather than writing it**: it is their commit, and a c
 on their behalf. Never close the issue by hand as a separate act — a closed issue whose fix is sitting
 unstaged in somebody's tree is worse than an open one.
 
-## 7. Report
+## 7. `--pr` — the change leaves the machine
+
+Without the flag this invocation is over at step 6, and the change is committed or waiting on whatever
+branch you were already on. With it, the run ends at a **pull request**: one commit, the branch pushed, and
+the work opened for a person to read.
+
+**The flag is the permission, not a new `git.md` answer.** That file names two sources and only two — an
+answer covering this command at this point, *or* the user asking in this session in plain words — and a
+typed flag is the second one. So the flag does not need *Who commits* to say the agent does, and it does
+not read *Push and pull request*: both of those answers are about a feature, and this command has none.
+What it authorises is **this invocation**. Nothing it does becomes policy for the next one, and nothing
+here is written into `git.md`.
+
+It buys exactly three things, in this order: **the commit, a push of the branch you are on, and the pull
+request.** Anything past that is refused below, under *What the flag is not*.
+
+**The body is this run's report** — step 8's content, which is the only description of the change that
+exists. Run from `#<issue>`, step 6 already put `Closes #<issue>` in the commit, so the body does not repeat
+it: the trailer closes the issue on merge whichever text the forge reads.
+
+### It cannot invent a branch
+
+- **HEAD is not the default branch** → commit, push that branch, open the pull request. Nothing was created,
+  which is why this is the case the flag is built for.
+- **HEAD is the default branch** → **stop before the commit**, unless *Branch and worktree* in
+  [`context/executors.md`](../../../context/executors.md) names a command — then run that one. Pushing to
+  the default branch is asked for by name each time under every `git.md` answer, and an empty *Branch and
+  worktree* means the workflow makes no branch, not that it should improvise `git checkout -b`. Say which
+  of the two stopped you, leave the change in the tree, and let the user make a branch and run it again.
+- **That command makes a worktree rather than a branch** → stop and say so. Step 6 refuses to move an
+  ad-hoc change into a tree of its own, and a flag on this command is not the user lifting that.
+
+### Stop, and hand back
+
+The flag is permission to finish, not an instruction to land. **Stop, report, and name the line that
+stopped you**, when:
+
+- **step 1 refuses the scope.** A flag is not a reason to admit work that is not commit-sized, that a
+  roadmap entry already covers, or that arrived carrying the backlog label.
+- **Gate 1 does not come back clean, or Gate 2's verdict is `FAIL` on its last allowed loop.** Nothing is
+  committed and nothing is pushed: a pull request is where finished work goes to be read by a person, not
+  where unfinished work goes to be verified. Step 5's handback is unchanged — the change stays in the tree.
+- **the push will not fast-forward**, or the repository has no remote to push to.
+
+**Step 2's release-note ask still happens.** The level is a judgment and `release.md` has it confirmed
+before the note is written; this flag names where the run ends, not that nobody is reading. A run that
+waits there is working as intended.
+
+### What the flag is not
+
+**Nothing merges it.** Not on green CI, not on an approving review, not after any wait. `git.md` reserves
+review and merge in one line — *review and merge are yours* — and a pull request nobody reads is the one
+thing this flag must not produce, since then the push bought nothing the working tree did not already have.
+It also does not delete a branch, enable the forge's own auto-merge, or stay alive watching a check run.
+
+**It lifts no refusal and widens nothing.** It does not skip a gate, raise a loopback cap, admit a scope
+step 1 refused, or turn an ad-hoc change into a feature. A stop list worked around once is not a stop list.
+
+## 8. Report
 
 What changed, whether it is committed or waiting in the tree, the Gate 1 output, the Gate 2 verdict, any
 loopbacks, any non-blocking observations the review raised — which die here — any bug filed for work that
 outlived the change, whether the commit closes the issue it ran from, and any release note written, with
 the paths that were checked and owed nothing.
+
+**Under `--pr`**, also the branch that was pushed and the pull request that was opened — or the line in
+step 7 that stopped short of one — and that nothing merged it.
 
 ## Rules
 
@@ -168,3 +234,4 @@ the paths that were checked and owed nothing.
 - **The release note is not deferred to a later command.** There is no `/feature-close` behind this one to
   write it, which is exactly why the change is the unit.
 - **Never skip Gate 1 to save time.** The gates are the entire reason this command exists.
+- **Nothing merges, and nothing waits for CI.** `--pr` ends at a pull request a person has not read yet.

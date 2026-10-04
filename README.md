@@ -1,18 +1,20 @@
 # Dynjandi SDK ecosystem
 
 The public integration surface for [Dynjandi](https://cdn.dynjandi.dev), an image CDN: an OpenAPI
-description of its upload API and a TypeScript SDK, `@dynjandi/sdk`.
+description of its public-key API (upload, and reading a stored file) and a TypeScript SDK,
+`@dynjandi/sdk`.
 
 **Status: early.** `@dynjandi/sdk` is published to npm (`npm i @dynjandi/sdk`).
-The OpenAPI spec for uploads is written
-([`packages/spec`](packages/spec/README.md)). The SDK can upload files (server-side) and build image
-variant URLs, including responsive `srcset`, `<picture>` source and placeholder helpers.
+The OpenAPI spec for that API is written
+([`packages/spec`](packages/spec/README.md)). The SDK can upload files and read a stored
+file back (both server-side), and build image variant URLs, including responsive `srcset`, `<picture>`
+source and placeholder helpers.
 
 ## What is in here
 
 | Path | What |
 |---|---|
-| [`packages/spec`](packages/spec/README.md) | The OpenAPI spec for the upload API (not published to npm; served from this repository) |
+| [`packages/spec`](packages/spec/README.md) | The OpenAPI spec for the API (not published to npm; served from this repository) |
 | [`packages/sdk`](packages/sdk/README.md) | `@dynjandi/sdk`, a TypeScript client built on `fetch`, `FormData` and `Blob` |
 
 ## Using it

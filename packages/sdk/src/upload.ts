@@ -1,5 +1,5 @@
-import { DynjandiError } from "./errors.js";
 import type { components } from "./generated/api.js";
+import { createFail, errorMessageFrom, readJson } from "./http.js";
 
 type UploadRequest = components["schemas"]["UploadRequest"];
 type UploadResponse = components["schemas"]["UploadResponse"];
@@ -48,18 +48,6 @@ function isUploadResponse(body: unknown): body is UploadResponse {
   );
 }
 
-function errorMessageFrom(body: unknown): string | undefined {
-  if (
-    typeof body === "object" &&
-    body !== null &&
-    "error" in body &&
-    typeof body.error === "string"
-  ) {
-    return body.error;
-  }
-  return undefined;
-}
-
 /** The absolute URL of `path` on `origin`, or `undefined` if it does not parse or leaves the origin. */
 function resolveOnOrigin(path: string, origin: string): string | undefined {
   try {
@@ -67,14 +55,6 @@ function resolveOnOrigin(path: string, origin: string): string | undefined {
     return resolved.origin === origin ? resolved.href : undefined;
   } catch {
     return undefined;
-  }
-}
-
-async function readJson(response: Response): Promise<{ body: unknown } | { failure: unknown }> {
-  try {
-    return { body: await response.json() };
-  } catch (failure) {
-    return { failure };
   }
 }
 
@@ -92,11 +72,7 @@ export async function upload(
   file: Blob,
   options: UploadOptions = {},
 ): Promise<UploadResult> {
-  // The key is sent in a header only, and scrubbed from every message so it cannot leak into logs.
-  const fail = (message: string, status: number, cause?: unknown): DynjandiError =>
-    new DynjandiError(message.replaceAll(config.publicKey, "[redacted]"), status, {
-      cause,
-    });
+  const fail = createFail(config.publicKey);
 
   const form = new FormData();
   form.append("file", file);

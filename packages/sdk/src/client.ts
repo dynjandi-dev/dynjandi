@@ -1,4 +1,5 @@
 import { DynjandiError } from "./errors.js";
+import { type FileRecord, getFile } from "./files.js";
 import {
   type PictureSource,
   type PictureSourcesOptions,
@@ -9,7 +10,7 @@ import {
   srcset,
 } from "./responsive.js";
 import { type UploadOptions, type UploadResult, upload } from "./upload.js";
-import { type UrlOptions, url } from "./url.js";
+import { type StoredFile, type UrlOptions, url } from "./url.js";
 
 export const DEFAULT_ORIGIN = "https://cdn.dynjandi.dev";
 
@@ -26,29 +27,36 @@ export interface Client {
   /** Uploads a file. Server-side only: the CDN sends no CORS headers. See `upload`. */
   upload(file: Blob, options?: UploadOptions): Promise<UploadResult>;
   /**
-   * The URL of a variant of `fileId` on the client's origin. Synchronous, and safe in browsers.
-   * Throws `DynjandiError` (status 0) for options the grammar refuses. See `UrlOptions`.
+   * Reads the stored record of a file. Server-side only: the CDN sends no CORS headers. The response is
+   * `no-store` and not cached by the SDK, so keep the record. See `getFile`.
    */
-  url(fileId: string, options: UrlOptions): string;
+  getFile(fileId: string): Promise<FileRecord>;
   /**
-   * An `srcset` attribute value for `fileId`: one candidate per width. Synchronous, and safe in
-   * browsers. Each width is a separate variant that counts against the plan cap; see `DEFAULT_WIDTHS`.
+   * The URL of a variant of a file on the client's origin. Takes a file id, or a stored file (a
+   * `getFile` or `upload` result) whose focal point a crop then uses. Synchronous, makes no request,
+   * and is safe in browsers. Throws `DynjandiError` (status 0) for options the grammar refuses. See
+   * `UrlOptions`.
+   */
+  url(file: string | StoredFile, options: UrlOptions): string;
+  /**
+   * An `srcset` attribute value for a file id or stored file, as `url` takes: one candidate per width.
+   * Synchronous, and safe in browsers. Each width is a separate variant that counts against the plan cap; see `DEFAULT_WIDTHS`.
    * Throws `DynjandiError` (status 0) for options it refuses. See `SrcsetOptions`.
    */
-  srcset(fileId: string, options?: SrcsetOptions): string;
+  srcset(file: string | StoredFile, options?: SrcsetOptions): string;
   /**
    * The attributes of one `<source>` per format (default `DEFAULT_FORMATS`), best first, each with an
    * `srcset` over the same widths. Render the jpeg fallback as the `<img>` with `srcset(id, { format: "jpeg" })`.
    * Synchronous, and safe in browsers. Variants per image = widths x formats; see `DEFAULT_WIDTHS`.
    * Throws `DynjandiError` (status 0) for options it refuses. See `PictureSourcesOptions`.
    */
-  pictureSources(fileId: string, options?: PictureSourcesOptions): PictureSource[];
+  pictureSources(file: string | StoredFile, options?: PictureSourcesOptions): PictureSource[];
   /**
    * The URL of a small, low-quality stand-in: width 24, quality 20, webp unless overridden, with your
    * `crop` kept. Not a blur. One more variant per image. Synchronous, and safe in browsers.
    * Throws `DynjandiError` (status 0) for a `height` or options `url()` refuses. See `PlaceholderOptions`.
    */
-  placeholder(fileId: string, options?: PlaceholderOptions): string;
+  placeholder(file: string | StoredFile, options?: PlaceholderOptions): string;
 }
 
 export function createClient(options: ClientOptions): Client {
@@ -71,11 +79,10 @@ export function createClient(options: ClientOptions): Client {
 
   return {
     upload: (file, uploadOptions) => upload(config, file, uploadOptions),
-    url: (fileId, urlOptions) => url(config.origin, fileId, urlOptions),
-    srcset: (fileId, srcsetOptions) => srcset(config.origin, fileId, srcsetOptions),
-    pictureSources: (fileId, pictureOptions) =>
-      pictureSources(config.origin, fileId, pictureOptions),
-    placeholder: (fileId, placeholderOptions) =>
-      placeholder(config.origin, fileId, placeholderOptions),
+    getFile: (fileId) => getFile(config, fileId),
+    url: (file, urlOptions) => url(config.origin, file, urlOptions),
+    srcset: (file, srcsetOptions) => srcset(config.origin, file, srcsetOptions),
+    pictureSources: (file, pictureOptions) => pictureSources(config.origin, file, pictureOptions),
+    placeholder: (file, placeholderOptions) => placeholder(config.origin, file, placeholderOptions),
   };
 }

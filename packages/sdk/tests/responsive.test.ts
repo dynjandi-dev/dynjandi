@@ -57,6 +57,19 @@ describe("client.srcset", () => {
     );
   });
 
+  test("a stored file's focal point reaches every candidate, as url() uses it", () => {
+    const stored = { id: ID, focalX: 0.42, focalY: 0.18 };
+    expect(client.srcset(stored, { widths: [320, 640], crop: { width: 1600, height: 900 } })).toBe(
+      [
+        `${CDN}/${ID}/-/crop/1600x900/focal/0.42x0.18/-/resize/320x/ 320w`,
+        `${CDN}/${ID}/-/crop/1600x900/focal/0.42x0.18/-/resize/640x/ 640w`,
+      ].join(", "),
+    );
+    expect(client.placeholder(stored, { crop: { width: 1600, height: 900 } })).toBe(
+      `${CDN}/${ID}/-/crop/1600x900/focal/0.42x0.18/-/resize/24x/-/format/webp/-/quality/20/`,
+    );
+  });
+
   test("sorts widths ascending", () => {
     expect(client.srcset(ID, { widths: [640, 320] })).toBe(
       `${CDN}/${ID}/-/resize/320x/ 320w, ${CDN}/${ID}/-/resize/640x/ 640w`,

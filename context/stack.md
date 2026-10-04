@@ -9,10 +9,11 @@ The public integration surface for Dynjandi, an image CDN at `cdn.dynjandi.dev`:
 TypeScript SDK (`@dynjandi/sdk`). The service itself lives in a separate private repository; this one was
 split out of it on 2026-09-30 so the spec and SDK can be public and permissively licensed.
 
-**The spec and the SDK's operations exist, and the SDK is publishable.** `packages/spec/openapi.yaml`
-describes `POST /upload` and the variant URL grammar, and is linted by `pnpm lint`. `packages/sdk` has
-`createClient`, `upload`, `url`, `srcset`, `pictureSources`, `placeholder` and `DynjandiError`; upload types are generated from the spec, and `url()`
-maps its options onto `@dynjandi/transform-grammar`'s operations and builder. `@dynjandi/sdk` is a public package (`0.1.0`, built to `dist/`); `@dynjandi/spec` stays `private`, since
+**The spec and the SDK's three operations exist, and the SDK is publishable.** `packages/spec/openapi.yaml`
+describes `POST /upload`, `GET /files/{id}` and the variant URL grammar, and is linted by `pnpm lint`.
+`packages/sdk` has `createClient`, `upload`, `getFile`, `url`, the responsive helpers `srcset`,
+`pictureSources` and `placeholder`, and `DynjandiError`; request and response
+types are generated from the spec, and `url()` maps its options onto `@dynjandi/transform-grammar`'s operations and builder. `@dynjandi/sdk` is a public package (`0.1.0`, built to `dist/`); `@dynjandi/spec` stays `private`, since
 the spec is served from its raw GitHub URL. The design is in issue #1 (`sdk-ecosystem`), not here.
 
 | Concern | Target |
@@ -32,8 +33,8 @@ the spec is served from its raw GitHub URL. The design is in issue #1 (`sdk-ecos
 ```
 package.json, pnpm-workspace.yaml, pnpm-lock.yaml   workspace root and scripts
 tsconfig.base.json, biome.json, LICENSE (MIT)        shared config
-packages/spec/    openapi.yaml (OpenAPI 3.1, upload + URL grammar prose), README.md
-packages/sdk/     @dynjandi/sdk: src/ (client, upload, url, errors, generated/api.d.ts), tests/ (live/ = smoke test),
+packages/spec/    openapi.yaml (OpenAPI 3.1, upload + file read + URL grammar prose), README.md
+packages/sdk/     @dynjandi/sdk: src/ (client, upload, files, http, url, errors, generated/api.d.ts), tests/ (live/ = smoke test),
                   scripts/check-package.mjs, tsconfig.json, tsconfig.build.json (emits dist/, gitignored), README.md
 .pnpmfile.cjs     gives openapi-typescript its own TypeScript 5 (it cannot run on TypeScript 7)
 .changeset/       release notes, one file each; consumed by changeset:prepare-release (context/release.md)
@@ -67,7 +68,7 @@ context/   workflow state and project answers (verify, git, tracking, release, e
   and says how to install the SDK; a change to what is published, or to how, owes it an update.
 - `packages/spec/README.md` — the spec's stable URL, versioning rule and contract summary. Changes to
   `openapi.yaml` that move `info.version` or the contract owe it an update.
-- `packages/sdk/README.md` — the SDK's usage (`upload`, `url`, `srcset`, `pictureSources`, `placeholder`, errors), what is tested where, the gzipped
+- `packages/sdk/README.md` — the SDK's usage (`upload`, `getFile`, `url`, `srcset`, `pictureSources`, `placeholder`, errors), what is tested where, the gzipped
   bundle-size baseline and the command that measured it, and how to run the live smoke test. A change to the
   SDK's public API or its dependencies owes it an update.
 

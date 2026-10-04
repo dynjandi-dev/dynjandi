@@ -1,32 +1,35 @@
 openapi: 3.1.0
 info:
-  title: Dynjandi upload API
-  version: 0.1.0
-  summary: Upload images to Dynjandi and address their variants by URL.
+  title: Dynjandi API
+  version: 0.2.0
+  summary: Upload images to Dynjandi, read a stored file back, and address variants by URL.
   license:
     name: MIT
     identifier: MIT
   description: |
-    Dynjandi is an image CDN at `https://cdn.dynjandi.dev`. This document describes its upload API:
-    a single operation, `POST /upload`. Variants of an uploaded image are addressed by URL, not by an
-    API call; the URL grammar is described below.
+    Dynjandi is an image CDN at `https://cdn.dynjandi.dev`. This document describes the operations a
+    project's public key authorises: `POST /upload` and `GET /files/{id}`. Variants of an uploaded
+    image are addressed by URL, not by an API call; the URL grammar is described below.
 
-    The spec is versioned on its own (semantic versioning of this document, see `info.version`). It is
-    upload-only until the management API has key-based authentication.
+    The spec is versioned on its own (semantic versioning of this document, see `info.version`). It
+    covers only operations the public key authorises; the management API is not part of it until it has
+    key-based authentication.
 
-    ## Uploads are server-side only
+    ## Uploads and file reads are server-side only
 
-    The service sends no CORS headers, and answers a preflight `OPTIONS` request with `405`. A
-    cross-origin `POST /upload` from a browser is therefore blocked. Call the upload API from a server
-    or another non-browser runtime. Variants and originals load normally in `<img>`, CSS and other
+    The service sends no CORS headers, and answers a preflight `OPTIONS` request with `405`. Both
+    operations send `X-Public-Key`, which makes a cross-origin browser request preflighted, so the
+    preflight fails and neither `POST /upload` nor `GET /files/{id}` is sent. Call both from a server or
+    another non-browser runtime. Variants and originals load normally in `<img>`, CSS and other
     non-CORS contexts, but GET responses carry no CORS headers either, so a cross-origin `fetch()` from
     a browser cannot read their bodies.
 
     ## Authentication
 
-    `POST /upload` takes a project's public key in the `X-Public-Key` header. The public key is a
-    publishable identifier for a project, not a secret, but it still selects the project that receives
-    the file and is checked on every request: a missing key is `401`, an unknown key is `401`.
+    `POST /upload` and `GET /files/{id}` take a project's public key in the `X-Public-Key` header. The
+    public key is a publishable identifier for a project, not a secret, but it still selects the project
+    that receives an upload or that a file is read from, and is checked on every request: a missing key
+    is `401`, an unknown key is `401`.
 
     ## Relative URLs
 
@@ -89,6 +92,8 @@ servers:
 tags:
   - name: Upload
     description: Adding an image to a project.
+  - name: Files
+    description: Reading back a file already stored in a project.
 paths:
   /upload:
     post:
@@ -183,6 +188,76 @@ paths:
                 $ref: "#/components/schemas/Error"
               example:
                 error: Internal server error
+  /files/{id}:
+    get:
+      operationId: getFile
+      tags:
+        - Files
+      summary: Read a stored file
+      description: |
+        Returns the record of a file stored in the project identified by the public key, including the
+        focal point saved at upload or later in the dashboard. Pass the point to a variant URL (see the
+        `focal` crop position) to crop on it: variants are cached by URL, so the service does not apply
+        it for you.
+
+        The response is `no-store`; keep the record rather than reading it per image. A file in another
+        project, an unknown id and an id that is not a UUID are all `404`.
+
+        Reads are server-side only; see the API description on CORS.
+      security:
+        - publicKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The file id, as returned by `POST /upload`.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The file record.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControlNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileRecord"
+              example:
+                id: 00000000-0000-4000-8000-000000000000
+                contentType: image/png
+                bytes: 70
+                originalFilename: photo.png
+                source: upload
+                focalX: 0.42
+                focalY: 0.18
+                createdAt: "2026-10-04T15:31:34.000Z"
+        "401":
+          description: |
+            The public key is missing (`Missing X-Public-Key`) or unknown (`Invalid public key`).
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControlNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: Invalid public key
+        "404":
+          description: |
+            The file is not found (`File not found`): no such id, an id that is not a UUID, or a file
+            outside the key's project.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControlNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: File not found
 components:
   securitySchemes:
     publicKey:
@@ -191,8 +266,8 @@ components:
       name: X-Public-Key
       description: |
         A project's public key. It is a publishable identifier, not a secret, and identifies the
-        project that receives the upload. It is an opaque string, shown on the project's page in the
-        dashboard.
+        project that receives an upload or holds the file being read. It is an opaque string, shown on
+        the project's page in the dashboard.
   headers:
     CacheControlNoStore:
       description: Always `no-store`; responses from this API must not be cached.
@@ -261,6 +336,57 @@ components:
           minimum: 0
           maximum: 1
           description: The stored vertical focal point, or `null` when none was given.
+    FileRecord:
+      type: object
+      required:
+        - id
+        - contentType
+        - bytes
+        - originalFilename
+        - source
+        - focalX
+        - focalY
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The file id, as used in variant URLs.
+        contentType:
+          type: string
+          description: The stored media type, for example `image/png`.
+        bytes:
+          type: integer
+          minimum: 0
+          description: The size of the stored file in bytes.
+        originalFilename:
+          type:
+            - string
+            - "null"
+          description: The filename sent with the upload, or `null` when there was none.
+        source:
+          type: string
+          description: |
+            How the file got into the project, for example `upload`. The set of values is not
+            documented.
+        focalX:
+          type:
+            - number
+            - "null"
+          minimum: 0
+          maximum: 1
+          description: The stored horizontal focal point, or `null` when none is stored.
+        focalY:
+          type:
+            - number
+            - "null"
+          minimum: 0
+          maximum: 1
+          description: The stored vertical focal point, or `null` when none is stored.
+        createdAt:
+          type: string
+          format: date-time
+          description: When the file was stored, an ISO 8601 UTC timestamp.
     Error:
       type: object
       required:

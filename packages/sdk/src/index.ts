@@ -1,5 +1,6 @@
 export { type Client, type ClientOptions, createClient } from "./client.js";
 export { DynjandiError } from "./errors.js";
+export type { FileRecord } from "./files.js";
 export {
   DEFAULT_FORMATS,
   DEFAULT_WIDTHS,
@@ -15,5 +16,6 @@ export type {
   FaceCropPosition,
   FocalCrop,
   PositionedCrop,
+  StoredFile,
   UrlOptions,
 } from "./url.js";

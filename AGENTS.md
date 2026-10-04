@@ -16,7 +16,7 @@ the standing rules, and every command cites it rather than restating it.
 | `/feature-implement` | activates a planned feature and runs its phases, through both gates |
 | `/feature-status` | read-only "where do things stand". **Never a prerequisite** for anything |
 | `/feature-close` | retires a finished or abandoned feature into `context/archive/` |
-| `/orchestrate` | one ad-hoc, gated, commit-sized change — no roadmap entry, no ledger |
+| `/orchestrate` | one ad-hoc, gated, commit-sized change — no roadmap entry, no ledger. `--pr` ends it at a pull request |
 | `/prototype` | a throwaway HTML/CSS mockup under `prototypes/` — no gates, no ledger, no application code |
 | `/onboard` | fills in this project's own stubs — `verify.md`, `executors.md`, `git.md`, `tracking.md`, `release.md`, `stack.md` — adopting what an existing `AGENTS.md` already said |
 | `/tracking-migrate` | moves existing entries, drafts and plans onto the substrate `tracking.md` names — after `/onboard` sets it, never instead |
