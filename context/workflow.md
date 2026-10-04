@@ -20,7 +20,7 @@ running something else.
 | Tier 1 → a plan | `/feature-plan` |
 | a plan → being worked, then phase by phase | `/feature-implement`, or `/feature-implement --all` |
 | Tier 2 → retired | `/feature-close` |
-| no tier crossed | `/orchestrate` — one ad-hoc gated change; `/feature-status` — read-only; `/prototype` — a throwaway mockup |
+| no tier crossed | `/orchestrate [--pr]` — one ad-hoc gated change; `/feature-status` — read-only; `/prototype` — a throwaway mockup |
 
 **Every command finds its own starting point.** Nothing has to be looked up first, and `/feature-status` is
 never a prerequisite for anything.
@@ -37,7 +37,7 @@ This file holds the rules. Why each rule is what it is, and what was tried inste
 | `/feature-implement` | activation, and the phases within a plan | the plan's ledger, the code, and a release note where [`release.md`](release.md) says *per phase* |
 | `/feature-status` | nothing — read-only | — |
 | `/feature-close` | Tier 2 → retired | `history.md`, `archive/`, the reference sweep, a release note where [`release.md`](release.md) says *once per feature*, and the push and pull request where [`git.md`](git.md) says so |
-| `/orchestrate` | one ad-hoc gated change | the code, and a release note where [`release.md`](release.md) says one is owed |
+| `/orchestrate` | one ad-hoc gated change | the code, a release note where [`release.md`](release.md) says one is owed, and under `--pr` the branch it pushes and the pull request it opens |
 | `/prototype` | one throwaway HTML/CSS mockup — no gates, no application code | `prototypes/<NAME>/`, and nothing else |
 | `/onboard` | the project-owned stubs | `verify.md`, `executors.md`, `git.md`, `tracking.md`, `release.md`, `stack.md`, and the pruning of what they replace |
 | `/tracking-migrate` | moving existing state onto the substrate `tracking.md` names | issues, and the tree files they replace — never `history.md` or `archive/` |
@@ -106,14 +106,17 @@ commit-sized unit and anything an existing roadmap entry already covers.
 
 [`git.md`](git.md) answers three more, each independent and each shipping as the most conservative option:
 **where work lands**, **whether the agent pushes and opens a pull request**, and at what **granularity** it
-commits. A push happens once per feature, at `/feature-close` — never at the end of a phase — and nothing
-here merges a pull request, deletes a branch, or removes a worktree under any answer.
+commits. Under those answers a push happens once per feature, at `/feature-close` — never at the end of a
+phase — and the only push outside them is the one `/orchestrate --pr` is asked for by name. **Nothing
+merges a pull request, deletes a branch, or removes a worktree under any answer or any flag.**
 
 **Those answers authorise the commands in this workflow, at the point each one names, and nothing else.**
 *The agent commits* is permission for `/feature-implement` to close a phase it just ran, not standing leave
 to commit whatever is in the tree; *a worktree per feature* is permission for a **planned feature's** first
 phase to make one, not for an ad-hoc request to be moved into a tree of its own. Outside those points, an
-operation needs the user to ask for it in this session.
+operation needs the user to ask for it in this session. **A typed flag is that ask** — `/orchestrate --pr`
+is the one the workflow ships, and it authorises that invocation's commit, push and pull request without
+changing a single answer in [`git.md`](git.md) for the next one.
 
 **Permission is not inferred.** Choosing between approaches does not authorise any of this, even where the
 option text mentions it — and *especially* where you wrote that option text yourself. Neither does "ship
