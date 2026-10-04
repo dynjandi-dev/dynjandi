@@ -32,6 +32,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/files/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a stored file
+         * @description Returns the record of a file stored in the project identified by the public key, including the
+         *     focal point saved at upload or later in the dashboard. Pass the point to a variant URL (see the
+         *     `focal` crop position) to crop on it: variants are cached by URL, so the service does not apply
+         *     it for you.
+         *
+         *     The response is `no-store`; keep the record rather than reading it per image. A file in another
+         *     project, an unknown id and an id that is not a UUID are all `404`.
+         *
+         *     Reads are server-side only; see the API description on CORS.
+         */
+        get: operations["getFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -73,6 +101,33 @@ export interface components {
             focalX: number | null;
             /** @description The stored vertical focal point, or `null` when none was given. */
             focalY: number | null;
+        };
+        FileRecord: {
+            /**
+             * Format: uuid
+             * @description The file id, as used in variant URLs.
+             */
+            id: string;
+            /** @description The stored media type, for example `image/png`. */
+            contentType: string;
+            /** @description The size of the stored file in bytes. */
+            bytes: number;
+            /** @description The filename sent with the upload, or `null` when there was none. */
+            originalFilename: string | null;
+            /**
+             * @description How the file got into the project, for example `upload`. The set of values is not
+             *     documented.
+             */
+            source: string;
+            /** @description The stored horizontal focal point, or `null` when none is stored. */
+            focalX: number | null;
+            /** @description The stored vertical focal point, or `null` when none is stored. */
+            focalY: number | null;
+            /**
+             * Format: date-time
+             * @description When the file was stored, an ISO 8601 UTC timestamp.
+             */
+            createdAt: string;
         };
         Error: {
             /** @description A human-readable message. It is stable enough to show, not to branch on; branch on the status code. */
@@ -187,6 +242,75 @@ export interface operations {
                     /**
                      * @example {
                      *       "error": "Internal server error"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The file id, as returned by `POST /upload`. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file record. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["CacheControlNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "id": "00000000-0000-4000-8000-000000000000",
+                     *       "contentType": "image/png",
+                     *       "bytes": 70,
+                     *       "originalFilename": "photo.png",
+                     *       "source": "upload",
+                     *       "focalX": 0.42,
+                     *       "focalY": 0.18,
+                     *       "createdAt": "2026-10-04T15:31:34.000Z"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["FileRecord"];
+                };
+            };
+            /** @description The public key is missing (`Missing X-Public-Key`) or unknown (`Invalid public key`). */
+            401: {
+                headers: {
+                    "Cache-Control": components["headers"]["CacheControlNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "Invalid public key"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /**
+             * @description The file is not found (`File not found`): no such id, an id that is not a UUID, or a file
+             *     outside the key's project.
+             */
+            404: {
+                headers: {
+                    "Cache-Control": components["headers"]["CacheControlNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "File not found"
                      *     }
                      */
                     "application/json": components["schemas"]["Error"];

@@ -10,9 +10,9 @@ TypeScript SDK (`@dynjandi/sdk`). The service itself lives in a separate private
 split out of it on 2026-09-30 so the spec and SDK can be public and permissively licensed.
 
 **The spec and the SDK's two operations exist, and the SDK is publishable.** `packages/spec/openapi.yaml`
-describes `POST /upload` and the variant URL grammar, and is linted by `pnpm lint`. `packages/sdk` has
-`createClient`, `upload`, `url` and `DynjandiError`; upload types are generated from the spec, and `url()`
-maps its options onto `@dynjandi/transform-grammar`'s operations and builder. `@dynjandi/sdk` is a public package (`0.1.0`, built to `dist/`); `@dynjandi/spec` stays `private`, since
+describes `POST /upload`, `GET /files/{id}` and the variant URL grammar, and is linted by `pnpm lint`.
+`packages/sdk` has `createClient`, `upload`, `url` and `DynjandiError`; upload types are generated from
+the spec, and `url()` maps its options onto `@dynjandi/transform-grammar`'s operations and builder. `@dynjandi/sdk` is a public package (`0.1.0`, built to `dist/`); `@dynjandi/spec` stays `private`, since
 the spec is served from its raw GitHub URL. The design is in issue #1 (`sdk-ecosystem`), not here.
 
 | Concern | Target |
@@ -32,7 +32,7 @@ the spec is served from its raw GitHub URL. The design is in issue #1 (`sdk-ecos
 ```
 package.json, pnpm-workspace.yaml, pnpm-lock.yaml   workspace root and scripts
 tsconfig.base.json, biome.json, LICENSE (MIT)        shared config
-packages/spec/    openapi.yaml (OpenAPI 3.1, upload + URL grammar prose), README.md
+packages/spec/    openapi.yaml (OpenAPI 3.1, upload + file read + URL grammar prose), README.md
 packages/sdk/     @dynjandi/sdk: src/ (client, upload, url, errors, generated/api.d.ts), tests/ (live/ = smoke test),
                   scripts/check-package.mjs, tsconfig.json, tsconfig.build.json (emits dist/, gitignored), README.md
 .pnpmfile.cjs     gives openapi-typescript its own TypeScript 5 (it cannot run on TypeScript 7)

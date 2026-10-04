@@ -1,7 +1,7 @@
 # @dynjandi/spec
 
-The OpenAPI 3.1 description of [Dynjandi](https://cdn.dynjandi.dev)'s upload API: `POST /upload`, plus the
-variant URL grammar in prose. The document is [`openapi.yaml`](openapi.yaml).
+The OpenAPI 3.1 description of [Dynjandi](https://cdn.dynjandi.dev)'s API: `POST /upload` and
+`GET /files/{id}`, plus the variant URL grammar in prose. The document is [`openapi.yaml`](openapi.yaml).
 
 ## Stable URL
 
@@ -31,11 +31,17 @@ names the SDK's version, not the spec's: read `info.version` in the document for
 - **Success.** `201` with `{ file, id, url, focalX, focalY }` and `Cache-Control: no-store`. `file` and
   `id` are the same UUID. `url` is relative (`/<id>`): resolve it against the origin you called.
   `focalX` and `focalY` are `null` when no focal point was sent.
-- **Errors.** Always `{ "error": "<message>" }` with `Cache-Control: no-store`: `400` (not multipart,
-  no file, bad focal point), `401` (missing or invalid key), `413` (over the file-size limit or the
-  storage quota), `500` (unexpected error).
-- **Server-side only.** The service sends no CORS headers, so a browser cannot call `POST /upload`
-  cross-origin. Upload from a server.
+- **Errors** (upload). Always `{ "error": "<message>" }` with `Cache-Control: no-store`: `400` (not
+  multipart, no file, bad focal point), `401` (missing or invalid key), `413` (over the file-size limit
+  or the storage quota), `500` (unexpected error).
+- **Read.** `GET https://cdn.dynjandi.dev/files/{id}` with the same `X-Public-Key` header. `200` with
+  `{ id, contentType, bytes, originalFilename, source, focalX, focalY, createdAt }` and
+  `Cache-Control: no-store`; `focalX` and `focalY` are `null` when no point is stored. Errors have
+  the same body and header: `401` (missing or invalid key) and `404` (no such file, not a UUID, or
+  another project's file).
+- **Server-side only.** The service sends no CORS headers and refuses the preflight that the
+  `X-Public-Key` header triggers, so a browser cannot call `POST /upload` or `GET /files/{id}`
+  cross-origin. Call both from a server.
 
 The URL grammar for variants (`/<id>/-/resize/800x600/` and so on) is described in the spec's
 `info.description`.
