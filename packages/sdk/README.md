@@ -132,9 +132,12 @@ against, not a budget.
 
 ## Live smoke test
 
-`tests/live/smoke.test.ts` uploads a 1x1 PNG to a dedicated test project and fetches a variant of it. It
-needs the project's key in `DYNJANDI_SMOKE_PUBLIC_KEY` and the network, so `pnpm test` skips it. It fails
-if the key is unset.
+`tests/live/smoke.test.ts` uploads a 1x1 PNG with a focal point of (0.5, 0.5) to a dedicated test project
+and fetches a variant of it. It then reads the file back with `getFile`, checks the id and the point, builds
+a cropped URL from that record (which must end in `focal/0.5x0.5/`) and fetches it. It does not cover a
+later change of the point, for example in the dashboard: there is no public write endpoint, so the point
+can only be set at upload. It needs the project's key in `DYNJANDI_SMOKE_PUBLIC_KEY` and the network, so
+`pnpm test` skips it. It fails if the key is unset.
 
 ```bash
 pnpm --filter @dynjandi/sdk run test:live

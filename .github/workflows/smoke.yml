@@ -1,6 +1,7 @@
 name: Smoke
 
-# Uploads one tiny image to the dedicated test project on the live service and fetches a variant of it
+# Uploads one tiny image to the dedicated test project on the live service, fetches a variant of it, reads
+# its record back and fetches a variant cropped on its stored focal point
 # (packages/sdk/tests/live/smoke.test.ts). It is the drift detector between the spec and the service, so
 # it runs on a schedule as well as before a release.
 #
