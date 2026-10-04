@@ -83,6 +83,41 @@ a `DynjandiError` (status `0`) before any URL is built.
 
 A `fileId` containing a comma, space or `/` cannot add a candidate: the grammar package percent-encodes it.
 
+### `pictureSources(fileId, options?)`
+
+Builds the attributes of one `<source>` per format: `{ type, srcset, sizes? }[]`, in the order you give,
+best format first, because the browser takes the first one it supports. `formats` defaults to
+`DEFAULT_FORMATS`, `["avif", "webp"]`. Each `srcset` is what `srcset()` returns for that format, so
+`widths`, `quality` and `crop` apply to all of them. `type` is `image/<format>`; `jpg` is accepted as an
+alias and gives `image/jpeg`. Like `srcset()`, it is synchronous, makes no request, and is safe in browsers.
+
+It returns data, not markup, so you render it in whatever your framework calls its attributes (`srcSet`
+in React, for one). There is no `format/auto`, so the fallback is not a source: it is the plain `<img>`,
+with `srcset({ format: "jpeg" })`, and it must come after every `<source>`: a source after the `<img>` is
+ignored.
+
+```ts
+const sizes = "(min-width: 800px) 800px, 100vw";
+const sources = client.pictureSources(id, { sizes });
+const fallback = client.srcset(id, { format: "jpeg" });
+```
+
+```html
+<picture>
+  <source type="image/avif" srcset="<sources[0].srcset>" sizes="<sources[0].sizes>" />
+  <source type="image/webp" srcset="<sources[1].srcset>" sizes="<sources[1].sizes>" />
+  <img src="<one candidate's url>" srcset="<fallback>" sizes="(min-width: 800px) 800px, 100vw" alt="..." />
+</picture>
+```
+
+Put `alt` on the `<img>`, and `sizes` on it too: the `<img>`'s own `sizes` applies to its `srcset`, not the
+sources'. `sizes` is passed through exactly as you give it. It is not escaped, so if it reaches markup,
+escaping it is your job; the same holds for every other string you place in an attribute.
+
+An empty `formats`, or one that repeats a format (`jpeg` and `jpg` are the same format), is refused with a
+`DynjandiError` (status `0`) naming `formats`, before any URL is built. A `format` option is refused too;
+use `formats`. Everything `srcset()` refuses is refused here.
+
 **What it costs.** Every width x format x crop is a separate variant, and each new variant counts against
 your project's plan cap. Variants per image = widths x formats:
 
@@ -90,9 +125,11 @@ your project's plan cap. Variants per image = widths x formats:
 |---|---|
 | `srcset(id)` with the default ladder, one format | 5 x 1 = 5 |
 | `srcset(id, { widths: [640, 1280] })` | 2 x 1 = 2 |
-| the same default ladder in `avif`, `webp` and `jpeg` | 5 x 3 = 15 |
+| `pictureSources(id)` with the defaults, `avif` and `webp` | 5 x 2 = 10 |
+| the same, plus the `jpeg` fallback `<img>` | 5 x 3 = 15 |
+| `pictureSources(id, { widths: [640, 1280] })` plus a fallback with the same `widths` | 2 x 3 = 6 |
 
-A smaller `widths` is how you spend less.
+A smaller `widths` or `formats` is how you spend less.
 
 **Upscaling.** The SDK does not know the original's width (the upload response carries no dimensions), and
 this SDK has not observed whether the service upscales a resize beyond it. Trim `widths` to no wider than

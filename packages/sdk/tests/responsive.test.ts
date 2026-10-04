@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import { createClient, DEFAULT_WIDTHS, DynjandiError } from "../src/index";
+import { createClient, DEFAULT_FORMATS, DEFAULT_WIDTHS, DynjandiError } from "../src/index";
 import { fakeFetch, PUBLIC_KEY } from "./helpers";
 
 const ID = "00000000-0000-4000-8000-000000000000";
@@ -7,7 +7,7 @@ const CDN = "https://cdn.dynjandi.dev";
 
 const client = createClient({ publicKey: PUBLIC_KEY });
 
-function failureOf(run: () => string): DynjandiError {
+function failureOf(run: () => unknown): DynjandiError {
   try {
     run();
   } catch (error) {
@@ -145,5 +145,100 @@ describe("client.srcset with an odd fileId", () => {
 
   test.each([".", ".."])("refuses %j, which URL resolution would collapse", (fileId) => {
     expect(failureOf(() => client.srcset(fileId, { widths: [320] })).status).toBe(0);
+  });
+});
+
+describe("client.pictureSources", () => {
+  test("defaults to avif then webp, with the type of each", () => {
+    expect(DEFAULT_FORMATS).toEqual(["avif", "webp"]);
+    const sources = client.pictureSources(ID);
+    expect(sources.map((source) => source.type)).toEqual(["image/avif", "image/webp"]);
+    expect(sources[0]?.srcset).toBe(client.srcset(ID, { format: "avif" }));
+    expect(sources[1]?.srcset).toBe(client.srcset(ID, { format: "webp" }));
+  });
+
+  test("keeps the order given", () => {
+    const sources = client.pictureSources(ID, { formats: ["webp", "avif", "png"], widths: [320] });
+    expect(sources.map((source) => source.type)).toEqual(["image/webp", "image/avif", "image/png"]);
+  });
+
+  test("the jpg alias gives image/jpeg and a jpeg URL", () => {
+    expect(client.pictureSources(ID, { formats: ["jpg"], widths: [320] })).toEqual([
+      { type: "image/jpeg", srcset: `${CDN}/${ID}/-/resize/320x/-/format/jpeg/ 320w` },
+    ]);
+  });
+
+  test("passes widths, quality and crop through to every source", () => {
+    const crop = { width: 1600, height: 900 };
+    const sources = client.pictureSources(ID, { widths: [640, 320], quality: 60, crop });
+    const shared = { widths: [320, 640], quality: 60, crop };
+    expect(sources.map((source) => source.srcset)).toEqual([
+      client.srcset(ID, { ...shared, format: "avif" }),
+      client.srcset(ID, { ...shared, format: "webp" }),
+    ]);
+    expect(sources[0]?.srcset).toContain(
+      "/-/crop/1600x900/center/-/resize/320x/-/format/avif/-/quality/60/",
+    );
+  });
+
+  test("sizes is copied to every source unchanged, and absent otherwise", () => {
+    const sizes = '(min-width: 800px) 800px, 100vw "quoted" <b>';
+    for (const source of client.pictureSources(ID, { sizes })) {
+      expect(source.sizes).toBe(sizes);
+    }
+    for (const source of client.pictureSources(ID)) {
+      expect("sizes" in source).toBe(false);
+    }
+  });
+
+  test("with defaults and a jpeg fallback, a page uses 15 distinct URLs", () => {
+    const candidates = [
+      ...client.pictureSources(ID).map((source) => source.srcset),
+      client.srcset(ID, { format: "jpeg" }),
+    ].flatMap((value) => value.split(", ").map((candidate) => candidate.split(" ")[0]));
+    expect(candidates).toHaveLength(DEFAULT_WIDTHS.length * 3);
+    expect(new Set(candidates).size).toBe(15);
+  });
+
+  test("makes no request", () => {
+    const fetchMock = fakeFetch(() => new Response(null, { status: 200 }));
+    const offline = createClient({ publicKey: PUBLIC_KEY, fetch: fetchMock });
+    const globalFetch = vi.spyOn(globalThis, "fetch");
+    offline.pictureSources(ID);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(globalFetch).not.toHaveBeenCalled();
+    globalFetch.mockRestore();
+  });
+});
+
+describe("client.pictureSources refusals", () => {
+  test("empty formats", () => {
+    const error = failureOf(() => client.pictureSources(ID, { formats: [] }));
+    expect(error.status).toBe(0);
+    expect(error.message).toContain("formats");
+  });
+
+  test.each([[["webp", "webp"]], [["jpeg", "jpg"]]] as const)("repeated formats %j", (formats) => {
+    const error = failureOf(() => client.pictureSources(ID, { formats }));
+    expect(error.status).toBe(0);
+    expect(error.message).toContain("formats");
+  });
+
+  test("a format, which formats replaces", () => {
+    // `format` is not in the type; a JavaScript caller can still pass it.
+    const options = { widths: [320], format: "webp" };
+    const error = failureOf(() => client.pictureSources(ID, options));
+    expect(error.status).toBe(0);
+    expect(error.message).toContain("format");
+  });
+
+  test("a format the grammar does not know", () => {
+    const formats = ["gif"] as unknown as ["avif"];
+    expect(failureOf(() => client.pictureSources(ID, { formats })).status).toBe(0);
+  });
+
+  test("srcset's own refusals reach the caller", () => {
+    expect(failureOf(() => client.pictureSources(ID, { widths: [] })).message).toContain("widths");
+    expect(failureOf(() => client.pictureSources(ID, { widths: [0] })).message).toContain("width");
   });
 });

@@ -1,5 +1,11 @@
 import { DynjandiError } from "./errors.js";
-import { type SrcsetOptions, srcset } from "./responsive.js";
+import {
+  type PictureSource,
+  type PictureSourcesOptions,
+  pictureSources,
+  type SrcsetOptions,
+  srcset,
+} from "./responsive.js";
 import { type UploadOptions, type UploadResult, upload } from "./upload.js";
 import { type UrlOptions, url } from "./url.js";
 
@@ -28,6 +34,13 @@ export interface Client {
    * Throws `DynjandiError` (status 0) for options it refuses. See `SrcsetOptions`.
    */
   srcset(fileId: string, options?: SrcsetOptions): string;
+  /**
+   * The attributes of one `<source>` per format (default `DEFAULT_FORMATS`), best first, each with an
+   * `srcset` over the same widths. Render the jpeg fallback as the `<img>` with `srcset(id, { format: "jpeg" })`.
+   * Synchronous, and safe in browsers. Variants per image = widths x formats; see `DEFAULT_WIDTHS`.
+   * Throws `DynjandiError` (status 0) for options it refuses. See `PictureSourcesOptions`.
+   */
+  pictureSources(fileId: string, options?: PictureSourcesOptions): PictureSource[];
 }
 
 export function createClient(options: ClientOptions): Client {
@@ -52,5 +65,7 @@ export function createClient(options: ClientOptions): Client {
     upload: (file, uploadOptions) => upload(config, file, uploadOptions),
     url: (fileId, urlOptions) => url(config.origin, fileId, urlOptions),
     srcset: (fileId, srcsetOptions) => srcset(config.origin, fileId, srcsetOptions),
+    pictureSources: (fileId, pictureOptions) =>
+      pictureSources(config.origin, fileId, pictureOptions),
   };
 }

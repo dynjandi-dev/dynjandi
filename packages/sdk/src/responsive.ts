@@ -1,3 +1,4 @@
+import type { OutputFormat } from "@dynjandi/transform-grammar";
 import { DynjandiError } from "./errors.js";
 import { type UrlOptions, url } from "./url.js";
 
@@ -61,4 +62,71 @@ export function srcset(origin: string, fileId: FileId, options: SrcsetOptions = 
   return validatedWidths(widths)
     .map((width) => `${url(origin, fileId, { ...rest, width })} ${width}w`)
     .join(", ");
+}
+
+/**
+ * The formats `pictureSources` uses when the caller passes none, best first: the browser takes the first
+ * `<source>` it supports. The fallback is not a source; render it as the `<img>` with
+ * `srcset(id, { format: "jpeg" })`. With `DEFAULT_WIDTHS` this is 5 x 2 = 10 variants, 15 with the fallback.
+ */
+export const DEFAULT_FORMATS: readonly PictureFormat[] = ["avif", "webp"];
+
+/** An output format, or `jpg`, the alias of `jpeg` that the service accepts in hand-written URLs. */
+export type PictureFormat = OutputFormat | "jpg";
+
+export interface PictureSourcesOptions extends Omit<SrcsetOptions, "format"> {
+  /** Distinct formats, best first. Defaults to `DEFAULT_FORMATS`. `jpg` and `jpeg` are the same format. */
+  formats?: readonly PictureFormat[];
+  /**
+   * Copied to every source as given. It is not escaped: if it reaches markup, escaping it is the
+   * caller's job.
+   */
+  sizes?: string;
+}
+
+/** One `<source>` element's attributes. */
+export interface PictureSource {
+  /** `image/<format>`; `jpg` gives `image/jpeg`. */
+  type: string;
+  srcset: string;
+  sizes?: string;
+}
+
+/** Checks `formats` and returns them as grammar formats, in the order given. */
+function validatedFormats(formats: readonly PictureFormat[]): OutputFormat[] {
+  if (formats.length === 0) {
+    refuse("formats must not be empty.");
+  }
+  const seen = new Set<OutputFormat>();
+  for (const format of formats) {
+    const canonical = format === "jpg" ? "jpeg" : format;
+    if (seen.has(canonical)) {
+      refuse(`formats must not repeat, got ${canonical} twice (jpg is jpeg).`);
+    }
+    seen.add(canonical);
+  }
+  return [...seen];
+}
+
+/**
+ * The attributes of one `<source>` per format, in the order given, each with the same width ladder.
+ * Render the jpeg fallback yourself as the `<img>`, with `srcset(origin, fileId, { format: "jpeg" })`.
+ *
+ * Throws `DynjandiError` (status 0) for an empty or repeated `formats`, a `format` (use `formats`), and
+ * everything `srcset` refuses. Nothing is built from a list that fails.
+ */
+export function pictureSources(
+  origin: string,
+  fileId: FileId,
+  options: PictureSourcesOptions = {},
+): PictureSource[] {
+  const { formats = DEFAULT_FORMATS, sizes, ...rest } = options;
+  if ("format" in rest) {
+    refuse("format cannot be combined with formats; pass formats.");
+  }
+  return validatedFormats(formats).map((format) => ({
+    type: `image/${format}`,
+    srcset: srcset(origin, fileId, { ...rest, format }),
+    ...(sizes === undefined ? {} : { sizes }),
+  }));
 }
