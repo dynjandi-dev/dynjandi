@@ -34,3 +34,16 @@ Branch-local review observations. Read by nothing; deleted whole by `/feature-cl
   phases 1–2, so the delta covers phases 1–3.
 - `packages/sdk/README.md:146` wraps at ~131 chars against ~110 around it. Cosmetic.
 - `"height" in options` refuses `{ height: undefined }` too, same as `srcset`.
+
+## Phase 4
+
+- First live run failed: the service serves `format/avif` as `Content-Type: image/heif`. User chose to
+  accept either label and prove AVIF from the `ftyp` brand; service bug filed as dynjandi-core#98. Tighten
+  the assertion back to `image/avif` once that is fixed.
+- Upscaling observed: 320w of a 1x1 original came back 320px wide. README now says so. §9 Q3's `maxWidth`
+  option idea is unaddressed — a `/roadmap` candidate if wanted.
+- `expectAvifFtyp` ignores box sizes `0`/`1` (to-EOF / 64-bit); real encoders write a 32-bit size.
+- Tests 2–4 reuse test 1's `fileId`; a failed upload cascades into confusing `GET` failures (always red).
+  `beforeAll` for the upload, or `expect(fileId).toBeDefined()`, would clarify.
+- `readPngWidth` throws a RangeError on a body under 20 bytes rather than a descriptive message.
+- Local arrow `ascii` in `expectAvifFtyp`; rules.md's `function`-declaration rule targets module level.

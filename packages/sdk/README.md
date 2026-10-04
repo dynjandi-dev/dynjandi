@@ -148,9 +148,10 @@ so it has the same aspect ratio. `options` is `url()`'s without `height`, which 
 `DynjandiError` (status `0`). It is one more variant per image, and counts against your project's plan cap
 like any other (the table above does not include it).
 
-**Upscaling.** The SDK does not know the original's width (the upload response carries no dimensions), and
-this SDK has not observed whether the service upscales a resize beyond it. Trim `widths` to no wider than
-the original, or a ladder wider than it may produce duplicate or soft candidates.
+**Upscaling.** The service upscales (observed 2026-10-04): a resize wider than the original is served at
+the requested width (the live smoke test asks for 320w of a 1x1 image and gets 320px back). The SDK does
+not know the original's width, because the upload response carries no dimensions, so trim `widths` to no
+wider than the original. A wider candidate is a soft image that still costs a variant.
 
 ## Errors
 
@@ -190,9 +191,13 @@ against, not a budget.
 
 ## Live smoke test
 
-`tests/live/smoke.test.ts` uploads a 1x1 PNG to a dedicated test project and fetches a variant of it. It
-needs the project's key in `DYNJANDI_SMOKE_PUBLIC_KEY` and the network, so `pnpm test` skips it. It fails
-if the key is unset.
+`tests/live/smoke.test.ts` uploads a 1x1 PNG to a dedicated test project, then fetches variants of it
+from the real service and expects `200`: a `url()` variant (`image/*`), a `srcset` candidate (`image/*`,
+a PNG body), an `avif` source from `pictureSources` (content type `image/avif` or `image/heif`, as the
+service mislabels AVIF; the body must have an AVIF `ftyp` box) and the `placeholder` (`image/*`). It also
+prints the width the service returns for a 320w resize of the 1x1 original, which shows whether it
+upscales. It needs the project's key in `DYNJANDI_SMOKE_PUBLIC_KEY` and the network, so `pnpm test` skips
+it. It fails if the key is unset.
 
 ```bash
 pnpm --filter @dynjandi/sdk run test:live

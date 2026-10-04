@@ -80,9 +80,19 @@ fails when the spec and the committed file disagree; fix with `pnpm --filter @dy
 pnpm --filter @dynjandi/sdk run test:live
 ```
 
-Uploads a 1x1 PNG to the dedicated test project on the live service, then fetches one SDK-built variant
-and expects 200 with an `image/*` content type. It needs the project's key in `DYNJANDI_SMOKE_PUBLIC_KEY`
-and the network (`https://cdn.dynjandi.dev`), so `pnpm test` excludes `tests/live/` and never touches
+Uploads a 1x1 PNG to the dedicated test project on the live service, then fetches SDK-built variants of
+it and expects 200 for each:
+
+- a 16w webp via `url()`, `image/*`;
+- one `srcset` candidate, a 320w png: `image/*` and a PNG body, whose width is written to stdout (not
+  asserted) to show whether the service upscales a resize past the 1x1 original;
+- one `avif` source from `pictureSources`: content type `image/avif` or `image/heif`, because the service
+  currently mislabels AVIF as heif (dynjandi-core#98), and a body with an ISOBMFF `ftyp` box whose major
+  brand is `avif`/`avis` or whose compatible brands include `avif`;
+- the `placeholder`, `image/*`.
+
+That is four variants per run, each counting against the test project's cap. It needs the project's key in
+`DYNJANDI_SMOKE_PUBLIC_KEY` and the network (`https://cdn.dynjandi.dev`), so `pnpm test` excludes `tests/live/` and never touches
 either. It fails, rather than skips, when the key is unset.
 
 It is not in the gate because it can go red with nothing in the diff: the service changes, the network
