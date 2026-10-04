@@ -1,7 +1,7 @@
 # @dynjandi/sdk
 
-TypeScript SDK for [Dynjandi](https://cdn.dynjandi.dev), an image CDN: upload an image, and build the URL of
-any variant of it.
+TypeScript SDK for [Dynjandi](https://cdn.dynjandi.dev), an image CDN: upload an image, read a stored
+file's record, and build the URL of any variant of it.
 
 ## Install
 
@@ -41,6 +41,28 @@ const { id, url } = await client.upload(file, { focal: { x: 0.42, y: 0.18 } });
 **Uploads are server-side only.** The CDN sends no CORS headers, so a browser cannot `POST /upload`
 cross-origin. Call `upload` from Node or a server.
 
+### `getFile(fileId)`
+
+Reads the stored record of a file and resolves with `{ id, contentType, bytes, originalFilename, source,
+focalX, focalY, createdAt }`. `focalX` and `focalY` are the stored focal point, both numbers from 0 to 1 or
+both `null`; `originalFilename` is `null` when the upload had none.
+
+```ts
+const file = await client.getFile(id);
+console.log(file.contentType, file.focalX, file.focalY);
+```
+
+**Reads are server-side only.** The CDN sends no CORS headers, so a browser cannot read the response
+cross-origin. Call `getFile` from Node or a server.
+
+The response is `Cache-Control: no-store` and the SDK does not cache it. Fetch a record once and keep it;
+do not call `getFile` per rendered image. (`upload`'s result already carries the point it was uploaded
+with.) An id the project does not have, an id that is not a UUID, and a file in another project are all
+`404 File not found`. `getFile` throws a `DynjandiError` for a non-2xx answer (401 missing or invalid key,
+404), a network failure (status `0`), a 2xx body that is not a file record (status of the response), and an
+empty id or `.`/`..` (status `0`, before any request). The id is percent-encoded into the path, so it
+cannot change the route.
+
 ### `url(fileId, options)`
 
 Builds the URL of a variant. It is synchronous, makes no request, and is safe in browsers. At least one
@@ -73,8 +95,9 @@ try {
 ```
 
 `status` is the HTTP status of the response that caused the failure (401 invalid key, 400 bad request,
-413 over the size limit or quota). It is `0` when there was no HTTP response: the network request failed,
-or the SDK refused the call before sending anything (bad focal point, bad options). The public key is never
+404 file not found, 413 over the size limit or quota). It is `0` when there was no HTTP response: the
+network request failed, or the SDK refused the call before sending anything (bad focal point, bad
+options, an empty or dot-segment file id). The public key is never
 part of a message.
 
 ## Bundle size

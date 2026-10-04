@@ -6,8 +6,8 @@ description of its public-key API (upload, and reading a stored file) and a Type
 
 **Status: early.** `@dynjandi/sdk` is published to npm (`npm i @dynjandi/sdk`).
 The OpenAPI spec for that API is written
-([`packages/spec`](packages/spec/README.md)). The SDK can upload files (server-side) and build image
-variant URLs.
+([`packages/spec`](packages/spec/README.md)). The SDK can upload files and read a stored
+file back (both server-side), and build image variant URLs.
 
 ## What is in here
 
