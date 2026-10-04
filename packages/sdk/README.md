@@ -93,6 +93,105 @@ The URL grammar itself comes from `@dynjandi/transform-grammar`; the SDK maps th
 never writes the grammar itself. Ranges (dimensions 1 to 10000, quality 1 to 100) are the grammar's, and
 `url()` refuses what it would not accept.
 
+### `srcset(file, options?)`
+
+Builds the value of an `srcset` attribute: one `<url> <width>w` candidate per width, smallest first. Every URL
+comes from `url()`, so `format`, `quality` and `crop` pass through unchanged, and `file` is what `url()`
+takes: a file id, or a stored file whose focal point a `crop` then uses. Like `url()`, it is synchronous,
+makes no request, and is safe in browsers. So are `pictureSources` and `placeholder`, which take `file` the
+same way.
+
+```ts
+import { DEFAULT_WIDTHS } from "@dynjandi/sdk";
+
+client.srcset(id); // widths: DEFAULT_WIDTHS, [320, 640, 960, 1280, 1920]
+client.srcset(id, { widths: [320, 640], format: "webp", quality: 75 });
+client.srcset(id, { crop: { width: 1600, height: 900 } }); // a fixed 16:9 at every width
+```
+
+```html
+<img src="..." srcset="<the string srcset returned>" sizes="(min-width: 800px) 800px, 100vw" alt="..." />
+```
+
+Put `alt` and `sizes` on the `<img>` yourself; `srcset` returns the attribute value only.
+
+`options` is `url()`'s without `width` and `height`, plus `widths`. A `height` is refused, because a fixed
+height at several widths distorts the image; pass `crop` for a fixed aspect ratio, which resizes after it.
+`widths` must be distinct integers from 1 to 10000, and an empty, repeated or non-integer list is refused with
+a `DynjandiError` (status `0`) before any URL is built.
+
+A file id containing a comma, space or `/` cannot add a candidate: the grammar package percent-encodes it.
+
+### `pictureSources(file, options?)`
+
+Builds the attributes of one `<source>` per format: `{ type, srcset, sizes? }[]`, in the order you give,
+best format first, because the browser takes the first one it supports. `formats` defaults to
+`DEFAULT_FORMATS`, `["avif", "webp"]`. Each `srcset` is what `srcset()` returns for that format, so
+`widths`, `quality` and `crop` apply to all of them. `type` is `image/<format>`; `jpg` is accepted as an
+alias and gives `image/jpeg`. Like `srcset()`, it is synchronous, makes no request, and is safe in browsers.
+
+It returns data, not markup, so you render it in whatever your framework calls its attributes (`srcSet`
+in React, for one). There is no `format/auto`, so the fallback is not a source: it is the plain `<img>`,
+with `srcset({ format: "jpeg" })`, and it must come after every `<source>`: a source after the `<img>` is
+ignored.
+
+```ts
+const sizes = "(min-width: 800px) 800px, 100vw";
+const sources = client.pictureSources(id, { sizes });
+const fallback = client.srcset(id, { format: "jpeg" });
+```
+
+```html
+<picture>
+  <source type="image/avif" srcset="<sources[0].srcset>" sizes="<sources[0].sizes>" />
+  <source type="image/webp" srcset="<sources[1].srcset>" sizes="<sources[1].sizes>" />
+  <img src="<one candidate's url>" srcset="<fallback>" sizes="(min-width: 800px) 800px, 100vw" alt="..." />
+</picture>
+```
+
+Put `alt` on the `<img>`, and `sizes` on it too: the `<img>`'s own `sizes` applies to its `srcset`, not the
+sources'. `sizes` is passed through exactly as you give it. It is not escaped, so if it reaches markup,
+escaping it is your job; the same holds for every other string you place in an attribute.
+
+An empty `formats`, or one that repeats a format (`jpeg` and `jpg` are the same format), is refused with a
+`DynjandiError` (status `0`) naming `formats`, before any URL is built. A `format` option is refused too;
+use `formats`. Everything `srcset()` refuses is refused here.
+
+**What it costs.** Every width x format x crop is a separate variant, and each new variant counts against
+your project's plan cap. Variants per image = widths x formats:
+
+| Call | Variants per image |
+|---|---|
+| `srcset(id)` with the default ladder, one format | 5 x 1 = 5 |
+| `srcset(id, { widths: [640, 1280] })` | 2 x 1 = 2 |
+| `pictureSources(id)` with the defaults, `avif` and `webp` | 5 x 2 = 10 |
+| the same, plus the `jpeg` fallback `<img>` | 5 x 3 = 15 |
+| `pictureSources(id, { widths: [640, 1280] })` plus a fallback with the same `widths` | 2 x 3 = 6 |
+
+A smaller `widths` or `formats` is how you spend less. `placeholder()` adds one more variant per image to
+any of these.
+
+### `placeholder(file, options?)`
+
+Builds the URL of a small, low-quality stand-in for the image: `width` 24, `quality` 20 and `format`
+`webp`, each unless you pass your own. Show it while the real image loads. Like `url()`, it is synchronous,
+makes no request, and is safe in browsers.
+
+```ts
+client.placeholder(id); // .../-/resize/24x/-/format/webp/-/quality/20/
+client.placeholder(id, { width: 32, crop: { width: 1600, height: 900 } });
+```
+
+This is a small, low-quality image, not a blur: the grammar has no blur operation. Pass the same `crop` as the image it stands in for,
+so it has the same aspect ratio. `options` is `url()`'s without `height`, which is refused with a
+`DynjandiError` (status `0`). It is one more variant per image, and counts against your project's plan cap
+like any other (the table above does not include it).
+
+**Upscaling.** The service upscales (observed 2026-10-04): a resize wider than the original is served at
+the requested width (the live smoke test asks for 320w of a 1x1 image and gets 320px back). The SDK does
+not know the original's width, because the upload response carries no dimensions, so trim `widths` to no
+wider than the original. A wider candidate is a soft image that still costs a variant.
+
 ## Errors
 
 Every failure is a `DynjandiError` with `status`, `message` and, where there is one, `cause`.
@@ -118,14 +217,14 @@ part of a message.
 ## Bundle size
 
 The browser bundle of `src/index.ts`, with `@dynjandi/transform-grammar` and its `zod` included, was
-**94,740 bytes gzipped** (460,180 bytes minified) on 2026-10-04, with `@dynjandi/transform-grammar` 0.1.1.
+**95,404 bytes gzipped** (461,613 bytes minified) on 2026-10-04, with `@dynjandi/transform-grammar` 0.1.1.
 Measured from this directory:
 
 ```bash
 pnpm dlx esbuild@0.28.2 --bundle --minify --platform=browser --format=esm src/index.ts | gzip -9 -c | wc -c
 ```
 
-Almost all of it is the grammar package's dependency: the SDK's own code is about 1.9 KB gzipped
+Almost all of it is the grammar package's dependency: the SDK's own code is about 2.5 KB gzipped
 (add `--external:@dynjandi/transform-grammar` to the command to see it), the grammar package's own code
 about 2 KB minified, and `zod` about 453 KB minified. This is a baseline to compare later changes
 against, not a budget.
@@ -133,11 +232,15 @@ against, not a budget.
 ## Live smoke test
 
 `tests/live/smoke.test.ts` uploads a 1x1 PNG with a focal point of (0.5, 0.5) to a dedicated test project
-and fetches a variant of it. It then reads the file back with `getFile`, checks the id and the point, builds
-a cropped URL from that record (which must end in `focal/0.5x0.5/`) and fetches it. It does not cover a
-later change of the point, for example in the dashboard: there is no public write endpoint, so the point
-can only be set at upload. It needs the project's key in `DYNJANDI_SMOKE_PUBLIC_KEY` and the network, so
-`pnpm test` skips it. It fails if the key is unset.
+and fetches a `url()` variant of it (`image/*`). It then reads the file back with `getFile`, checks the id
+and the point, builds a cropped URL from that record (which must end in `focal/0.5x0.5/`) and fetches it.
+It does not cover a later change of the point, for example in the dashboard: there is no public write
+endpoint, so the point can only be set at upload. It then fetches the responsive helpers' output and
+expects `200`: a `srcset` candidate (`image/*`, a PNG body), an `avif` source from `pictureSources`
+(content type `image/avif` or `image/heif`, as the service mislabels AVIF; the body must have an AVIF
+`ftyp` box) and the `placeholder` (`image/*`). It also prints the width the service returns for a 320w
+resize of the 1x1 original, which shows whether it upscales. It needs the project's key in
+`DYNJANDI_SMOKE_PUBLIC_KEY` and the network, so `pnpm test` skips it. It fails if the key is unset.
 
 ```bash
 pnpm --filter @dynjandi/sdk run test:live

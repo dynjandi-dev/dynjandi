@@ -81,13 +81,23 @@ pnpm --filter @dynjandi/sdk run test:live
 ```
 
 Uploads a 1x1 PNG with a focal point of (0.5, 0.5) to the dedicated test project on the live service,
-fetches one SDK-built variant and expects 200 with an `image/*` content type. It then reads the file back
-with `getFile` and asserts the same id and the same point, builds a cropped URL from that record, asserts
-it ends in `focal/0.5x0.5/` (the stored point was used) and fetches it, again expecting 200 with an
-`image/*` content type. That proves the read endpoint and the record-built focal URL against the real
-service, not where the crop lands: the image is 1x1. It does not cover a later change of the point (in the dashboard, say): there is no public write
-endpoint, so the point can only be set at upload. It needs the project's key in `DYNJANDI_SMOKE_PUBLIC_KEY`
-and the network (`https://cdn.dynjandi.dev`), so `pnpm test` excludes `tests/live/` and never touches
+then fetches SDK-built variants of it and reads it back, expecting 200 for each fetch:
+
+- a 16w webp via `url()`, `image/*`;
+- the record read back with `getFile`, asserted to carry the same id and the same point; a cropped URL
+  built from that record, asserted to end in `focal/0.5x0.5/` (the stored point was used) and fetched,
+  `image/*`. That proves the read endpoint and the record-built focal URL against the real service, not
+  where the crop lands: the image is 1x1. It does not cover a later change of the point (in the dashboard,
+  say): there is no public write endpoint, so the point can only be set at upload;
+- one `srcset` candidate, a 320w png: `image/*` and a PNG body, whose width is written to stdout (not
+  asserted) to show whether the service upscales a resize past the 1x1 original;
+- one `avif` source from `pictureSources`: content type `image/avif` or `image/heif`, because the service
+  currently mislabels AVIF as heif (dynjandi-core#98), and a body with an ISOBMFF `ftyp` box whose major
+  brand is `avif`/`avis` or whose compatible brands include `avif`;
+- the `placeholder`, `image/*`.
+
+That is five variants per run, each counting against the test project's cap. It needs the project's key in
+`DYNJANDI_SMOKE_PUBLIC_KEY` and the network (`https://cdn.dynjandi.dev`), so `pnpm test` excludes `tests/live/` and never touches
 either. It fails, rather than skips, when the key is unset.
 
 It is not in the gate because it can go red with nothing in the diff: the service changes, the network
