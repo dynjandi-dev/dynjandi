@@ -1,7 +1,7 @@
 import { DynjandiError } from "./errors.js";
 import { type FileRecord, getFile } from "./files.js";
 import { type UploadOptions, type UploadResult, upload } from "./upload.js";
-import { type UrlOptions, url } from "./url.js";
+import { type StoredFile, type UrlOptions, url } from "./url.js";
 
 export const DEFAULT_ORIGIN = "https://cdn.dynjandi.dev";
 
@@ -23,10 +23,12 @@ export interface Client {
    */
   getFile(fileId: string): Promise<FileRecord>;
   /**
-   * The URL of a variant of `fileId` on the client's origin. Synchronous, and safe in browsers.
-   * Throws `DynjandiError` (status 0) for options the grammar refuses. See `UrlOptions`.
+   * The URL of a variant of a file on the client's origin. Takes a file id, or a stored file (a
+   * `getFile` or `upload` result) whose focal point a crop then uses. Synchronous, makes no request,
+   * and is safe in browsers. Throws `DynjandiError` (status 0) for options the grammar refuses. See
+   * `UrlOptions`.
    */
-  url(fileId: string, options: UrlOptions): string;
+  url(file: string | StoredFile, options: UrlOptions): string;
 }
 
 export function createClient(options: ClientOptions): Client {
@@ -50,6 +52,6 @@ export function createClient(options: ClientOptions): Client {
   return {
     upload: (file, uploadOptions) => upload(config, file, uploadOptions),
     getFile: (fileId) => getFile(config, fileId),
-    url: (fileId, urlOptions) => url(config.origin, fileId, urlOptions),
+    url: (file, urlOptions) => url(config.origin, file, urlOptions),
   };
 }

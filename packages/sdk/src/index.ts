@@ -7,5 +7,6 @@ export type {
   FaceCropPosition,
   FocalCrop,
   PositionedCrop,
+  StoredFile,
   UrlOptions,
 } from "./url.js";

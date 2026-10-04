@@ -63,16 +63,31 @@ with.) An id the project does not have, an id that is not a UUID, and a file in 
 empty id or `.`/`..` (status `0`, before any request). The id is percent-encoded into the path, so it
 cannot change the route.
 
-### `url(fileId, options)`
+### `url(file, options)`
 
-Builds the URL of a variant. It is synchronous, makes no request, and is safe in browsers. At least one
-option is required (the original is served at the `url` that `upload` returns).
+Builds the URL of a variant. `file` is a file id, or a stored file: the result of `getFile` or `upload`.
+It is synchronous, makes no request, and is safe in browsers. At least one option is required (the
+original is served at the `url` that `upload` returns).
 
 ```ts
 client.url(id, { width: 800, height: 600, format: "webp", quality: 80 });
 client.url(id, { crop: { width: 1280, height: 400, focal: { x: 0.42, y: 0.18 } } });
 client.url(id, { crop: { width: 400, height: 400, position: "face,attention" }, format: "avif" });
+
+// With a stored file, a crop crops on the file's stored focal point.
+const file = await client.getFile(id); // or the result of client.upload(...)
+client.url(file, { crop: { width: 1280, height: 400 } }); // .../-/crop/1280x400/focal/0.42x0.18/
 ```
+
+A string id behaves exactly as above. A stored file is anything with `id`, `focalX` and `focalY` (the
+`StoredFile` type), so a `getFile` result and an `upload` result both work as they are, with no cast.
+`upload` already returns the point it stored, so a caller who keeps that result needs no `getFile` call;
+a point changed later (in the dashboard, say) is only seen by a fresh `getFile`. For a crop with a stored
+file:
+
+- a crop that names neither `position` nor `focal` uses the stored point;
+- an explicit `focal` or `position` always wins over the stored point;
+- a file with no stored point (`focalX` and `focalY` both `null`) crops on `center`, as a string id does.
 
 The URL grammar itself comes from `@dynjandi/transform-grammar`; the SDK maps these options onto it and
 never writes the grammar itself. Ranges (dimensions 1 to 10000, quality 1 to 100) are the grammar's, and
@@ -103,14 +118,14 @@ part of a message.
 ## Bundle size
 
 The browser bundle of `src/index.ts`, with `@dynjandi/transform-grammar` and its `zod` included, was
-**94,306 bytes gzipped** (458,625 bytes minified) on 2026-10-01, with `@dynjandi/transform-grammar` 0.1.1.
+**94,740 bytes gzipped** (460,180 bytes minified) on 2026-10-04, with `@dynjandi/transform-grammar` 0.1.1.
 Measured from this directory:
 
 ```bash
 pnpm dlx esbuild@0.28.2 --bundle --minify --platform=browser --format=esm src/index.ts | gzip -9 -c | wc -c
 ```
 
-Almost all of it is the grammar package's dependency: the SDK's own code is about 1.5 KB gzipped
+Almost all of it is the grammar package's dependency: the SDK's own code is about 1.9 KB gzipped
 (add `--external:@dynjandi/transform-grammar` to the command to see it), the grammar package's own code
 about 2 KB minified, and `zod` about 453 KB minified. This is a baseline to compare later changes
 against, not a budget.
