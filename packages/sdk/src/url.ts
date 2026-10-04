@@ -8,6 +8,7 @@ import {
   type OutputFormat,
 } from "@dynjandi/transform-grammar";
 import { DynjandiError } from "./errors.js";
+import type { FileRecord } from "./files.js";
 
 /** The grammar's face-detection crop position, `face,<position>`, taken from its own types. */
 export type FaceCropPosition = Extract<CropOperation, { detector: unknown }>["position"];
@@ -51,23 +52,38 @@ export interface UrlOptions {
   crop?: CropOptions;
 }
 
+/**
+ * The part of a stored file `url()` reads: its id and its stored focal point. Both a `getFile` result
+ * and an `upload` result satisfy it.
+ */
+export type StoredFile = Pick<FileRecord, "id" | "focalX" | "focalY">;
+
 function isFaceCropPosition(
   position: CropPosition | FaceCropPosition,
 ): position is FaceCropPosition {
   return position.startsWith("face,");
 }
 
-function toCropOperation(crop: CropOptions): CropOperation {
-  const { width, height } = crop;
+/** The point to crop on: an explicit `focal`, else the stored point when no `position` was named. */
+function focalPointOf(crop: CropOptions, stored: StoredFile | undefined) {
   if (crop.focal !== undefined) {
-    return {
-      op: "crop",
-      width,
-      height,
-      position: "focal",
-      focalX: crop.focal.x,
-      focalY: crop.focal.y,
-    };
+    return crop.focal;
+  }
+  if (crop.position === undefined && stored !== undefined) {
+    const { focalX, focalY } = stored;
+    // A stored point is both coordinates or neither.
+    if (focalX !== null && focalY !== null) {
+      return { x: focalX, y: focalY };
+    }
+  }
+  return undefined;
+}
+
+function toCropOperation(crop: CropOptions, stored: StoredFile | undefined): CropOperation {
+  const { width, height } = crop;
+  const focal = focalPointOf(crop, stored);
+  if (focal !== undefined) {
+    return { op: "crop", width, height, position: "focal", focalX: focal.x, focalY: focal.y };
   }
   const position = crop.position ?? "center";
   if (isFaceCropPosition(position)) {
@@ -84,10 +100,10 @@ function toCropOperation(crop: CropOptions): CropOperation {
  * quality describe the output encoding, so they come last, and quality is set after the format it
  * applies to.
  */
-function toOperations(options: UrlOptions): NormalizedOperation[] {
+function toOperations(options: UrlOptions, stored: StoredFile | undefined): NormalizedOperation[] {
   const operations: NormalizedOperation[] = [];
   if (options.crop !== undefined) {
-    operations.push(toCropOperation(options.crop));
+    operations.push(toCropOperation(options.crop, stored));
   }
   if (options.width !== undefined || options.height !== undefined) {
     operations.push({ op: "resize", width: options.width ?? null, height: options.height ?? null });
@@ -122,15 +138,22 @@ function describeInvalidOperations(
  * Builds a variant URL on `origin` by mapping `options` to the grammar package's operations and
  * handing them to its builder. Nothing here writes, parses or hashes the grammar.
  *
+ * `file` is a file id, or a stored file (a `getFile` or `upload` result). With a stored file, a crop that
+ * names neither `position` nor `focal` uses its stored focal point, or `center` when it has none; an
+ * explicit `focal` or `position` always wins. Nothing here makes a request or reads more than the
+ * record's three properties.
+ *
  * Every failure is a `DynjandiError` with status `0` (there is no HTTP response): an empty `fileId`,
  * no options, or a value the grammar refuses. The grammar package's own error is kept as `cause`.
  */
-export function url(origin: string, fileId: string, options: UrlOptions): string {
+export function url(origin: string, file: string | StoredFile, options: UrlOptions): string {
+  const fileId = typeof file === "string" ? file : file.id;
+  const stored = typeof file === "string" ? undefined : file;
   if (fileId === "") {
     throw new DynjandiError("Cannot build a variant URL: fileId must not be empty.", 0);
   }
 
-  const operations = toOperations(options);
+  const operations = toOperations(options, stored);
   try {
     // `buildVariantUrl` serialises whatever it is given, so range checks come from the grammar's schema.
     const checked = normalizedOperationsSchema.safeParse(operations);

@@ -80,8 +80,13 @@ fails when the spec and the committed file disagree; fix with `pnpm --filter @dy
 pnpm --filter @dynjandi/sdk run test:live
 ```
 
-Uploads a 1x1 PNG to the dedicated test project on the live service, then fetches one SDK-built variant
-and expects 200 with an `image/*` content type. It needs the project's key in `DYNJANDI_SMOKE_PUBLIC_KEY`
+Uploads a 1x1 PNG with a focal point of (0.5, 0.5) to the dedicated test project on the live service,
+fetches one SDK-built variant and expects 200 with an `image/*` content type. It then reads the file back
+with `getFile` and asserts the same id and the same point, builds a cropped URL from that record, asserts
+it ends in `focal/0.5x0.5/` (the stored point was used) and fetches it, again expecting 200 with an
+`image/*` content type. That proves the read endpoint and the record-built focal URL against the real
+service, not where the crop lands: the image is 1x1. It does not cover a later change of the point (in the dashboard, say): there is no public write
+endpoint, so the point can only be set at upload. It needs the project's key in `DYNJANDI_SMOKE_PUBLIC_KEY`
 and the network (`https://cdn.dynjandi.dev`), so `pnpm test` excludes `tests/live/` and never touches
 either. It fails, rather than skips, when the key is unset.
 

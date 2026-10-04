@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "0.22.0",
+  "version": "0.23.0",
   "adapters": [
     "claude",
     "agents"
@@ -15,7 +15,7 @@
     ".agents/skills/feature-status/SKILL.md": "0e41341b7144e2de5a273b4d661979e32d2a1b906b026fc7db1629bd76d0e3c1",
     ".agents/skills/feature-status/tracker.md": "20c35c5dfd506654e2eac1ee2386dd269178cb93f37f3276b7c821bfb57893fd",
     ".agents/skills/onboard/SKILL.md": "0af9d601c7796e58d78ff9ba85e8c94ad08f31c4424ac9e1f2c55cd3f40b4f56",
-    ".agents/skills/orchestrate/SKILL.md": "c19c998c5af8e1559ced9382e16cd325759d1a3f795271bfee424288966053d8",
+    ".agents/skills/orchestrate/SKILL.md": "58136e3f97d18823e55fd54c86f7fa1108d188fe53fcb6bae67835f1b957cc80",
     ".agents/skills/prototype/SKILL.md": "01efae578e1a1559c0953218f0158cf5fd558d91d3118a1fe3212bdd3417496f",
     ".agents/skills/roadmap/SKILL.md": "3503c98dc427cbb0ee6b7888cd6c0b02fef91449f0a6451f62d66d696f71d08c",
     ".agents/skills/roadmap/tracker.md": "0dd38371894f16fb0c704b6bac8f6fa7575603a237a05aefd84240afdf8eb260",
@@ -31,12 +31,12 @@
     ".claude/skills/feature-status/SKILL.md": "af772dfde23a111cc509e663508f868974de52b8817bb2a8cf57d8f74b15cf0c",
     ".claude/skills/feature-status/tracker.md": "20c35c5dfd506654e2eac1ee2386dd269178cb93f37f3276b7c821bfb57893fd",
     ".claude/skills/onboard/SKILL.md": "83f74756c71dc582a1f45eb146935f5388b644ec44b9988dcf9991ca76d1c53e",
-    ".claude/skills/orchestrate/SKILL.md": "e186f1ae3984026f0c5039f6451938f6bbde2ed889fbda183eef1b0ffa07f628",
+    ".claude/skills/orchestrate/SKILL.md": "10d9877d14d8fd513f6e3281fc756e9d74a9b22b77598c0056667defa6c35b64",
     ".claude/skills/prototype/SKILL.md": "2af63c574a2a0582b3d5aa807f9a686ee2692cbc20ae2d839ab80a5a69a78226",
     ".claude/skills/roadmap/SKILL.md": "dbb4e60e67d7964062adeab3611bb43a1a21300ffcb10330452e17798ee30193",
     ".claude/skills/roadmap/tracker.md": "0dd38371894f16fb0c704b6bac8f6fa7575603a237a05aefd84240afdf8eb260",
     ".claude/skills/tracking-migrate/SKILL.md": "afbc72de769f43331e9921ca0cd202d160913031fc23fbe5a4f7c2d79d38b256",
-    "AGENTS.md#ai-workflow": "dffd9b2a7bfb6f3d770009240f279ef8f840c178dfdc2b48f88c9aab2fedb118",
+    "AGENTS.md#ai-workflow": "3fa9101e4753542e160824714ca278f270387f92a15eea7eb2dd2a9d94a0c295",
     "context/README.md": "c79966ddbfa05e3271efdb4fa3820aa39f1c4b0c004347ee578a5a7b8b15a57d",
     "context/executors.notes.md": "8a8f52fd2f4a6fb945d31c7e7e87ae1bbc3b0e058916a1a9be45f4d697bf7c5d",
     "context/git.notes.md": "e6cf4c0f4f2d933f331a9dbd01744770a254ca7fcd9c91f43635fa00f7192760",
@@ -125,7 +125,7 @@
     "context/standards/typescript/validation.md": "e93433db3fde939380a0d069dc4315d8034d0c95d051d0e59dc84c684e325a89",
     "context/tracking.notes.md": "207eb3dda2404f62e0d6d7d8ef9f30beb7d2fe26747226820331b35b11679caa",
     "context/verify.notes.md": "f3bcfecef2a8c0417786e7ca48a46f345b0c5f5ee1d84615e8d6757bec0246de",
-    "context/workflow.md": "139a912a80d5dc27521616d1a3436f04be28e540aebcb625bb7eb104774d62a4",
+    "context/workflow.md": "f0e898442f6ca104efcf0df5187d9795e58ea325b32525f0b6cbab517e9477a7",
     "context/workflow.notes.md": "e0501170f362ae138a6272f08cb556f228faf1b405f612fad7d831d442d4252e"
   }
 }

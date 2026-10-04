@@ -42,7 +42,9 @@ async function fetchVariant(url: string): Promise<Response> {
 }
 
 describe("live service", () => {
-  test("uploads an image and serves a variant of it", { timeout: 30_000 }, async () => {
+  test("uploads an image, reads its record back and serves variants of it", {
+    timeout: 30_000,
+  }, async () => {
     const client = createClient({ publicKey: requirePublicKey() });
     const png = Uint8Array.from(atob(PNG_1X1_BASE64), (char) => char.charCodeAt(0));
 
@@ -60,5 +62,22 @@ describe("live service", () => {
 
     expect(response.status, `GET ${variantUrl}`).toBe(200);
     expect(response.headers.get("content-type") ?? "").toMatch(/^image\//);
+
+    // The record read back carries the point the upload stored.
+    const record = await client.getFile(uploaded.id);
+
+    expect(record.id).toBe(uploaded.id);
+    expect(record.focalX).toBe(0.5);
+    expect(record.focalY).toBe(0.5);
+
+    // A crop that names neither `focal` nor `position` uses the record's stored point.
+    const focalUrl = client.url(record, { crop: { width: 16, height: 16 } });
+
+    expect(focalUrl).toMatch(/focal\/0\.5x0\.5\/$/);
+
+    const focalResponse = await fetchVariant(focalUrl);
+
+    expect(focalResponse.status, `GET ${focalUrl}`).toBe(200);
+    expect(focalResponse.headers.get("content-type") ?? "").toMatch(/^image\//);
   });
 });
