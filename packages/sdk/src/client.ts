@@ -1,4 +1,5 @@
 import { DynjandiError } from "./errors.js";
+import { type SrcsetOptions, srcset } from "./responsive.js";
 import { type UploadOptions, type UploadResult, upload } from "./upload.js";
 import { type UrlOptions, url } from "./url.js";
 
@@ -21,6 +22,12 @@ export interface Client {
    * Throws `DynjandiError` (status 0) for options the grammar refuses. See `UrlOptions`.
    */
   url(fileId: string, options: UrlOptions): string;
+  /**
+   * An `srcset` attribute value for `fileId`: one candidate per width. Synchronous, and safe in
+   * browsers. Each width is a separate variant that counts against the plan cap; see `DEFAULT_WIDTHS`.
+   * Throws `DynjandiError` (status 0) for options it refuses. See `SrcsetOptions`.
+   */
+  srcset(fileId: string, options?: SrcsetOptions): string;
 }
 
 export function createClient(options: ClientOptions): Client {
@@ -44,5 +51,6 @@ export function createClient(options: ClientOptions): Client {
   return {
     upload: (file, uploadOptions) => upload(config, file, uploadOptions),
     url: (fileId, urlOptions) => url(config.origin, fileId, urlOptions),
+    srcset: (fileId, srcsetOptions) => srcset(config.origin, fileId, srcsetOptions),
   };
 }

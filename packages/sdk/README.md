@@ -56,6 +56,48 @@ The URL grammar itself comes from `@dynjandi/transform-grammar`; the SDK maps th
 never writes the grammar itself. Ranges (dimensions 1 to 10000, quality 1 to 100) are the grammar's, and
 `url()` refuses what it would not accept.
 
+### `srcset(fileId, options?)`
+
+Builds the value of an `srcset` attribute: one `<url> <width>w` candidate per width, smallest first. Every URL
+comes from `url()`, so `format`, `quality` and `crop` pass through unchanged. Like `url()`, it is synchronous,
+makes no request, and is safe in browsers.
+
+```ts
+import { DEFAULT_WIDTHS } from "@dynjandi/sdk";
+
+client.srcset(id); // widths: DEFAULT_WIDTHS, [320, 640, 960, 1280, 1920]
+client.srcset(id, { widths: [320, 640], format: "webp", quality: 75 });
+client.srcset(id, { crop: { width: 1600, height: 900 } }); // a fixed 16:9 at every width
+```
+
+```html
+<img src="..." srcset="<the string srcset returned>" sizes="(min-width: 800px) 800px, 100vw" alt="..." />
+```
+
+Put `alt` and `sizes` on the `<img>` yourself; `srcset` returns the attribute value only.
+
+`options` is `url()`'s without `width` and `height`, plus `widths`. A `height` is refused, because a fixed
+height at several widths distorts the image; pass `crop` for a fixed aspect ratio, which resizes after it.
+`widths` must be distinct integers from 1 to 10000, and an empty, repeated or non-integer list is refused with
+a `DynjandiError` (status `0`) before any URL is built.
+
+A `fileId` containing a comma, space or `/` cannot add a candidate: the grammar package percent-encodes it.
+
+**What it costs.** Every width x format x crop is a separate variant, and each new variant counts against
+your project's plan cap. Variants per image = widths x formats:
+
+| Call | Variants per image |
+|---|---|
+| `srcset(id)` with the default ladder, one format | 5 x 1 = 5 |
+| `srcset(id, { widths: [640, 1280] })` | 2 x 1 = 2 |
+| the same default ladder in `avif`, `webp` and `jpeg` | 5 x 3 = 15 |
+
+A smaller `widths` is how you spend less.
+
+**Upscaling.** The SDK does not know the original's width (the upload response carries no dimensions), and
+this SDK has not observed whether the service upscales a resize beyond it. Trim `widths` to no wider than
+the original, or a ladder wider than it may produce duplicate or soft candidates.
+
 ## Errors
 
 Every failure is a `DynjandiError` with `status`, `message` and, where there is one, `cause`.
