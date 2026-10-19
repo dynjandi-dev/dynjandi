@@ -37,7 +37,7 @@ This file holds the rules. Why each rule is what it is, and what was tried inste
 | `/feature-implement` | activation, and the phases within a plan | the plan's ledger, the code, and a release note where [`release.md`](release.md) says *per phase* |
 | `/feature-status` | nothing — read-only | — |
 | `/feature-close` | Tier 2 → retired | `history.md`, `archive/`, the reference sweep, an end for every open question that still needs a person, a release note where [`release.md`](release.md) says *once per feature*, and the push and pull request where [`git.md`](git.md) says so |
-| `/orchestrate` | one ad-hoc gated change | the code, a release note where [`release.md`](release.md) says one is owed, and under `--pr` the branch it pushes and the pull request it opens |
+| `/orchestrate` | one ad-hoc gated change | the code, a release note where [`release.md`](release.md) says one is owed, and under `--pr` the branch it pushes, the pull request it opens with the label [`git.md`](git.md) names, and a reply to every review comment on it |
 | `/release` | the one act that consumes notes | nothing of its own — it runs what [`release.md`](release.md)'s *Bump* wire names, on a branch [`executors.md`](executors.md) made, and ends at a pull request |
 | `/prototype` | one throwaway HTML/CSS mockup — no gates, no application code | `prototypes/<NAME>/`, and nothing else |
 | `/onboard` | the project-owned stubs | `verify.md`, `executors.md`, `git.md`, `tracking.md`, `release.md`, `stack.md`, and the pruning of what they replace |
@@ -110,7 +110,8 @@ commit-sized unit and anything an existing roadmap entry already covers.
 commits. Under those answers a push happens once per feature, at `/feature-close` — never at the end of a
 phase — and the only pushes outside them are the two asked for by name: `/orchestrate --pr`, and
 `/release`. **Nothing merges a pull request, deletes a branch, or removes a worktree under any answer, any
-flag or any command.** The one exception is not a worktree in that sense: `/feature-implement` makes a
+flag or any command** — `/orchestrate --pr` stays to answer the review its pull request gets, which is the
+opposite of approving it. The one exception is not a worktree in that sense: `/feature-implement` makes a
 **detached, branchless checkout in `.phase-trees/`** for a phase it runs beside another, and removes it
 when its row reads `done`. Not by the recorded invocation, and no other command makes or removes one.
 
@@ -121,6 +122,8 @@ phase to make one, not for an ad-hoc request to be moved into a tree of its own.
 operation needs the user to ask for it in this session. **A typed flag or a typed command is that ask** —
 `/orchestrate --pr` and `/release` are the two the workflow ships, and each authorises that invocation's
 commit, push and pull request without changing a single answer in [`git.md`](git.md) for the next one.
+Under `--pr` that one invocation also covers the label and the review rounds behind it: a commit and a push
+per round, a reply in each thread, and a thread resolved where a fix landed.
 
 **Permission is not inferred.** Choosing between approaches does not authorise any of this, even where the
 option text mentions it — and *especially* where you wrote that option text yourself. Neither does "ship

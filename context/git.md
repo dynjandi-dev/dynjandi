@@ -6,7 +6,7 @@ any `git` or `gh` command that changes something, and again before closing out**
 reason: git etiquette differs per repository, and a skill that assumes one project's ships one project's
 habits everywhere.
 
-Four answers, and each one is independent of the rest. A worktree per feature does not imply a pull
+Five answers, and each one is independent of the rest. A worktree per feature does not imply a pull
 request, and a pull request does not imply a worktree — pick each on its own terms. Run `/onboard` to set
 them, or edit them here.
 
@@ -48,6 +48,15 @@ branch carries the whole feature: every phase's code and the documentation each 
 pull request's body is the plan's summary and the phases it landed, and carries `Closes #<issue>` so the
 merge closes the feature's issue — the tracker's equivalent of the `history.md` row and the `archive/` move.
 
+## What a pull request carries
+
+**`ai-review`.** Every pull request this workflow opens carries it. It asks for an automated code review
+(the label reads "Ask code-reviewer for a review of this pull request"; the `baldurs-reviewer` app
+installed on the `dynjandi-dev` organisation is what answers it), and `/orchestrate --pr`
+stays to answer that review. Confirmed to exist in `dynjandi-dev/dynjandi` by `/onboard` on 2026-10-19,
+and confirmed answered the same day: `baldurs-reviewer` reviewed pull request #14 and took the label off
+once it had, which is why `/orchestrate --pr` re-applies it after each round's push.
+
 ## Granularity
 
 **One commit per phase.** A phase is a commit-sized unit with one checkable outcome — that is what a plan's
@@ -65,7 +74,7 @@ worktree — under any answer above. Review and merge are yours.
 
 ## What no answer here authorises
 
-The four answers above say what the **workflow's own commands** do, at the point each one names. They are
+The answers above say what the **workflow's own commands** do, at the point each one names. They are
 not standing leave to use git.
 
 **Never stage, commit, branch, create a worktree, push or open a pull request on your own initiative.**
