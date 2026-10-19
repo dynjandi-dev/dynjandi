@@ -221,13 +221,14 @@ The browser bundle of `src/index.ts`, with `@dynjandi/transform-grammar` include
 directory:
 
 ```bash
-pnpm dlx esbuild@0.28.2 --bundle --minify --platform=browser --format=esm src/index.ts | gzip -9 -c | wc -c
+pnpm exec esbuild --bundle --minify --platform=browser --format=esm src/index.ts | gzip -9 -c | wc -c
 ```
 
 The SDK's own code is 2,489 bytes gzipped (6,338 bytes minified); add
 `--external:@dynjandi/transform-grammar` to the command to see it. The rest is the grammar package's code.
-The SDK imports its zod-free `./builder` entry, so `zod` is not in a browser bundle. This is a baseline to
-compare later changes against, not a budget.
+The SDK imports its zod-free `./builder` entry, so `zod` is not in a browser bundle;
+`tests/bundle.test.ts` bundles `src/index.ts` the same way and fails if it ever is. The byte figure is a
+baseline to compare later changes against, not a budget.
 
 ## Live smoke test
 
