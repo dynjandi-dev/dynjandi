@@ -54,7 +54,8 @@ A refusal here is the workflow working.
 
 ## 2. Do the work
 
-Read `context/stack.md` and load `context/standards/README.md` per its conditional table.
+Read [`context/stack.md`](../../../context/stack.md) and load `context/standards/README.md` per its
+conditional table.
 
 **Ask the surface question first**, per the standing rule in
 [`context/workflow.md`](../../../context/workflow.md): does this change put something in front of a person,
@@ -109,9 +110,19 @@ found* in [`context/workflow.md`](../../../context/workflow.md).
 - `PASS` or `PASS WITH NOTES` → done.
 - `FAIL` → loop back.
 
-**A non-blocking observation goes in this run's report and dies with the session** — unless it needs code
-changes, in which case it is work and belongs in the backlog per
-[`context/tracking.md`](../../../context/tracking.md).
+**Every non-blocking observation gets one of the ends in *What happens to a defect the gate found* in
+[`context/workflow.md`](../../../context/workflow.md), and kind decides which** — not size, and **not
+whether it needs code changes**, which every true observation about code does.
+
+- **A real defect, and it is user-visible or a regression would land green** → a **bug**, wherever this
+  project already files bugs, carrying this project's own labels. **Never the backlog label** — see *A bug
+  is not a backlog entry* in that same file. The backlog is a list of features and this is not one.
+- **Not a defect, but work you would want a `history.md` row for** → that is a backlog entry, and adding
+  one is `/roadmap`'s. **Name it and say what you would add**; do not append to the backlog from here. That
+  command applies the worth-adopting test and writes what the ranking reads, and a gate doing it by hand
+  produces neither.
+- **Anything else** → this run's report, and it dies with the session. **There is no `context/notes.md` in
+  this command** — step 5 says why.
 
 ## 5. Loopback
 
@@ -133,8 +144,8 @@ resume — the tree either carries the change or it does not.
 **This command writes no `context/notes.md`**, and that is the one place it departs from *What happens to a
 defect the gate found* in [`context/workflow.md`](../../../context/workflow.md). That file's cheap end is
 bounded by `/feature-close` deleting it, and an ad-hoc change has no close — so a note written here is the
-one that would outlive every branch. **An observation that is work becomes an issue; every other one goes
-in the report and dies with the session.**
+one that would outlive every branch. **So step 4's cheap end has nowhere to live here: a bug is filed, a
+feature is `/roadmap`'s to admit, and everything else goes in the report and dies with the session.**
 
 ## 6. Land it — read [`context/git.md`](../../../context/git.md)
 

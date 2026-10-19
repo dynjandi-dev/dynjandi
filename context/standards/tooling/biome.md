@@ -82,6 +82,25 @@ pnpm biome migrate prettier
 
 Biome can automatically migrate most ESLint and Prettier configs.
 
+## Enforcement — the gmt Date ban
+
+A project linting with Biome installs `@northguild/gmt-biome`, which bans every `Date` API via GritQL
+plugins. [`dates.md`](dates.md) has the full table and the rationale; the Biome half is:
+
+```json
+{
+  "plugins": ["./node_modules/@northguild/gmt-biome/plugins/all.grit"]
+}
+```
+
+Plugin paths are filesystem paths — Biome resolves no npm specifiers in `plugins`, the `.grit` extension is
+required, and `extends` cannot distribute plugins because paths in an extended config resolve against the
+consuming project root.
+
+**This needs Biome 2 or newer.** `plugins` does not exist in Biome 1, and
+[`../templates/biome-example.json`](../templates/biome-example.json) is still written against the 1.9.4 schema, so the
+plugin cannot be dropped into that starter as it stands — migrate the config to Biome 2 first.
+
 ## DO NOT
 
 - Run both Biome and Prettier on the same files — they will conflict

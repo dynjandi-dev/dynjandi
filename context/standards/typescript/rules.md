@@ -72,7 +72,7 @@ interface InvoiceTableProps {
 // GOOD — type for unions, intersections, mapped/conditional types, primitive aliases
 type Status = "active" | "inactive" | "archived";
 type UserId = string;
-type WithTimestamps<T> = T & { createdAt: Date; updatedAt: Date };
+type WithTimestamps<T> = T & { createdAt: string; updatedAt: string }; // ISO 8601, never Date
 type Nullable<T> = T | null;
 
 // BAD — type for an object shape that interface would handle
@@ -157,3 +157,4 @@ Type safety > Brevity > Cleverness
 - [naming.md](naming.md)
 - [error-handling.md](error-handling.md)
 - [tsconfig/base.json](tsconfig/base.json)
+- [`../tooling/dates.md`](../tooling/dates.md) — `Date` is banned as a value and as a type

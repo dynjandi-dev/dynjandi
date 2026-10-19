@@ -23,7 +23,7 @@ export const userSchema = z.object({
   name: z.string().min(1).max(100),
   email: z.string().email(),
   role: z.enum(["admin", "member", "viewer"]),
-  createdAt: z.coerce.date(),
+  createdAt: z.iso.datetime(),
 });
 
 export type User = z.infer<typeof userSchema>;
@@ -102,3 +102,4 @@ Schema-first > Manual validation > No validation
 - [`../security/validation.md`](../security/validation.md) — validating at API boundaries
 - [`../architecture/api-design.md`](../architecture/api-design.md) — shared schemas across FE/BE
 - [`../react/forms.md`](../react/forms.md) — Zod schemas with TanStack/RHF forms
+- [`../tooling/dates.md`](../tooling/dates.md) — dates validate as ISO strings; never `z.coerce.date()`

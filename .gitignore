@@ -14,3 +14,6 @@ coverage/
 
 # Copied from the root by the SDK's prepack so the tarball carries the licence
 packages/sdk/LICENSE
+
+# Scratch checkouts /feature-implement makes for a round of phases (context/verify.md)
+.phase-trees/

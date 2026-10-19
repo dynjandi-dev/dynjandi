@@ -14,8 +14,14 @@ ones that exit 0.** Filling them in by hand is fine too; running them first is n
 What each section takes, and the alternative answers written out, are in
 [`verify.notes.md`](verify.notes.md). `/onboard` reads that file when it fills this one.
 
-All commands run from the repository root and were run, exit 0, on 2026-10-01 (Node 24, pnpm 10.32.1).
-Install first with `pnpm install --frozen-lockfile`. `.github/workflows/ci.yml` runs the same commands.
+All commands run from the repository root and were run, exit 0, on 2026-10-19 (Node 24, pnpm 10.32.1), in
+this tree and in a fresh clone prepared as *Prepare a fresh tree* says. `.github/workflows/ci.yml` runs the
+same commands.
+
+None of them looks inside `.phase-trees/`, where `/feature-implement` puts a round's scratch checkouts:
+`.gitignore` lists it, and Biome, which does not read that file here, excludes it in `biome.json`'s
+`files.includes`. Proven by `/onboard` on 2026-10-19 with a lint failure, a format failure and a failing
+test planted under it — every command below passed over them.
 
 ## Lint
 
@@ -26,6 +32,11 @@ pnpm format:check
 
 `pnpm lint` also lints the OpenAPI spec: Biome over the code, then Redocly CLI (`recommended-strict`) over
 `packages/spec/openapi.yaml`. A spec that does not validate fails it.
+
+It also fails on a skipped or focused test — `.skip`, `xit`, `xdescribe`, `.only`, `fit` — because
+`biome.json` raises `noSkippedTests` and `noFocusedTests` to `error`; at their default `warn` neither fails
+the run, and Vitest reports a skipped test as a pass. Vitest's own `.fails`, `.todo`, `.skipIf` and
+`.runIf` are not caught; none is used.
 
 ## Typecheck
 
@@ -114,6 +125,24 @@ environment, without printing it:
 
 Never `cat` the file or echo the variable. The test and the SDK keep the key out of their output, but a
 shell trace or a pasted log would not.
+
+## Prepare a fresh tree
+
+```bash
+pnpm install --frozen-lockfile
+```
+
+What makes a clean checkout of this repository runnable, in order — the dependency install, and anything
+else that has to exist before the sections above can pass. **Gate 1 does not run it**, which is why it sits
+below that line: an ordinary phase works in a tree that is already prepared.
+
+That is the whole of it here: nothing is generated before the gate (`api.d.ts` is committed), and `dist/`
+is built by `pnpm build` itself. Verified by `/onboard` on 2026-10-19 in a `git clone --no-hardlinks` of
+this repository: the install, then every section above, exit 0, and `git status --porcelain` printed
+nothing afterwards.
+
+**Empty is an answer with a cost.** `/feature-implement` runs phases side by side in fresh checkouts and
+cannot without this, so it falls back to one phase at a time and names this section as the reason.
 
 ## Rules
 
