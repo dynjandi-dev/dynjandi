@@ -52,9 +52,10 @@ merge closes the feature's issue — the tracker's equivalent of the `history.md
 
 **`ai-review`.** Every pull request this workflow opens carries it. It asks for an automated code review
 (the label reads "Ask code-reviewer for a review of this pull request"; the `baldurs-reviewer` app
-installed on the `dynjandi-dev` organisation is what is expected to answer it), and `/orchestrate --pr`
-stays to answer that review. Confirmed to exist in `dynjandi-dev/dynjandi` by `/onboard` on 2026-10-19; no
-pull request had carried it yet, so that the app answers it is unverified until one does.
+installed on the `dynjandi-dev` organisation is what answers it), and `/orchestrate --pr`
+stays to answer that review. Confirmed to exist in `dynjandi-dev/dynjandi` by `/onboard` on 2026-10-19,
+and confirmed answered the same day: `baldurs-reviewer` reviewed pull request #14 and took the label off
+once it had, which is why `/orchestrate --pr` re-applies it after each round's push.
 
 ## Granularity
 
