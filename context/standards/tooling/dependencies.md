@@ -29,7 +29,7 @@ Prefer the platform when it does the job:
 |---|---|
 | `lodash.clone`, `lodash.cloneDeep` | `structuredClone` |
 | `axios` | `fetch` |
-| `moment`, `date-fns` (for simple cases) | `Intl.DateTimeFormat`, `Intl.RelativeTimeFormat` |
+| `moment`, `date-fns`, `dayjs`, `luxon` | `@northguild/gmt` — the one exception to native-first, because `Intl` formatting takes a `Date` or an epoch, and `Date` is banned ([`dates.md`](dates.md)) |
 | `uuid` (for non-cryptographic IDs) | `crypto.randomUUID()` |
 | `query-string` | `URLSearchParams` |
 | `classnames` | `clsx` (smaller) or template strings |

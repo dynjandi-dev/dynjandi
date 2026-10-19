@@ -1,5 +1,6 @@
 // @ts-check
 // Fallback for projects not using Biome. Biome is the recommended single tool (see tooling/biome.md).
+import gmtEslintConfig from "@northguild/gmt-eslint";
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
 import jsxA11y from "eslint-plugin-jsx-a11y";
@@ -7,6 +8,8 @@ import reactHooks from "eslint-plugin-react-hooks";
 
 /** @type {import("eslint").Linter.Config[]} */
 const config = [
+  // Bans every `Date` API in favour of @northguild/gmt. Not optional — see tooling/dates.md.
+  ...gmtEslintConfig,
   {
     files: ["**/*.{ts,tsx}"],
     languageOptions: {

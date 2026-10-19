@@ -2,193 +2,284 @@
 
 ## Core Rules
 
-- Use `Temporal` types for all date/time work — never the legacy `Date` object
-- Store timestamps as UTC (`Temporal.Instant` serialized to ISO 8601)
-- Convert to the user's timezone only at display time (`Temporal.ZonedDateTime`)
-- Use `Temporal.PlainDate` for calendar dates (birthdays, holidays) — not timestamps
+- **Never use the `Date` object.** Not for construction, not for arithmetic, not for comparison, not for "just this once" — see [Enforcement](#enforcement)
+- Use [`@northguild/gmt`](https://github.com/northguild/gmt) for all date/time work
+- **Install the lint plugin for the project's linter.** The ban is not a convention to remember; it is a rule the linter enforces — see [Enforcement](#enforcement)
+- ISO 8601 strings are the application's currency — in and out of every helper
+- Store timestamps as UTC (`timestamptz`); convert to the user's timezone only at display time
+- Keep plain and zoned apart: a calendar date has no timezone, an instant has no wall-clock reading
 - Never assume the server and client share a timezone
+- Never reach for `moment`, `dayjs`, `luxon`, `date-fns`, or `spacetime` — all of them still carry `Date` internally
 
 ## Preferred Library
 
-Use [`@northguild/gmt`](https://github.com/northguild/gmt) — a thin layer over the modern [Temporal API](https://tc39.es/proposal-temporal/docs/) for handling date/time, timezones, and arithmetic. Includes a polyfill for environments without native Temporal yet.
+Use [`@northguild/gmt`](https://github.com/northguild/gmt) — a Temporal-first library over `@js-temporal/polyfill`, with no `Date` in its API at any point.
 
-Temporal replaces the legacy `Date` object and provides:
+Its contract is narrow on purpose:
 
-- Immutable types with explicit timezone handling
-- Calendar-aware arithmetic that doesn't break on DST or leap seconds
-- Clear separation between instants, zoned datetimes, plain dates, and durations
+- **ISO 8601 strings in, normalized strings (or numbers, booleans, arrays) out.** Helpers do not hand back objects you then have to keep straight.
+- **No fuzzy parsing.** It will not guess at an ambiguous format. Canonicalize outside the library, then call in.
+- **No throwing.** Invalid input returns a typed fallback — `""` for string helpers, `null` for numbers, `false` for booleans, `[]` for arrays. **This is the one thing to design around**: a bad input is a quiet empty string, not an exception, so validate at the boundary rather than trusting a return value downstream.
+- **`plain/*` is timezone-free, `zoned/*` is timezone-aware**, and the split is enforced by the API rather than by discipline.
 
-## Choosing the Right Temporal Type
+`Temporal` itself is re-exported for the cases the helpers do not cover. Prefer the helpers; reach for `Temporal` when you need something they do not express, not as the default.
 
-| Concept                         | Type                     | Use for                                       |
-| ------------------------------- | ------------------------ | --------------------------------------------- |
-| A specific moment globally      | `Temporal.Instant`       | Server timestamps, event times, audit logs    |
-| A moment in a specific timezone | `Temporal.ZonedDateTime` | Scheduled local meetings, recurring events    |
-| A calendar date with no time    | `Temporal.PlainDate`     | Birthdays, holidays, due dates                |
-| Wall-clock time with no date    | `Temporal.PlainTime`     | Daily schedules, opening hours                |
-| Date + time without timezone    | `Temporal.PlainDateTime` | Floating events ("3pm on the 19th, wherever") |
-| A time span                     | `Temporal.Duration`      | TTLs, intervals, elapsed time                 |
+## Enforcement
 
-Choosing the right type prevents whole categories of bugs:
+**A rule a human has to remember is not a rule.** `@northguild/gmt` ships three lint packages that ban every `Date` API. Install the one matching the project's linter — this is not optional, and which one you install is decided by what the project already runs, not by preference.
 
-```ts
-import { Temporal } from "@northguild/gmt";
+| The project lints with | Install | Peer requirement |
+|---|---|---|
+| ESLint | `@northguild/gmt-eslint` | `eslint ^9`, `@typescript-eslint/parser ^8` |
+| oxlint | `@northguild/gmt-oxlint` | `oxlint >=1` |
+| Biome | `@northguild/gmt-biome` | `@biomejs/biome >=2` |
 
-// Birthday — calendar date, no timezone (avoids "birthday shows wrong day in Pacific time")
-const birthday = Temporal.PlainDate.from("1990-04-12");
+Note the scope: all three are `@northguild/*` packages. The bare names `gmt-eslint`, `gmt-oxlint` and `gmt-biome` are not published.
 
-// Event — specific instant in time
-const eventAt = Temporal.Instant.from("2026-05-19T15:00:00Z");
+**ESLint** — a flat config to spread:
 
-// Recurring meeting — wall-clock time bound to a zone
-const meeting = Temporal.ZonedDateTime.from(
-  "2026-05-19T10:00-04:00[America/New_York]",
-);
+```js
+// eslint.config.mjs
+import gmtEslintConfig from "@northguild/gmt-eslint";
 
-// Duration — for arithmetic
-const ttl = Temporal.Duration.from({ hours: 24 });
+export default [...gmtEslintConfig];
 ```
 
-## Storage
-
-Store in UTC. The database column should be:
-
-- PostgreSQL: `TIMESTAMP WITH TIME ZONE` (`timestamptz`)
-- MySQL: `DATETIME` stored in UTC by convention
-- Prisma: `DateTime` (maps to `timestamptz` on Postgres)
-
-Convert between Prisma's `Date` and `Temporal.Instant` at the ORM boundary. Treat Temporal types as canonical inside your application.
+**oxlint** — a JS plugin plus its recommended rules:
 
 ```ts
-// Reading from Prisma
-const invoice = await db.invoice.findUnique({ where: { id } });
-const dueAt = Temporal.Instant.fromEpochMilliseconds(invoice.dueDate.getTime());
+// oxlint.config.ts
+import { defineConfig } from "oxlint";
+import { recommendedConfig } from "@northguild/gmt-oxlint";
 
-// Writing to Prisma
-await db.invoice.update({
-  where: { id },
-  data: { dueDate: new Date(dueAt.epochMilliseconds) },
-});
+export default defineConfig(recommendedConfig);
 ```
 
-For calendar dates with no time component, use a `DATE` column and `Temporal.PlainDate`:
+**Biome** — GritQL plugins, referenced by filesystem path. Biome does not resolve npm specifiers in `plugins`, and `extends` cannot distribute plugins, so the `./node_modules/` path and the `.grit` extension are both required:
 
-```prisma
-model User {
-  birthday DateTime @db.Date  // stored as a date, not a timestamp
+```json
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.11/schema.json",
+  "plugins": ["./node_modules/@northguild/gmt-biome/plugins/all.grit"]
 }
 ```
 
-## API Contracts
+All three ban the same set:
 
-Serialize as ISO 8601 strings. Parse and validate with Zod, then convert to Temporal types:
+| Banned | Use instead |
+|---|---|
+| `Date` as a global reference | `getNow()`, `getUtcNow()`, `getUnixNow()`, `getZonedNow(timezone)` |
+| `new Date(...)` | `getUtcNow()`, `getNow()`, `getZonedNow(timezone)` |
+| `Date.now()` | `getUnixNow({ epochUnit: "milliseconds" \| "seconds" })` |
+| `Date.parse(...)` | `convertZonedToUnix(value)` |
+| `Date.UTC(...)` | `convertUtcToUnix(value, { epochUnit })` |
+| `date.getTimezoneOffset()` | `getZonedNow(timezone)`, `convertZonedToUnix(value)` |
+| importing `moment`, `moment-timezone`, `dayjs`, `luxon`, `date-fns`, `date-fns-tz`, `spacetime` | `@northguild/gmt` |
+
+**`@js-joda/core` is deliberately allowed.** It has its own value types and touches `Date` only at the boundary, so it does not carry the ambient-timezone and DST problems the ban targets. It is permitted, not recommended — new code uses gmt.
+
+## Choosing the Right Concept
+
+The question is never "which date type" but "which of these four things am I holding":
+
+| Concept | Namespace | Shape | Use for |
+|---|---|---|---|
+| A calendar date, no time, no zone | `plain/*` | `"2026-03-15"` | Birthdays, holidays, due dates, invoice dates |
+| Wall-clock time, no date | `plain/*` | `"14:30:45"` | Opening hours, daily schedules |
+| An exact moment, in UTC | `utc/*` | `"2026-03-15T14:30:45Z"` | Server timestamps, audit logs, `createdAt` |
+| A moment as read in a zone | `zoned/*` | `"2026-03-15T10:30:45-04:00[America/New_York]"` | Scheduled local meetings, recurring events |
+| An exact moment, as an epoch | `unix/*` | `1773844245000` | Transport, cache keys, foreign-system bridges |
+
+Picking right prevents whole categories of bug. A birthday stored as an instant displays as the wrong day for half the world; an event stored as a calendar date cannot say when it happened.
 
 ```ts
-import { Temporal } from "@northguild/gmt";
+import { getToday, getUtcNow, getZonedNow, addUtc, isAfterDate } from "@northguild/gmt";
+
+getToday();                          // "2026-03-15" — a calendar date
+getUtcNow();                         // "2026-03-15T14:30:45.961393958Z" — nanosecond precision
+getZonedNow("Atlantic/Reykjavik");   // "2026-03-15T14:30:45.962+00:00[Atlantic/Reykjavik]"
+
+addUtc("2026-03-15T14:30:45Z", { days: 30 });   // "2026-04-14T14:30:45Z"
+isAfterDate("2026-03-15", getToday());          // false
+```
+
+**Note the precision difference**: `getUtcNow()` carries nanoseconds, while `getZonedNow()` truncates to milliseconds by default (`smallestUnit` is the only option it reads). Verified against `@northguild/gmt@1.18.0` — do not assert on a fixed fractional width in a test.
+
+Arithmetic and comparison go through the helpers — `addUtc`, `addZoned`, `addDate`, `isAfterUtc`, `isBeforeDate`, `isBetweenDateTime`. Never compare with `<` / `>`, and never do millisecond maths: both are what break on DST.
+
+## Validation
+
+**Validate at the boundary**, because a bad value does not throw — it becomes `""` and travels.
+
+**Use Zod's native ISO formats.** `z.iso.*` (Zod 4+) validates the shape and keeps the inferred type as
+`string`, which is exactly what this policy wants. It is not a regex: it rejects `2026-02-30`, is leap-year
+aware, and rejects leap seconds.
+
+```ts
 import { z } from "zod";
 
-const invoiceSchema = z.object({
-  id: z.string(),
-  dueDate: z.string().transform((s) => Temporal.Instant.from(s)),
-  createdAt: z.string().transform((s) => Temporal.Instant.from(s)),
+export const createInvoiceSchema = z.object({
+  title: z.string().min(1).max(200),
+  amount: z.number().positive(),
+  dueDate: z.iso.date(),        // "2026-03-15" — a calendar date
+  createdAt: z.iso.datetime(),  // "2026-03-15T14:30:45Z" — a UTC instant
 });
 
-type Invoice = z.infer<typeof invoiceSchema>;
-// Invoice["dueDate"] is now Temporal.Instant
+export type CreateInvoice = z.infer<typeof createInvoiceSchema>;
+// CreateInvoice["dueDate"] is string — not Date
 ```
 
-For calendar dates, use `PlainDate`:
+| The field holds | Use | Notes |
+|---|---|---|
+| A calendar date | `z.iso.date()` | Requires zero-padding; `2026-3-15` is rejected |
+| A UTC instant | `z.iso.datetime()` | `Z` only by default, which is the storage rule anyway |
+| An instant with any offset | `z.iso.datetime({ offset: true })` | Accepts `+02:00`; still rejects a bracketed zone |
+| A local date-time, no zone | `z.iso.datetime({ local: true })` | The `<input type="datetime-local">` shape |
+| A wall-clock time | `z.iso.time()` | |
+| A duration | `z.iso.duration()` | ISO 8601 `P…` |
+
+**Reach for a gmt predicate only where Zod has no format for it.** Three real cases:
 
 ```ts
-const userSchema = z.object({
-  birthday: z.string().transform((s) => Temporal.PlainDate.from(s)),
+import { getToday, isAfterDate, isValidTimeZone, isValidZonedDateTime } from "@northguild/gmt";
+import { z } from "zod";
+
+export const bookingSchema = z.object({
+  // 1. A business rule. Zod validates the shape; only gmt can compare two dates.
+  date: z.iso.date().refine((date) => isAfterDate(date, getToday()), "Must be in the future"),
+
+  // 2. The RFC 9557 bracketed-zone form that zoned/* emits — no z.iso.* format matches it
+  startsAt: z.string().refine(isValidZonedDateTime, "Must be a zoned ISO 8601 datetime"),
+
+  // 3. An IANA timezone identifier
+  timezone: z.string().refine(isValidTimeZone, "Must be an IANA timezone"),
 });
 ```
+
+`z.iso.datetime()` and `z.iso.datetime({ offset: true })` both **reject**
+`"2026-03-15T10:30:45-04:00[America/New_York]"`, so anything round-tripping a zoned value needs
+`isValidZonedDateTime`. Verified against `zod@4.6.5`.
+
+`z.iso.*` is the Zod 4 spelling. The Zod 3 forms — `z.string().date()`, `.datetime()`, `.time()`,
+`.duration()` — still work on Zod 4, so an older codebase needs no migration for this; prefer `z.iso.*` in
+new code. Either way the inferred type is `string`.
+
+**Never use `z.coerce.date()`.** It is the single most common way a `Date` gets into a codebase that meant
+to ban one: it makes `Date` the inferred type, so every consumer of the schema now holds one, and
+`.min(new Date())` compounds it with a banned constructor. `z.date()` is the same problem stated directly.
+There is no case for either — `z.iso.date()` costs the same to write and gives you a string.
+
+The other predicates are `isValidDate`, `isValidDateTime`, `isValidTime`, `isValidUtc` and
+`isValidDateRange`, for validating outside a schema. The `regex/*` namespace exports the underlying
+patterns where something wants one directly.
+
+## Storage
+
+Store UTC. The column should be:
+
+- PostgreSQL: `TIMESTAMP WITH TIME ZONE` (`timestamptz`)
+- MySQL: `DATETIME`, UTC by convention
+- Prisma: `DateTime` — maps to `timestamptz` on Postgres
+
+For a calendar date with no time, use a `DATE` column so the database agrees with the concept:
+
+```prisma
+model User {
+  birthday DateTime @db.Date  // a date, not a timestamp
+}
+```
+
+## Boundaries — the one place `Date` appears
+
+**Some boundaries traffic in `Date` and you do not get a vote**: Prisma returns one for a `DateTime` column, and a few Web APIs hand one over. The rule is containment, not exemption.
+
+Convert **in the repository layer**, and let nothing past it hold a `Date`:
+
+```ts
+// features/invoices/invoice.repository.ts — the only file that sees a Date
+export async function findInvoice(id: string) {
+  const row = await db.invoice.findUniqueOrThrow({ where: { id } });
+  return {
+    ...row,
+    // .toISOString() on a value the ORM handed us: no Date is constructed here
+    dueDate: row.dueDate.toISOString(),
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+```
+
+Reading `.toISOString()` off a value you did not construct is not what the lint rules catch — they ban the `Date` global, `new Date`, and the `Date` statics. **Writing back is the harder direction**, because Prisma wants a `Date` for a `DateTime` column and building one means `new Date(iso)`, which is banned outright. Two honest options, in order:
+
+1. **Keep the conversion in one adapter module** and disable the rule in that file alone, with a comment saying why. One suppressed line in one file is a boundary; a suppression anywhere else is the ban failing.
+2. **Hand the database a string** via a raw cast where the driver accepts one, so no `Date` is constructed at all.
+
+What is not an option is letting the ORM's type leak upward. Inside the application, a date is an ISO string.
+
+## Display
+
+Format at the edge, in the component — never in storage or transport. Locale-aware formatting is the helpers' job, not a template literal's:
+
+```tsx
+import { convertUtcToZoned, formatZonedDateTime, formatRelativeUtc } from "@northguild/gmt";
+
+interface InvoiceDateProps {
+  /** ISO 8601 UTC instant */
+  createdAt: string;
+  timezone: string;
+  locale: string;
+}
+
+export function InvoiceDate({ createdAt, timezone, locale }: InvoiceDateProps) {
+  const zoned = convertUtcToZoned(createdAt, timezone);
+  return (
+    <time dateTime={createdAt} title={formatRelativeUtc(createdAt, locale)}>
+      {formatZonedDateTime(zoned, locale, { dateStyle: "medium", timeStyle: "short" })}
+    </time>
+  );
+}
+```
+
+`formatRelativeUtc` / `formatRelativeDate` / `formatRelativeZoned` cover "2 hours ago" without hand-rolled unit maths. `formatDate`, `formatDateTime`, `formatZonedDateTime` and the `*ToParts` variants cover absolute display, and `formatDateRange` covers a span.
 
 ## Detecting User Timezone
 
 ```ts
 const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-// "America/New_York", "Europe/London", etc.
+// "Atlantic/Reykjavik", "America/New_York", …
 ```
 
-Store the user's preferred timezone on their profile if they may travel; fall back to browser-detected timezone otherwise.
-
-## Display
-
-Convert to the user's timezone at the edge — in the component, not in storage or transport:
-
-```tsx
-import { Temporal } from "@northguild/gmt";
-
-interface InvoiceDateProps {
-  instant: Temporal.Instant;
-  timezone: string;
-}
-
-export function InvoiceDate({ instant, timezone }: InvoiceDateProps) {
-  const zoned = instant.toZonedDateTimeISO(timezone);
-  const formatted = zoned.toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-  return <time dateTime={instant.toString()}>{formatted}</time>;
-}
-```
-
-## Arithmetic
-
-Temporal types are immutable — every operation returns a new value:
-
-```ts
-import { Temporal } from "@northguild/gmt";
-
-const created = Temporal.Instant.from("2026-05-19T15:00:00Z");
-const dueIn30 = created.add({ days: 30 });
-
-const today = Temporal.Now.plainDateISO();
-const due = Temporal.PlainDate.from("2026-06-18");
-const daysUntilDue = today.until(due, { largestUnit: "days" }).days;
-const isOverdue = Temporal.PlainDate.compare(today, due) > 0;
-```
-
-DST and timezone offsets are handled correctly because Temporal knows about calendars and timezones — manual millisecond math does not.
-
-## Relative Time
-
-For "2 hours ago" style display:
-
-```ts
-import { Temporal } from "@northguild/gmt";
-
-const elapsed = Temporal.Now.instant().since(invoice.createdAt);
-// elapsed is a Temporal.Duration — format with Intl.RelativeTimeFormat
-const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-rtf.format(-elapsed.total({ unit: "hour" }), "hour");
-// "2 hours ago"
-```
+Store the user's preferred timezone on their profile if they may travel; fall back to the browser-detected one. Validate it with `isValidTimeZone` before using it — an invalid zone makes every zoned helper return `""`.
 
 ## DO NOT
 
-- Use the legacy `Date` object for new code — Temporal is strictly better
-- Use `Date.parse` or `new Date("string")` — parse with `Temporal.Instant.from` etc.
-- Compare dates with `<` / `>` operators — use `Temporal.Instant.compare` / `Temporal.PlainDate.compare`
-- Do millisecond arithmetic — use `.add()` / `.subtract()` / `.until()` / `.since()`
-- Mix `Date` and `Temporal` types — convert at the boundary, stay Temporal internally
-- Use a timestamp where a calendar date belongs (causes timezone display bugs)
-- Trust client-supplied timestamps for security-critical logic — derive on the server
+- **Use `Date` in any form** — `new Date()`, `Date.now()`, `Date.parse()`, `Date.UTC()`, `getTimezoneOffset()`, or `Date` as a type
+- **Use `z.coerce.date()` or `z.date()`** — they put a `Date` in the inferred type of every schema consumer
+- Ship the standard without the lint plugin — an unenforced ban is a comment
+- Add `moment`, `dayjs`, `luxon`, `date-fns` or `spacetime`, including transitively for "just formatting"
+- Compare with `<` / `>` — use `isAfterUtc`, `isBeforeDate`, `isBetweenDateTime`
+- Do millisecond arithmetic — use `addUtc`, `addZoned`, `addDate`, `diffUtc`
+- Trust a helper's return value without validating the input — invalid input is `""`, `null`, `false` or `[]`, never a throw
+- Let an ORM's `Date` past the repository layer
+- Use an instant where a calendar date belongs, or a calendar date where an instant belongs
+- Parse ambiguous formats with gmt — canonicalize first, then call in
+- Trust a client-supplied timestamp for anything security-critical — derive it on the server
 
 ## PRIORITY
 
 ```
-Temporal types > Date object
-UTC storage > Local storage
-Display at the edge > Display everywhere
-Right type for the concept > Generic timestamp
+Lint-enforced ban > documented ban
+gmt helpers > re-exported Temporal > anything else
+ISO strings as the app's currency > date objects of any kind
+Validate at the boundary > trust a return value
+Right concept for the thing > generic timestamp
+Display at the edge > display everywhere
 ```
 
 ## See Also
 
-- [`../typescript/validation.md`](../typescript/validation.md) — Zod schemas with Temporal parsing
-- [`prisma.md`](prisma.md) — Prisma date columns
+- [`../typescript/validation.md`](../typescript/validation.md) — Zod schemas at boundaries
+- [`../security/validation.md`](../security/validation.md) — validating untrusted input
+- [`../react/forms.md`](../react/forms.md) — shared schemas between form and API
+- [`prisma.md`](prisma.md) — date columns and the ORM boundary
+- [`i18n.md`](i18n.md) — locale-aware formatting alongside translated copy
 - [`dependencies.md`](dependencies.md) — when to prefer native APIs

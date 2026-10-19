@@ -17,9 +17,11 @@ in a repository where nothing records one, and a false answer here is the same d
 true, and it refuses to write a mechanism that is not on disk.
 
 **A note is not a release, and a merge is not a deploy.** Nothing in this workflow bumps a version, tags,
-publishes, releases or deploys. What does — and the **one event** that fires it, for a published package and
-a deployed app alike — is the last answer in this file: *What a release ships, and on what event*. That
-answer also records what the event **leaves behind**, which is a tag and a release for every path it ships.
+publishes, releases or deploys **on its own initiative** — only `/release`, or `/feature-close --release`,
+in the turn somebody types it, and each of those runs what this file names rather than anything it knows.
+What ships the change — and the **one event** that fires it, for a published package and a deployed app
+alike — is the last answer in this file: *What a release ships, and on what event*. That answer also records
+what the event **leaves behind**, which is a tag and a release for every path it ships.
 
 What each section takes, and the alternative answers written out, are in
 [`release.notes.md`](release.notes.md). `/onboard` reads that file when it fills this one.
@@ -87,31 +89,45 @@ release. `/feature-close` shows the notes a feature carries and confirms their l
 *once per feature*, reading what the phases wrote under *per phase* — and [`git.md`](git.md)'s
 *Push and pull request* answer decides whether that is the last moment before a push or before a handover.
 
+**`/release` is where that gap finally closes, and it says so while asking.** It lists every note it is
+about to consume — including ones written for work somebody else has already merged — and after it has run
+there is no note left to correct. A level is cheap right up to that confirmation and not past it.
+
 ## What a release ships, and on what event
 
 **One event ships anything: the merge to `main` of the pull request where `changeset:prepare-release` ran,
-moving `packages/sdk/package.json`'s `version` to one npm does not hold.** What fires on it is [`publish.yml`](../.github/workflows/publish.yml), not this workflow's
-skills, which still bump nothing, tag nothing and publish nothing. A merge that does not move the version
-ships nothing, and landing a change is still not shipping it.
+moving `packages/sdk/package.json`'s `version` to one npm does not hold.** What fires on it is
+[`publish.yml`](../.github/workflows/publish.yml), not this workflow's skills: the one of them that bumps
+does so only when typed, and none tags or publishes. A merge that does not move the version ships nothing,
+and landing a change is still not shipping it.
 
-As of 2026-10-01, one line each:
+As of 2026-10-19, one line each:
 
-- **Bumps a version** — `changeset:prepare-release`, run by a person on the feature branch (`/feature-close
-  --release` runs it): it consumes the pending notes into `packages/sdk/CHANGELOG.md` and moves `version`.
-  It cannot be run twice over the same notes. Nothing in CI runs it. **Run once, on 2026-10-01**, on the
-  feature branch: it consumed the first note and cut `0.1.0` with its `CHANGELOG.md` entry (see *The first
-  publish*). Nothing it produced has been published yet.
-- **Tags** — `publish.yml`, after a successful publish: `sdk-v<version>` on the commit the run is for. The
-  name has no `/` so it is safe inside a `raw.githubusercontent.com` URL. **Written, never run**: the
-  repository has no tags until the first run that publishes.
-- **Cuts a GitHub release** — `publish.yml`, in the same job as the tag. It is idempotent: a tag or release
-  that already exists for the version is a notice, not a failure. **Written, never run.** **Gap:** its text
-  is fixed (an npm link and the spec URL); it does not carry the version's `CHANGELOG.md` entry, so the
-  note never reaches the page written for its reader.
-- **Publishes** — `publish.yml`, on a push to `main` when the version is not on npm, after the live smoke
-  test passes. **Written, never run** — nothing has been pushed yet. `@dynjandi/sdk` goes to npm; **the spec is not published by anything**: its stable URL is the
-  raw GitHub one on `main`, and a release makes `sdk-v<version>` addressable as a snapshot of it (below).
-- **Deploys** — nothing. Nothing is deployed from this repository. **But the spec's stable URL serves
+- **Bump** — `changeset:prepare-release`: it consumes the pending notes into `packages/sdk/CHANGELOG.md`
+  and moves `version`, and it cannot be run twice over the same notes. **Run by `/release`**, typed by a
+  person on an up-to-date `main` once notes have accumulated there: it makes `release/<name>` with the
+  release form in [`executors.md`](executors.md)'s *Branch and worktree*, runs the script once, and ends at
+  a pull request. `/feature-close --release` runs the same script on a feature's branch instead, for a
+  release fused into that feature's merge. Nothing in CI runs it. **Run once, on 2026-10-01**, on the
+  `sdk-ecosystem` branch: it cut `0.1.0`. **Two notes wait on `main`** since then (`getFile` and the
+  responsive helpers, both `patch`), which is the shape `/release` exists for.
+- **Tag** — `publish.yml`, after a successful publish: `sdk-v<version>` on the commit the run is for. The
+  name has no `/` so it is safe inside a `raw.githubusercontent.com` URL. **Written, never run**: the job
+  has been skipped on every run (see *Publish*), and **the repository has no tags at all** — `0.1.0` was
+  never tagged by hand either (*The first publish*, step 6).
+- **Release** — `publish.yml`, in the same job as the tag. It is idempotent: a tag or release that already
+  exists for the version is a notice, not a failure. **Written, never run**; there are no GitHub releases.
+  **Gap:** its text is fixed (an npm link and the spec URL); it does not carry the version's
+  `CHANGELOG.md` entry, so the note never reaches the page written for its reader.
+- **Publish** — `publish.yml`, on a push to `main` when the version is not on npm, after the live smoke
+  test passes. **The workflow has run; its publish job never has.** Three pushes to `main` (2026-10-02, and
+  twice on 2026-10-04) each found `0.1.0` on npm and stopped green at *Check the registry*, skipping smoke,
+  build, publish and tag-and-release. `0.1.0` itself was published by hand (*The first publish*), so the
+  first version CI publishes — with provenance, through the trusted publisher — will be the next one, and
+  that run is what proves the publisher is configured. `@dynjandi/sdk` goes to npm; **the spec is not
+  published by anything**: its stable URL is the raw GitHub one on `main`, and a release makes
+  `sdk-v<version>` addressable as a snapshot of it (below).
+- **Deploy** — nothing. Nothing is deployed from this repository. **But the spec's stable URL serves
   `main`**, so a change to `openapi.yaml` is live at that URL on every merge, released or not; only the
   `sdk-v<version>` snapshot waits for a release. Acceptable while the spec describes the live service,
   which ships from another repository — and written down so nobody reads the stable URL as released.
@@ -121,7 +137,7 @@ As of 2026-10-01, one line each:
 
 | Path | On the release merge | Leaves behind |
 |---|---|---|
-| `packages/sdk` | published to npm by `publish.yml` (written, never run) | `sdk-v<version>` tag + GitHub release, by `publish.yml` (written, never run) |
+| `packages/sdk` | published to npm by `publish.yml` (its publish job has never run) | `sdk-v<version>` tag + GitHub release, by `publish.yml` (written, never run) |
 | `packages/spec` | nothing — it is already live on `main`; the release's tag makes a snapshot of it addressable | the SDK's tag |
 
 ### How the SDK is published
@@ -138,6 +154,13 @@ As of 2026-10-01, one line each:
 | Dry run | `pnpm check:package` in [`verify.md`](verify.md) and `ci.yml`: asserts the tarball's contents and runs `npm publish --dry-run`, which npm refuses over a version it already holds, so it is skipped then and the real dry run is seen on the change that bumps the version |
 
 ### The first publish is by hand, and the trusted publisher names `publish.yml`
+
+**Done, except steps 6 and 7's tag half.** `0.1.0` is on npm (the only version there, as of 2026-10-19) and
+`README.md` and `packages/sdk/README.md` no longer say otherwise. **No `sdk-v0.1.0` tag or GitHub release
+exists**, so the spec still has no versioned URL and `packages/spec/README.md`'s "No such tag exists yet"
+is still true; step 6 is still open, and is a person's to run. Whether step 4's trusted publisher is
+configured cannot be read from this repository — the first CI publish is what shows it. The steps below
+stay as the record of how it was done.
 
 A trusted publisher can only be configured on npmjs.com **for a package that already exists**, so CI cannot
 publish `0.1.0`. **`0.1.0` is cut by changesets first**: `packages/sdk` stays `0.0.0` on the feature branch
@@ -179,11 +202,16 @@ The Actions secret `DYNJANDI_SMOKE_PUBLIC_KEY` must exist for the smoke test to 
 
 ### How a release is cut
 
-1. Every change that deserves a note (table above) carries one in `.changeset/`.
-2. On the feature branch, `pnpm changeset:prepare-release` (or `/feature-close --release`): it consumes the
-   notes, writes `packages/sdk/CHANGELOG.md` and moves `version`. Commit that separately from the work.
-3. Merge it to `main`. `publish.yml` finds the version absent from npm, runs the smoke test, builds, publishes
-   with provenance, then tags `sdk-v<version>` and cuts the GitHub release.
+1. Every change that deserves a note (table above) carries one in `.changeset/`, and it lands on `main` with
+   the feature's merge, where the notes accumulate.
+2. On an up-to-date `main`, type `/release` (or `/release "<name>"`). It runs Gate 1, lists every pending
+   note and its level for you to confirm, makes `release/<name>` with the release form in
+   [`executors.md`](executors.md), runs `changeset:prepare-release` once — consuming the notes, writing
+   `packages/sdk/CHANGELOG.md` and moving `version` — commits, pushes, and opens a pull request. Nothing
+   merges it. To release with one feature instead, `/feature-close --release` runs the same script on that
+   feature's branch, committed separately from the work.
+3. A person merges it to `main`. `publish.yml` finds the version absent from npm, runs the smoke test,
+   builds, publishes with provenance, then tags `sdk-v<version>` and cuts the GitHub release.
 4. The spec at that version is
    `https://raw.githubusercontent.com/dynjandi-dev/dynjandi/sdk-v<version>/packages/spec/openapi.yaml`.
 

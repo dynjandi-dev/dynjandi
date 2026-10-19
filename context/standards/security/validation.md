@@ -23,12 +23,13 @@ Internal data (function calls within the same service, TypeScript types) does no
 
 ```ts
 // API route — validate request body
+import { getToday, isAfterDate } from "@northguild/gmt";
 import { z } from "zod";
 
 const createInvoiceBody = z.object({
   title: z.string().min(1).max(200),
   amount: z.number().positive(),
-  dueDate: z.coerce.date().min(new Date()),
+  dueDate: z.iso.date().refine((date) => isAfterDate(date, getToday()), "Must be in the future"),
   recipientEmail: z.string().email(),
 });
 
@@ -87,3 +88,4 @@ Validate all external input > Trust internal TypeScript types
 
 - [typescript/validation.md](../typescript/validation.md) — Zod patterns
 - [api-security.md](api-security.md) — additional API-level protections
+- [tooling/dates.md](../tooling/dates.md) — dates validate as ISO strings; never `z.coerce.date()`

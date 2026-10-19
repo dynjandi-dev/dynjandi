@@ -92,16 +92,25 @@ function CreateInvoiceForm() {
 
 ```ts
 // features/invoices/invoice.schema.ts
+import { getToday, isAfterDate } from "@northguild/gmt";
 import { z } from "zod";
 
 export const createInvoiceSchema = z.object({
   title: z.string().min(1, "Title is required").max(200),
   amount: z.number().positive("Amount must be positive"),
-  dueDate: z.coerce.date().min(new Date(), "Due date must be in the future"),
+  dueDate: z.iso.date().refine((date) => isAfterDate(date, getToday()), "Due date must be in the future"),
 });
 
 export type CreateInvoice = z.infer<typeof createInvoiceSchema>;
 ```
+
+`dueDate` stays a `string`, and that is the easier path rather than the stricter one: an
+`<input type="date">` already produces exactly what `z.iso.date()` accepts, and
+`<input type="datetime-local">` matches `z.iso.datetime({ local: true })`. The string the browser gives you
+is the string the schema validates and the string the API receives. Coercing to a `Date` in the middle
+converts twice and loses the calendar/instant distinction on the way. The `refine` is there only for the
+business rule — Zod validates the shape, and only a date library can compare two dates. See
+[`../tooling/dates.md`](../tooling/dates.md).
 
 ## Optimistic Updates
 
@@ -145,3 +154,4 @@ Schema validation > Controlled inputs > Optimistic updates
 - [`accessibility.md`](accessibility.md) — labels, errors, keyboard support
 - [`../tooling/tanstack-query.md`](../tooling/tanstack-query.md) — mutations and cache invalidation
 - [`../tooling/shadcn.md`](../tooling/shadcn.md) — shadcn/ui form components
+- [`../tooling/dates.md`](../tooling/dates.md) — date fields in a schema; never `z.coerce.date()`

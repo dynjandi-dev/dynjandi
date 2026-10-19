@@ -5,6 +5,7 @@
  * - Single Zod schema as source of truth
  * - Inferred TypeScript type from the schema
  * - Shared between FE and BE (in a real project this would live in shared/schemas/)
+ * - Dates validated as ISO strings, never coerced to a Date (see tooling/dates.md)
  */
 
 import { z } from "zod";
@@ -14,7 +15,7 @@ export const invoiceSchema = z.object({
   title: z.string().min(1).max(200),
   status: z.enum(["draft", "open", "paid", "void"]),
   amount: z.number().nonnegative(),
-  dueDate: z.coerce.date(),
+  dueDate: z.iso.date(),
 });
 
 export type Invoice = z.infer<typeof invoiceSchema>;

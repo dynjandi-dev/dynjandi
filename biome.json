@@ -9,6 +9,7 @@
       "!context",
       "!.claude",
       "!.agents",
+      "!.phase-trees",
       "!**/node_modules",
       "!**/dist",
       "!**/coverage",
@@ -46,7 +47,9 @@
       },
       "suspicious": {
         "noExplicitAny": "error",
-        "noConsole": "warn"
+        "noConsole": "warn",
+        "noSkippedTests": "error",
+        "noFocusedTests": "error"
       }
     }
   }

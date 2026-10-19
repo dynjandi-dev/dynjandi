@@ -1,8 +1,8 @@
 # AGENTS.md
 
-This project follows the [AI Engineering Standards](https://github.com/baldurpan/ai-engineering-standards).
+This project follows the engineering standards in `context/standards/`.
 
-Load that repo's [`README.md`](https://github.com/baldurpan/ai-engineering-standards/blob/main/README.md) and follow its conditional-loading guidance based on the task at hand.
+Load `context/standards/README.md` and follow its conditional-loading guidance based on the task at hand.
 
 ---
 

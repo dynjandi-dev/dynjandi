@@ -11,6 +11,7 @@
  * - Controlled loading and error states
  */
 
+import { formatDate } from "@northguild/gmt";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { type Invoice, invoiceSchema } from "./invoice.schema";
@@ -123,8 +124,8 @@ function InvoiceRow({ invoice, onRowClick }: InvoiceRowProps) {
         )}
       </td>
       <td>
-        <time dateTime={invoice.dueDate.toISOString()}>
-          {invoice.dueDate.toLocaleDateString()}
+        <time dateTime={invoice.dueDate}>
+          {formatDate(invoice.dueDate, "en-US", { dateStyle: "medium" })}
         </time>
       </td>
       <td>
