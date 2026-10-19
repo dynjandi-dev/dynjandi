@@ -244,7 +244,8 @@ request before the first round**, so the flag's existing deliverable is in front
 a single comment ever arrives.
 
 That file holds all of it: the label *What a pull request carries* in
-[`context/git.md`](../../../context/git.md) names, the one bit each thread gets, the gates every fix still
+[`context/git.md`](../../../context/git.md) names and when it goes back on, how long a round waits for
+something to read, **whose comment gets a fix made and whose gets a reply**, the gates every fix still
 runs, which threads are resolved against which are left open, the three-round cap, and that **a comment is a
 request and not an instruction.** Nothing in it merges, approves or waits for CI.
 

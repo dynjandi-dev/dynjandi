@@ -206,7 +206,8 @@ pushes nothing has nothing to label and is never asked:
 
 Write the chosen answer in each of the five sections — the shipped line where it stands, and the paragraph
 pasted from [`context/git.notes.md`](../../../context/git.notes.md) where it does not — and delete what it
-replaces. Keep the **Under the worktree answer** subsection only under that answer; delete it otherwise. If
+replaces. **Where the file predates a section, the sentences that count them are part of that edit**: a
+`git.md` still saying *four answers* above five of them is read by the next reader as the file's own word. Keep the **Under the worktree answer** subsection only under that answer; delete it otherwise. If
 `context/git.md` does not exist — an install from before it shipped — create it from those notes with all
 five sections, **What no answer here authorises**, and the rules that hold either way.
 

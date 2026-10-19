@@ -122,6 +122,8 @@ phase to make one, not for an ad-hoc request to be moved into a tree of its own.
 operation needs the user to ask for it in this session. **A typed flag or a typed command is that ask** —
 `/orchestrate --pr` and `/release` are the two the workflow ships, and each authorises that invocation's
 commit, push and pull request without changing a single answer in [`git.md`](git.md) for the next one.
+Under `--pr` that one invocation also covers the label and the review rounds behind it: a commit and a push
+per round, a reply in each thread, and a thread resolved where a fix landed.
 
 **Permission is not inferred.** Choosing between approaches does not authorise any of this, even where the
 option text mentions it — and *especially* where you wrote that option text yourself. Neither does "ship
