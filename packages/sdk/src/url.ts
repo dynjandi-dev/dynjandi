@@ -2,11 +2,11 @@ import {
   buildVariantUrl,
   type CropOperation,
   type CropPosition,
+  checkOperations,
   FACE_DETECTOR_VERSION,
   type NormalizedOperation,
-  normalizedOperationsSchema,
   type OutputFormat,
-} from "@dynjandi/transform-grammar";
+} from "@dynjandi/transform-grammar/builder";
 import { DynjandiError } from "./errors.js";
 import type { FileRecord } from "./files.js";
 
@@ -117,7 +117,7 @@ function toOperations(options: UrlOptions, stored: StoredFile | undefined): Norm
   return operations;
 }
 
-/** Names the operation and field an issue is about, e.g. `resize width: Too small...`. */
+/** Names the operation and field an issue is about, e.g. `resize width: Expected an integer from 1 to 10000`. */
 function describeInvalidOperations(
   operations: NormalizedOperation[],
   issues: ReadonlyArray<{ path: PropertyKey[]; message: string }>,
@@ -155,8 +155,8 @@ export function url(origin: string, file: string | StoredFile, options: UrlOptio
 
   const operations = toOperations(options, stored);
   try {
-    // `buildVariantUrl` serialises whatever it is given, so range checks come from the grammar's schema.
-    const checked = normalizedOperationsSchema.safeParse(operations);
+    // `buildVariantUrl` serialises whatever it is given, so range checks come from the grammar's `checkOperations`.
+    const checked = checkOperations(operations);
     if (!checked.success) {
       throw new DynjandiError(
         `Cannot build a variant URL: ${describeInvalidOperations(operations, checked.error.issues)}`,

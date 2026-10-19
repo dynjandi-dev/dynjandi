@@ -41,7 +41,7 @@
     "test:live": "vitest run tests/live"
   },
   "dependencies": {
-    "@dynjandi/transform-grammar": "^0.1.1"
+    "@dynjandi/transform-grammar": "^0.2.0"
   },
   "devDependencies": {
     "@types/node": "22.20.4",

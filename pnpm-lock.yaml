@@ -26,8 +26,8 @@ importers:
   packages/sdk:
     dependencies:
       '@dynjandi/transform-grammar':
-        specifier: ^0.1.1
-        version: 0.1.1
+        specifier: ^0.2.0
+        version: 0.2.0
     devDependencies:
       '@types/node':
         specifier: 22.20.4
@@ -178,8 +178,8 @@ packages:
     resolution: {integrity: sha512-dlT1m5e/0yUL0kRNcQn7yGLVThkgbB0Ga/1AmfDDC/8ik6AIiSf2QLQO2zPYvefsHP0aFgxO93cVLCCfDp7kzQ==}
     engines: {node: '>= 20.12.0'}
 
-  '@dynjandi/transform-grammar@0.1.1':
-    resolution: {integrity: sha512-44qKEjyri7S0qFbOVZVj+AOHojc2khMedRZY8BrueHKP/VfooDx8WHCt37w+psQsaNEcNXKv65xNXlSO8FFTCg==}
+  '@dynjandi/transform-grammar@0.2.0':
+    resolution: {integrity: sha512-vcogcY4bROKKDPfiNleiXOMlh6SVvC8PlU/BGAPgeq3KtcIWGlzTBebvzjH3Rq+kJEll8ijm8oZnyAID91e5PA==}
 
   '@jridgewell/resolve-uri@3.1.2':
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
@@ -1040,7 +1040,7 @@ snapshots:
       fast-wrap-ansi: 0.2.2
       sisteransi: 1.0.5
 
-  '@dynjandi/transform-grammar@0.1.1':
+  '@dynjandi/transform-grammar@0.2.0':
     dependencies:
       zod: 4.6.5
 

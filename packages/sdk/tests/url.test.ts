@@ -1,4 +1,4 @@
-import { AppError } from "@dynjandi/transform-grammar";
+import { AppError } from "@dynjandi/transform-grammar/builder";
 import { describe, expect, test, vi } from "vitest";
 import { createClient, DynjandiError, type FileRecord, type UploadResult } from "../src/index";
 import { PUBLIC_KEY } from "./helpers";
