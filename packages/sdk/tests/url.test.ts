@@ -199,7 +199,12 @@ describe("client.url failures", () => {
     expect(failure).not.toBeInstanceOf(AppError);
     expect(failure.status).toBe(0);
     expect(failure.message).toContain("resize width");
-    expect(failure.cause).toBeInstanceOf(Error);
+    // The grammar's checkOperations error: an AppError with statusCode 400 and per-field issues (grammar 0.2.0).
+    expect(failure.cause).toBeInstanceOf(AppError);
+    expect(failure.cause).toMatchObject({
+      statusCode: 400,
+      issues: [{ path: [0, "width"], message: "Expected an integer from 1 to 10000" }],
+    });
   });
 
   test.each([
