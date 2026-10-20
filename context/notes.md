@@ -23,3 +23,9 @@ Branch-local and advisory; `/feature-close` deletes this file.
   customer gets, not whether the origin behind the cache negotiates.
 - **Phase 2:** `dynjandi-loader.js` is plain JS, so neither build type-checked it against Next's
   `ImageLoaderProps` (D6). The header files saved in the scratchpad did not record the URL each came from.
+- **Phase 3:** `context/stack.md`'s line about the SDK's exports and `packages/sdk/README.md`'s Bundle size
+  line were not rewrapped to the width of the prose around them. The Layout line in `stack.md` still leaves
+  out `responsive` and `index`, which predates this feature.
+- **Phase 3:** in the README's Quality bullet, the claim that Next passes `<Image quality>` when it is set
+  rests on D4 and Next's source, not on a Phase 2 run. "828w and 1920w" names candidates Next emitted with
+  `1x`/`2x` descriptors.

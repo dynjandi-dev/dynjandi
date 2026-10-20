@@ -192,6 +192,62 @@ the requested width (the live smoke test asks for 320w of a 1x1 image and gets 3
 not know the original's width, because the upload response carries no dimensions, so trim `widths` to no
 wider than the original. A wider candidate is a soft image that still costs a variant.
 
+## Using with Next.js
+
+`@dynjandi/sdk/next` is a loader for `next/image`. It needs no `next` import and adds no peer dependency.
+Point `images.loaderFile` at a file in your app that re-exports it:
+
+```js
+// next.config.mjs
+export default { images: { loader: "custom", loaderFile: "./dynjandi-loader.js" } };
+```
+
+```js
+// dynjandi-loader.js
+export { dynjandiLoader as default } from "@dynjandi/sdk/next";
+```
+
+Tested with `next.config.mjs` in an app whose `package.json` has `"type": "module"`; a `.js` config was
+not tested.
+
+```jsx
+<Image src={fileId} width={800} height={600} alt="" />
+```
+
+`src` is a Dynjandi file id, not a URL. An empty id, or one `url()` refuses, throws a `DynjandiError`
+(status `0`).
+
+Each width Next asks for becomes one variant, `resize/<width>x/`, built by `url()`. Nothing else is added
+unless you ask:
+
+- **Format.** The loader sets none, and the service did not negotiate one from `Accept` when this was
+  tested, so the original format is served. Pass `format` to the factory to encode every variant as one.
+- **Quality.** Next passes a quality only when you set `<Image quality={...}>`, and only then does a
+  `quality/<q>/` operation appear. A value outside 1 to 100 is refused.
+
+For another origin, or a `format`, build the loader with the factory:
+
+```js
+// dynjandi-loader.js
+import { createDynjandiLoader } from "@dynjandi/sdk/next";
+
+export default createDynjandiLoader({ origin: "https://cdn.example.com", format: "webp" });
+```
+
+`origin` defaults to `https://cdn.dynjandi.dev`; a bad one throws when the loader is created, not on every
+render. The loader takes no crop and no focal point; for a fixed aspect ratio, use `fill` or CSS on the
+original's ratio.
+
+**What it costs.** Every width Next requests is a separate variant that counts against your project's plan
+cap. `images.deviceSizes` and `images.imageSizes` in `next.config` decide which widths Next picks, so they
+decide how many variants an image costs. A fixed `width={800}` requested two (828w and 1920w).
+An image with `fill` or `sizes` is offered up to every width in those lists rather than two, so trim both
+lists to spend less.
+
+**Verified** on Next.js 16.4.2, with `next build` and `next start` under both Turbopack (the default) and
+webpack. A bare file id as `src` built and rendered under each, and the widths it requested answered `200`.
+`next dev` was not run.
+
 ## Errors
 
 Every failure is a `DynjandiError` with `status`, `message` and, where there is one, `cause`.
@@ -227,7 +283,7 @@ pnpm exec esbuild --bundle --minify --platform=browser --format=esm src/index.ts
 The SDK's own code is 2,489 bytes gzipped (6,338 bytes minified); add
 `--external:@dynjandi/transform-grammar` to the command to see it. The rest is the grammar package's code.
 The SDK imports its zod-free `./builder` entry, so `zod` is not in a browser bundle;
-`tests/bundle.test.ts` bundles `src/index.ts` the same way and fails if it ever is. The byte figure is a
+`tests/bundle.test.ts` bundles `src/index.ts` and `src/next.ts` the same way and fails if it ever is. The byte figure is a
 baseline to compare later changes against, not a budget.
 
 ## Live smoke test
