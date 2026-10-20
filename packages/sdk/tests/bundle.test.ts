@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { build } from "esbuild";
 import { describe, expect, test } from "vitest";
 
-const ENTRY = join(import.meta.dirname, "..", "src", "index.ts");
+const SRC = join(import.meta.dirname, "..", "src");
 
 /**
  * `grammar-entry.test.ts` checks which grammar entry `src` imports; this checks what that entry brings. A
@@ -10,9 +10,9 @@ const ENTRY = join(import.meta.dirname, "..", "src", "index.ts");
  * every other test would stay green while a browser bundle grew by about 95 KB. Bundled as the README's
  * *Bundle size* command does.
  */
-async function bundleInputs(): Promise<string[]> {
+async function bundleInputs(entry: string): Promise<string[]> {
   const result = await build({
-    entryPoints: [ENTRY],
+    entryPoints: [join(SRC, entry)],
     bundle: true,
     minify: true,
     platform: "browser",
@@ -25,8 +25,11 @@ async function bundleInputs(): Promise<string[]> {
 }
 
 describe("the SDK's browser bundle", () => {
-  test("carries the grammar package but no zod", async () => {
-    const inputs = await bundleInputs();
+  test.each([
+    ["the root export", "index.ts"],
+    ["the ./next export", "next.ts"],
+  ])("%s carries the grammar package but no zod", async (_name, entry) => {
+    const inputs = await bundleInputs(entry);
 
     expect(
       inputs.some((input) => input.includes("node_modules/@dynjandi/transform-grammar/")),
