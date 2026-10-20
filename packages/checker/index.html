@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Uploadcare URL Checker</title>
+    <meta
+      name="description"
+      content="Paste an Uploadcare URL to see the Dynjandi URL it becomes and which operations Dynjandi does not support."
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Uploadcare URL checker</h1>
+      <p>
+        Paste an Uploadcare URL to see the Dynjandi URL it becomes and which of its operations
+        Dynjandi does not support. Nothing is sent anywhere: the URL is read in this page and never
+        requested.
+      </p>
+      <form id="check-form" novalidate>
+        <label for="url">Uploadcare URL</label>
+        <div class="row">
+          <input
+            id="url"
+            name="url"
+            type="text"
+            inputmode="url"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            aria-describedby="hint"
+          />
+          <button type="submit">Check</button>
+        </div>
+        <p id="hint" class="note">
+          For example https://ucarecdn.com/&lt;uuid&gt;/-/resize/800x600/-/format/webp/
+        </p>
+      </form>
+      <div aria-live="polite">
+        <section id="result" aria-labelledby="result-heading"></section>
+      </div>
+      <noscript><p>This page needs JavaScript to check a URL.</p></noscript>
+      <footer>
+        <p class="note">
+          The rewrite assumes the file was imported to Dynjandi and kept its Uploadcare UUID as its
+          file id, so only the host changes. This page states what the URL grammar accepts, not
+          whether the file exists or the CDN will serve it.
+        </p>
+        <p class="note">Built with @dynjandi/transform-grammar {{GRAMMAR_VERSION}}.</p>
+      </footer>
+    </main>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
