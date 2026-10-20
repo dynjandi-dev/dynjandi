@@ -1,0 +1,16 @@
+{
+  "name": "@dynjandi/checker",
+  "version": "0.0.0",
+  "description": "Checks which of an Uploadcare URL's operations Dynjandi supports. Private; not published.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dynjandi/transform-grammar": "^0.2.0"
+  }
+}
