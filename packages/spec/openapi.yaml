@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Dynjandi API
-  version: 0.2.0
+  version: 0.2.1
   summary: Upload images to Dynjandi, read a stored file back, and address variants by URL.
   license:
     name: MIT
@@ -57,13 +57,20 @@ info:
     problem (for example `Unknown operation: <name>`). The operations are:
 
     - **`resize/<width>x<height>/`** scales the image. Either dimension may be left out (`800x`,
-      `x600`) but not both. Each given dimension is an integer from 1 to 10000.
+      `x600`) but not both. Each given dimension is an integer from 1 to 10000. With one dimension
+      the aspect ratio is kept. With both, the image is scaled to cover the box and then centre-cropped
+      to exactly that size: it is neither stretched nor fitted inside, so `resize/100x100/` of a
+      400x200 source shows the middle 200x200 of it. The service does not limit output to the source's
+      size: `resize` enlarges a smaller source, so `resize/800x/` of a 400x200 source is 800x400.
     - **`format/<format>/`** sets the output format: `jpeg`, `png`, `webp` or `avif`. `jpg` is accepted
       as an alias for `jpeg`.
     - **`quality/<value>/`** sets output quality, an integer from 1 to 100, or one of the named levels
       `lightest` (55), `lighter` (70), `normal` (80), `smart` (80), `better` (88), `best` (95).
-    - **`crop/<width>x<height>/<position>/`** crops to exactly that size. Both dimensions are
-      required integers from 1 to 10000. `<position>` is one of:
+    - **`crop/<width>x<height>/<position>/`** produces an image of exactly that size. The image is
+      first scaled to cover the box, as `resize/<width>x<height>/` does, and `<position>` then chooses
+      which part of the scaled image is kept. It does not extract a window at the source's native
+      scale, and it enlarges a source smaller than the box: `crop/800x800/center/` of a 400x200 source
+      is 800x800. Both dimensions are required integers from 1 to 10000. `<position>` is one of:
       - a compass position: `center`, `north`, `south`, `east`, `west`, `northeast`, `northwest`,
         `southeast`, `southwest`;
       - a content-aware position: `attention` or `entropy`;
