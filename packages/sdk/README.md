@@ -89,9 +89,9 @@ file:
 - an explicit `focal` or `position` always wins over the stored point;
 - a file with no stored point (`focalX` and `focalY` both `null`) crops on `center`, as a string id does.
 
-The URL grammar itself comes from `@dynjandi/transform-grammar`; the SDK maps these options onto it and
-never writes the grammar itself. Ranges (dimensions 1 to 10000, quality 1 to 100) are the grammar's, and
-`url()` refuses what it would not accept.
+The URL grammar itself comes from `@dynjandi/transform-grammar` (its `./builder` entry); the SDK maps these
+options onto it and never writes the grammar itself. Ranges (dimensions 1 to 10000, quality 1 to 100) are the
+grammar's, and `url()` refuses what it would not accept.
 
 ### `srcset(file, options?)`
 
@@ -216,18 +216,19 @@ part of a message.
 
 ## Bundle size
 
-The browser bundle of `src/index.ts`, with `@dynjandi/transform-grammar` and its `zod` included, was
-**95,404 bytes gzipped** (461,613 bytes minified) on 2026-10-04, with `@dynjandi/transform-grammar` 0.1.1.
-Measured from this directory:
+The browser bundle of `src/index.ts`, with `@dynjandi/transform-grammar` included, is **3,590 bytes gzipped**
+(10,111 bytes minified) as of 2026-10-19, with `@dynjandi/transform-grammar` 0.2.0. Measured from this
+directory:
 
 ```bash
-pnpm dlx esbuild@0.28.2 --bundle --minify --platform=browser --format=esm src/index.ts | gzip -9 -c | wc -c
+pnpm exec esbuild --bundle --minify --platform=browser --format=esm src/index.ts | gzip -9 -c | wc -c
 ```
 
-Almost all of it is the grammar package's dependency: the SDK's own code is about 2.5 KB gzipped
-(add `--external:@dynjandi/transform-grammar` to the command to see it), the grammar package's own code
-about 2 KB minified, and `zod` about 453 KB minified. This is a baseline to compare later changes
-against, not a budget.
+The SDK's own code is 2,489 bytes gzipped (6,338 bytes minified); add
+`--external:@dynjandi/transform-grammar` to the command to see it. The rest is the grammar package's code.
+The SDK imports its zod-free `./builder` entry, so `zod` is not in a browser bundle;
+`tests/bundle.test.ts` bundles `src/index.ts` the same way and fails if it ever is. The byte figure is a
+baseline to compare later changes against, not a budget.
 
 ## Live smoke test
 

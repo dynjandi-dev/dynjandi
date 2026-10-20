@@ -1,4 +1,4 @@
-import type { OutputFormat } from "@dynjandi/transform-grammar";
+import type { OutputFormat } from "@dynjandi/transform-grammar/builder";
 import { DynjandiError } from "./errors.js";
 import { type UrlOptions, url } from "./url.js";
 

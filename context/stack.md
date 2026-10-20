@@ -18,7 +18,7 @@ the spec is served from its raw GitHub URL. The design is in issue #1 (`sdk-ecos
 
 | Concern | Target |
 |---|---|
-| Runtime | Node 22 and 24 (`engines.node >=22`); the SDK targets `fetch`, `FormData` and `Blob` only, with one runtime dependency, `@dynjandi/transform-grammar` (which brings `zod`) |
+| Runtime | Node 22 and 24 (`engines.node >=22`); the SDK targets `fetch`, `FormData` and `Blob` only, with one runtime dependency, `@dynjandi/transform-grammar` (which installs `zod` as a transitive dependency, but the SDK imports its `./builder` entry, so `zod` is not in the browser bundle) |
 | Language | TypeScript 7 (strict, `tsconfig.base.json`), ESM |
 | Package manager | pnpm 10 workspaces, no Nx (`packageManager` in `package.json`) |
 | Lint and format | Biome 2 (`biome.json`), scoped to code: `context/`, `.claude/` and `.agents/` are ignored; the OpenAPI spec is linted by Redocly CLI (`recommended-strict`), called from the root `lint` script |
