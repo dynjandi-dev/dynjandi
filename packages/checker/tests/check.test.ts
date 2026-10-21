@@ -125,6 +125,14 @@ describe("rewrites the parser makes, each with a note (spec and plan §1)", () =
     expect(result.operations[0]?.note).toMatch(new RegExp(`quality ${level} becomes`));
   });
 
+  test("scale_crop before a trailing filename still notes the center default (parser: a filename is not a position)", () => {
+    const [report] = checked(
+      checkUploadcareUrl(ucare("-/scale_crop/300x200/photo.jpg")),
+    ).operations;
+    expect(report?.canonical).toBe("-/crop/300x200/center/");
+    expect(report?.note).toMatch(/a missing position becomes center/);
+  });
+
   test("an operation that needs no rewrite carries no note", () => {
     const result = checked(checkUploadcareUrl(ucare("-/format/webp/")));
     expect(result.operations[0]?.note).toBeUndefined();
@@ -142,6 +150,24 @@ describe("what the parser ignores (spec: empty segments, lone -, one trailing fi
     const result = checked(checkUploadcareUrl(ucare("-/format/webp/-/photo.jpg")));
     expect(result.operations).toHaveLength(1);
     expect(result.dynjandiUrl).toBe(`${DYNJANDI}-/format/webp/`);
+  });
+
+  // The parser ignores a filename only as the chain's last segment, so one earlier is refused by the service.
+  test("a filename in the middle of the chain is refused, not ignored", () => {
+    const result = checked(checkUploadcareUrl(ucare("-/resize/800x600/photo.jpg/-/format/webp/")));
+    expect(result.operations[0]).toMatchObject({
+      raw: "resize/800x600/photo.jpg",
+      status: "invalid",
+    });
+    expect(result.operations[0]?.note).toMatch(/only at the end of the URL/);
+    expect(result.dynjandiUrl).toBeNull();
+  });
+
+  test("a filename on its own between operations is reported, not dropped", () => {
+    const result = checked(checkUploadcareUrl(ucare("-/photo.jpg/-/format/webp/")));
+    expect(result.operations).toHaveLength(2);
+    expect(result.operations[0]).toMatchObject({ raw: "photo.jpg", status: "invalid" });
+    expect(result.dynjandiUrl).toBeNull();
   });
 
   test("empty segments and a lone - between operations are ignored", () => {
@@ -341,9 +367,15 @@ describe("parity with the parser (plan §5: the splitter must not disagree with 
     },
   );
 
-  test("a chain the checker refuses in part is refused by the whole-chain parser too", () => {
-    const chain = "-/resize/800x600/-/blur/20/";
-    expect(checked(checkUploadcareUrl(ucare(chain))).dynjandiUrl).toBeNull();
-    expect(() => parseOperationChain(chain)).toThrow(/Unknown operation: blur/);
-  });
+  test.each([
+    ["-/resize/800x600/-/blur/20/", /Unknown operation: blur/],
+    ["-/resize/800x600/photo.jpg/-/format/webp/", /Unknown operation: photo\.jpg/],
+    ["-/photo.jpg/-/format/webp/", /Unknown operation: photo\.jpg/],
+  ])(
+    "a chain the checker refuses in part is refused by the whole-chain parser too: %s",
+    (chain, error) => {
+      expect(checked(checkUploadcareUrl(ucare(chain))).dynjandiUrl).toBeNull();
+      expect(() => parseOperationChain(chain)).toThrow(error);
+    },
+  );
 });

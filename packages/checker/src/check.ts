@@ -66,12 +66,19 @@ function splitIntoGroups(segments: string[]): string[][] {
   return groups.filter((group) => group.length > 0);
 }
 
-function rewriteNote(segments: string[]): string | undefined {
+function rewriteNote(segments: string[], operations: NormalizedOperation[]): string | undefined {
   const notes: string[] = [];
   const [name, size, position] = segments;
   if (name === "scale_crop") {
     notes.push("scale_crop is written as crop");
-    if (position === undefined) {
+    // Read from the parsed operation, not the raw segment: a trailing filename sits where a position would.
+    const parsed = operations[0];
+    if (
+      parsed !== undefined &&
+      "position" in parsed &&
+      parsed.position === "center" &&
+      position !== "center"
+    ) {
       notes.push("a missing position becomes center");
     }
   }
@@ -112,22 +119,45 @@ function refusal(segments: string[], message: string): OperationReport {
   };
 }
 
-function parseGroup(segments: string[]): ParsedGroup | null {
+function isIgnoredAlone(raw: string): boolean {
+  try {
+    parseOperationChain(raw);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function parseGroup(segments: string[], isLast: boolean): ParsedGroup | null {
   const raw = segments.join("/");
+  // The parser ignores a filename only as the chain's last segment. A group that is not last is parsed with a
+  // trailing lone `-` standing for the operations after it, so the parser sees it where it really is.
+  const input = isLast ? raw : `${raw}/-`;
   let operations: NormalizedOperation[];
   try {
-    operations = parseOperationChain(raw);
+    operations = parseOperationChain(input);
   } catch (error) {
-    if (error instanceof AppError) {
-      return { report: refusal(segments, error.message), operations: [] };
+    if (!(error instanceof AppError)) {
+      throw error;
     }
-    throw error;
+    const last = segments.at(-1) ?? "";
+    if (!isLast && error.message === `${UNKNOWN_OPERATION}${last}` && isIgnoredAlone(raw)) {
+      return {
+        report: {
+          raw,
+          status: "invalid",
+          note: `${last} is read as a filename, which Dynjandi ignores only at the end of the URL.`,
+        },
+        operations: [],
+      };
+    }
+    return { report: refusal(segments, error.message), operations: [] };
   }
   if (operations.length === 0) {
     // Only a trailing filename such as photo.jpg: the parser ignores it, so there is nothing to report.
     return null;
   }
-  const note = rewriteNote(segments);
+  const note = rewriteNote(segments, operations);
   const report: OperationReport = {
     raw,
     status: "supported",
@@ -166,8 +196,9 @@ export function checkUploadcareUrl(input: string): CheckResult {
     };
   }
 
-  const parsed = splitIntoGroups(rest)
-    .map(parseGroup)
+  const groups = splitIntoGroups(rest);
+  const parsed = groups
+    .map((group, index) => parseGroup(group, index === groups.length - 1))
     .filter((group) => group !== null);
   if (parsed.length === 0) {
     return { kind: "not-a-file-url", reason: "The URL has no operations after the file id." };
