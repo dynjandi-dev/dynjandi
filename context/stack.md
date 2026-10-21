@@ -23,10 +23,10 @@ the spec is served from its raw GitHub URL. The design is in issue #1 (`sdk-ecos
 | Package manager | pnpm 10 workspaces, no Nx (`packageManager` in `package.json`) |
 | Lint and format | Biome 2 (`biome.json`), scoped to code: `context/`, `.claude/` and `.agents/` are ignored; the OpenAPI spec is linted by Redocly CLI (`recommended-strict`), called from the root `lint` script |
 | Test | Vitest 5. `pnpm test` runs the offline tests only; `packages/sdk/tests/live/` is a live smoke test against `cdn.dynjandi.dev`, run by `test:live` and never by `pnpm test` |
-| CI | GitHub Actions: `ci.yml` on Node 22 and 24; `smoke.yml` runs the live smoke test daily, on demand, and as the precondition `publish.yml` calls; `publish.yml` publishes the SDK to npm (trusted publishing, no token) |
+| CI | GitHub Actions: `ci.yml` on Node 22 and 24; `pages.yml` deploys the checker page; `smoke.yml` runs the live smoke test daily, on demand, and as the precondition `publish.yml` calls; `publish.yml` publishes the SDK to npm (trusted publishing, no token) |
 | Database | None |
 | Storage | None |
-| Hosting | None; nothing is deployed from here. `@dynjandi/sdk` is the one package this repository publishes to npm: its first version by hand, every later one by `publish.yml` |
+| Hosting | GitHub Pages serves `packages/checker`'s page at `https://dynjandi-dev.github.io/dynjandi/`, deployed by `pages.yml` once a person sets the repo's Pages source to "GitHub Actions"; nothing else is deployed from here. `@dynjandi/sdk` is the one package this repository publishes to npm: its first version by hand, every later one by `publish.yml` |
 
 ## Layout
 
@@ -36,11 +36,14 @@ tsconfig.base.json, biome.json, LICENSE (MIT)        shared config
 packages/spec/    openapi.yaml (OpenAPI 3.1, upload + file read + URL grammar prose), README.md
 packages/sdk/     @dynjandi/sdk: src/ (client, upload, files, http, url, errors, generated/api.d.ts), tests/ (live/ = smoke test),
                   scripts/check-package.mjs, tsconfig.json, tsconfig.build.json (emits dist/, gitignored), README.md
+packages/checker/ @dynjandi/checker (private): src/ (check, render, main, style.css), index.html, scripts/build.mjs (esbuild into
+                  dist/, gitignored), tests/, README.md
 .pnpmfile.cjs     gives openapi-typescript its own TypeScript 5 (it cannot run on TypeScript 7)
 .changeset/       release notes, one file each; consumed by changeset:prepare-release (context/release.md)
 .github/workflows/ci.yml                             lint, format, typecheck, build, package check, test, generated-types drift
 .github/workflows/smoke.yml                          live smoke test: daily, workflow_dispatch, workflow_call
 .github/workflows/publish.yml                        publishes @dynjandi/sdk when its version is not on npm
+.github/workflows/pages.yml                          builds packages/checker and deploys dist/ to GitHub Pages
 context/   workflow state and project answers (verify, git, tracking, release, executors, standards)
 ```
 
@@ -71,6 +74,10 @@ context/   workflow state and project answers (verify, git, tracking, release, e
 - `packages/sdk/README.md` — the SDK's usage (`upload`, `getFile`, `url`, `srcset`, `pictureSources`, `placeholder`, errors), what is tested where, the gzipped
   bundle-size baseline and the command that measured it, and how to run the live smoke test. A change to the
   SDK's public API or its dependencies owes it an update.
+
+- `packages/checker/README.md` — what the checker page checks, how to build and serve it, the grammar version
+  and gzipped bundle size it records (with the command), and how `pages.yml` deploys it. A change to the
+  checker's behaviour, its dependencies or its deployment owes it an update.
 
 `@dynjandi/sdk` is the one package this repository publishes to npm: its first version by hand, every later
 one by `publish.yml` ([`release.md`](release.md) says how), and its README becomes the npm package page. The

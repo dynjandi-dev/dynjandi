@@ -31,3 +31,18 @@ Non-blocking observations from the gates, for a person. Nothing reads this file;
 - The keyboard pass was CDP-driven headless Chrome, not a person with a screen reader; announcement is
   inferred from the `aria-live="polite"` wrapper.
 - `rel="noopener noreferrer"` on the result link does nothing without `target`.
+
+## Phase 3 — Publish it and document it
+
+- The first merge to `main` triggers `pages.yml`; it fails unless Pages (source "GitHub Actions") is enabled
+  first. Enable it before merging, or re-run with `workflow_dispatch` after.
+- `pages.yml`'s path filter leaves out `tsconfig.base.json`, the root `package.json` and `.pnpmfile.cjs`, which
+  can affect the build. No `timeout-minutes` is set (`smoke.yml` uses 5).
+- `context/stack.md`'s Hosting row says "GitHub Pages serves", present tense, qualified by "once".
+- `context/release.md`'s "One event ships anything" and "a feature's merge ships nothing", and
+  `.changeset/README.md`'s "ships nothing", now have the checker page as an exception.
+- `packages/checker/README.md` says `release.md` has "no row" for the package; its "everything else" row
+  arguably covers it. Either way no note is owed.
+- The repository and stack intros do not mention the checker (incomplete, not false).
+- §8's live check used a fresh upload to the smoke project, not an imported file: it checks the grammar, not
+  that an import keeps the Uploadcare id (§1's assumption, §9 Q5).
