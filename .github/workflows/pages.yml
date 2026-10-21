@@ -1,0 +1,58 @@
+name: Deploy checker page
+
+# Builds packages/checker and deploys its dist/ to GitHub Pages, at https://dynjandi-dev.github.io/dynjandi/.
+#
+# THIS FILE ENABLES NOTHING. Pages must be switched on by a person: Settings -> Pages -> Source: "GitHub
+# Actions". Until then the deploy job fails at configure-pages. The workflow does not ask the API to enable
+# Pages (no `enablement: true`), on purpose: publishing to the world is a human step.
+#
+# No secret is used. The build job can only read the repository; the deploy job gets `pages: write` and
+# `id-token: write`, which deploy-pages needs to prove the deployment came from this run, and runs no
+# dependency code.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - packages/checker/**
+      - pnpm-lock.yaml
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @dynjandi/checker run test
+      - run: pnpm --filter @dynjandi/checker run build
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: packages/checker/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v6
+      - id: deployment
+        uses: actions/deploy-pages@v5

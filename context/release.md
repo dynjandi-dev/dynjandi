@@ -57,8 +57,9 @@ none.
 - **Scripts:** `changeset:add` writes a note, `changeset:status` reports whether changed packages carry one
   (against `origin/main`), and `changeset:prepare-release` consumes the notes — the Bump wire below.
 - **Settings:** private packages are neither versioned nor tagged (`privatePackages: { version: false, tag:
-  false }`). That is right here: the one private package, `packages/spec`, is not deployed and its version
-  is not a `package.json` field (table above). **No dependent can be dragged into a release**: the SDK
+  false }`). That is right here: the private packages are `packages/spec`, which is not deployed and whose version
+  is not a `package.json` field (table above), and `packages/checker`, whose page is deployed by `pages.yml`
+  but never versioned or tagged. **No dependent can be dragged into a release**: the SDK
   depends on no workspace package. `access: "restricted"` only governs `changeset publish`, which nothing
   here runs — `publish.yml` publishes with `npm publish --access public`.
 - **The changelog is generated** into `packages/sdk/CHANGELOG.md` by `changeset:prepare-release`. It is an
@@ -127,7 +128,9 @@ As of 2026-10-19, one line each:
   that run is what proves the publisher is configured. `@dynjandi/sdk` goes to npm; **the spec is not
   published by anything**: its stable URL is the raw GitHub one on `main`, and a release makes
   `sdk-v<version>` addressable as a snapshot of it (below).
-- **Deploy** — nothing. Nothing is deployed from this repository. **But the spec's stable URL serves
+- **Deploy** — `pages.yml` deploys `packages/checker`'s page to GitHub Pages on a push to `main` that touches
+  `packages/checker/**`, `pnpm-lock.yaml` or the workflow, once a person has enabled Pages. That is not a
+  release: no note, no tag, no bump. Nothing else is deployed from this repository. **But the spec's stable URL serves
   `main`**, so a change to `openapi.yaml` is live at that URL on every merge, released or not; only the
   `sdk-v<version>` snapshot waits for a release. Acceptable while the spec describes the live service,
   which ships from another repository — and written down so nobody reads the stable URL as released.

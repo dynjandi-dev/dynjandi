@@ -1,0 +1,158 @@
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #555555;
+  --border: #767676;
+  --code-bg: #f1f3f5;
+  --accent: #0b5cad;
+  --accent-fg: #ffffff;
+  --ok-bg: #e3f4e6;
+  --ok-fg: #14532d;
+  --warn-bg: #fff1d6;
+  --warn-fg: #6b3f00;
+  --bad-bg: #fde8e8;
+  --bad-fg: #8a1c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121417;
+    --fg: #ececec;
+    --muted: #a8aeb5;
+    --border: #8a9099;
+    --code-bg: #1e2227;
+    --accent: #7db8f5;
+    --accent-fg: #0b1a2a;
+    --ok-bg: #17331f;
+    --ok-fg: #a6e3b5;
+    --warn-bg: #3a2a0a;
+    --warn-fg: #ffd88a;
+    --bad-bg: #3d1a1a;
+    --bad-fg: #ffb4b4;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font:
+    1rem / 1.5 system-ui,
+    sans-serif;
+}
+
+main {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+h1 {
+  font-size: 1.5rem;
+}
+
+h2 {
+  font-size: 1.25rem;
+  margin-top: 2rem;
+}
+
+h3 {
+  font-size: 1rem;
+  margin: 1.25rem 0 0.25rem;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+input,
+button {
+  font: inherit;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.25rem;
+}
+
+input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+
+button {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: 1px solid var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+a {
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+
+code {
+  background: var(--code-bg);
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.2rem;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  color: var(--muted);
+  margin: 0.25rem 0;
+  overflow-wrap: anywhere;
+}
+
+.operations {
+  list-style: none;
+  padding: 0;
+}
+
+.operation {
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.status {
+  display: inline-block;
+  font-weight: 600;
+  padding: 0 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.supported .status {
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+
+.invalid .status {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+.unsupported .status {
+  background: var(--bad-bg);
+  color: var(--bad-fg);
+}
