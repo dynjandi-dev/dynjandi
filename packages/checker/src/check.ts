@@ -31,7 +31,7 @@ export type CheckResult =
       operations: OperationReport[];
       /** Set when every operation is supported. */
       dynjandiUrl: string | null;
-      /** Set when some are not and some are: the URL without the refused ones, which is a different image. */
+      /** Set when some are not and some are: the URL without what Dynjandi refuses, which is a different image. */
       partialUrl: string | null;
     };
 
@@ -119,12 +119,12 @@ function refusal(segments: string[], message: string): OperationReport {
   };
 }
 
-function isIgnoredAlone(raw: string): boolean {
+/** The group parsed as though it ended the chain, or null where it fails even there. */
+function parseAsLast(raw: string): NormalizedOperation[] | null {
   try {
-    parseOperationChain(raw);
-    return true;
+    return parseOperationChain(raw);
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -141,14 +141,16 @@ function parseGroup(segments: string[], isLast: boolean): ParsedGroup | null {
       throw error;
     }
     const last = segments.at(-1) ?? "";
-    if (!isLast && error.message === `${UNKNOWN_OPERATION}${last}` && isIgnoredAlone(raw)) {
+    const asLast = isLast ? null : parseAsLast(raw);
+    if (asLast !== null && error.message === `${UNKNOWN_OPERATION}${last}`) {
+      // Only the filename's place is wrong, so the operations before it still reach the partial URL.
       return {
         report: {
           raw,
           status: "invalid",
           note: `${last} is read as a filename, which Dynjandi ignores only at the end of the URL.`,
         },
-        operations: [],
+        operations: asLast,
       };
     }
     return { report: refusal(segments, error.message), operations: [] };

@@ -163,6 +163,14 @@ describe("what the parser ignores (spec: empty segments, lone -, one trailing fi
     expect(result.dynjandiUrl).toBeNull();
   });
 
+  test("a misplaced filename costs only itself: the partial URL is the chain with it deleted", () => {
+    const withoutFilename = "-/resize/800x600/-/format/webp/";
+    // That chain is what the whole-chain parser accepts once the filename is gone.
+    expect(() => parseOperationChain(withoutFilename)).not.toThrow();
+    const result = checked(checkUploadcareUrl(ucare("-/resize/800x600/photo.jpg/-/format/webp/")));
+    expect(result.partialUrl).toBe(`${DYNJANDI}${withoutFilename}`);
+  });
+
   test("a filename on its own between operations is reported, not dropped", () => {
     const result = checked(checkUploadcareUrl(ucare("-/photo.jpg/-/format/webp/")));
     expect(result.operations).toHaveLength(2);
