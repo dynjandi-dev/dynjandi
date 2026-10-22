@@ -57,3 +57,17 @@ deletes it.
 - `biome.json` does not exclude `.vitest/` (it holds only PNGs today); the CI cache key reads the
   `package.json` specifier, which equals the installed version only while the pin is exact.
 - `publish.yml`'s header comment line for `build` runs past the neighbouring wrap width.
+
+## Phase 5 — Element: surface, marker, inputs, value
+
+- Rules the element implements that no test pins (each mutation survives): only the primary button-0
+  pointer starts a drag; `file` wins over `src`; a non-Blob `file` throws `TypeError`; `pointercancel` ends a
+  drag; the marker's two tones (a computed-style check would pin it); the `<style>` fallback (Chromium always
+  has `adoptedStyleSheets`).
+- The `value` setter does not validate untyped input: `picker.value = { x: 0.3 }` holds `y: NaN` until the
+  next emission re-rounds it. Same root as bug #21 (`roundPoint`).
+- The image error ("This image could not be loaded.") explains the failure but not a next step
+  (`typescript/error-handling.md` asks for both).
+- `tests/browser/element.browser.test.ts` casts with `as` (`DynjandiFocalPicker`, `HTMLImageElement`,
+  `CustomEvent`); the `HTMLElementTagNameMap` entry should make most of them unnecessary.
+- The outside-release drag test uses a `position: fixed` target, so it assumes a viewport about 350px tall.

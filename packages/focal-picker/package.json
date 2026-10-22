@@ -13,12 +13,18 @@
     "url": "https://github.com/dynjandi-dev/dynjandi/issues"
   },
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/element.js"
+  ],
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./element": {
+      "types": "./dist/element.d.ts",
+      "import": "./dist/element.js"
     }
   },
   "files": [

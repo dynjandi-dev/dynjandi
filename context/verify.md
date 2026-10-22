@@ -65,7 +65,7 @@ holds, which is the state between releases, so the dry run is skipped (with a me
 `npm view @dynjandi/sdk@<version>` returns that version; the assertions always run. The real dry run is
 therefore seen on the change that bumps the version. The picker is not on npm at all, so `npm view` finds
 nothing and its dry run always runs. Its tarball allowlist is the same four entries, and it requires
-`dist/index.js` and `dist/index.d.ts`.
+`dist/index.js`, `dist/index.d.ts`, `dist/element.js` and `dist/element.d.ts`.
 
 ## Test
 

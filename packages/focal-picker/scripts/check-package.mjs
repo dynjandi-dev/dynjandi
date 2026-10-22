@@ -27,7 +27,13 @@ try {
 
   // Allowlist, not a denylist: anything that is not dist/ or one of the three top-level files is a leak.
   const topLevel = ["package/package.json", "package/README.md", "package/LICENSE"];
-  const required = [...topLevel, "package/dist/index.js", "package/dist/index.d.ts"];
+  const required = [
+    ...topLevel,
+    "package/dist/index.js",
+    "package/dist/index.d.ts",
+    "package/dist/element.js",
+    "package/dist/element.d.ts",
+  ];
   for (const entry of required) {
     if (!entries.includes(entry)) failures.push(`missing from the tarball: ${entry}`);
   }
