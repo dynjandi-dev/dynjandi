@@ -28,6 +28,8 @@ Once it is on npm, that is the install command; usage is in [`packages/sdk/READM
 The spec is at
 `https://raw.githubusercontent.com/dynjandi-dev/dynjandi/main/packages/spec/openapi.yaml`
 ([how it is versioned](packages/spec/README.md)).
+For `next/image`, `@dynjandi/sdk/next` is a custom loader; see
+[Using with Next.js](packages/sdk/README.md#using-with-nextjs).
 
 ## Developing
 

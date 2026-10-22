@@ -31,6 +31,8 @@ try {
     ...topLevel,
     "package/dist/index.js",
     "package/dist/index.d.ts",
+    "package/dist/next.js",
+    "package/dist/next.d.ts",
     "package/dist/generated/api.d.ts",
   ];
   for (const entry of required) {
