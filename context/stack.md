@@ -17,8 +17,8 @@ types are generated from the spec, and `url()` maps its options onto `@dynjandi/
 the spec is served from its raw GitHub URL. The design is in issue #1 (`sdk-ecosystem`), not here.
 
 `packages/focal-picker` is a public package (`0.0.0`, built to `dist/`) that is **not on npm and that nothing
-publishes yet**; so far it holds only the DOM-free point helpers (`FocalPoint`, `clampPoint`, `roundPoint`,
-`stepPoint`), with no runtime dependencies. Its only tie to the SDK is a type-level test, so `@dynjandi/sdk`
+publishes yet**; so far it holds only DOM-free helpers — the point (`FocalPoint`, `clampPoint`, `roundPoint`,
+`stepPoint`) and the crop geometry (`cropWindow`, `pointFromRect`) — with no runtime dependencies. Its only tie to the SDK is a type-level test, so `@dynjandi/sdk`
 is a `devDependency`. The design is in issue #4.
 
 | Concern | Target |
@@ -41,7 +41,7 @@ tsconfig.base.json, biome.json, LICENSE (MIT)        shared config
 packages/spec/    openapi.yaml (OpenAPI 3.1, upload + file read + URL grammar prose), README.md
 packages/sdk/     @dynjandi/sdk: src/ (client, upload, files, http, url, next, errors, generated/api.d.ts), tests/ (live/ = smoke test),
                   scripts/check-package.mjs, tsconfig.json, tsconfig.build.json (emits dist/, gitignored), README.md
-packages/focal-picker/ @dynjandi/focal-picker (public, unpublished): src/ (point, index), tests/ (point.test.ts, sdk-compat.test-d.ts = the type-level
+packages/focal-picker/ @dynjandi/focal-picker (public, unpublished): src/ (point, geometry, index), tests/ (point.test.ts, geometry.test.ts, sdk-compat.test-d.ts = the type-level
                   tie to the SDK), scripts/check-package.mjs, tsconfig.json, tsconfig.build.json (emits dist/, gitignored), README.md
 packages/checker/ @dynjandi/checker (private): src/ (check, render, main, style.css), index.html, scripts/build.mjs (esbuild into
                   dist/, gitignored), tests/, README.md
@@ -82,7 +82,7 @@ context/   workflow state and project answers (verify, git, tracking, release, e
   bundle-size baseline and the command that measured it, and how to run the live smoke test. A change to the
   SDK's public API or its dependencies owes it an update.
 
-- `packages/focal-picker/README.md` — what the picker package holds so far (the point helpers), and that it is not published and its UI not built. It must not claim a feature before a phase has landed it, nor that the package is on npm before it is.
+- `packages/focal-picker/README.md` — what the picker package holds so far (the point and crop-geometry helpers), and that it is not published and its UI not built. It must not claim a feature before a phase has landed it, nor that the package is on npm before it is.
 
 - `packages/checker/README.md` — what the checker page checks, how to build and serve it, the grammar version
   and gzipped bundle size it records (with the command), and how `pages.yml` deploys it. A change to the

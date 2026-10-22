@@ -32,3 +32,14 @@ deletes it.
   portrait rows only, and no row measures a vertical clamp at 0.
 - `zlib.crc32` needs Node ≥ 22.2 while `engines` says `>=22` (dev-only script); `context/stack.md`'s Layout
   and Test rows do not mention `capture-crops.mjs` or `tests/fixtures/`.
+
+## Phase 3 — Crop-window geometry
+
+- `tests/geometry.test.ts` only asserts the fixture has more than zero rows; a fixture cut down to one row
+  would still pass. Pinning the count (20) would catch it.
+- A NaN focal point passed to `cropWindow` (centred, via `clampPoint`) is not asserted at that level.
+- The private helpers `placeSpan` and `fractionAlong` are not verb-first (`typescript/naming.md`).
+- The "does not round" test's comment is muddled working; the test itself is sound.
+- `pointFromRect` with an infinite pointer and an infinite `rect.left` gives the centre (Inf − Inf); the
+  JSDoc covers finite rectangles only. Harmless.
+- `context/stack.md`'s edited helpers sentence runs past the surrounding wrap width.
