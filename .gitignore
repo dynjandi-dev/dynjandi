@@ -18,3 +18,6 @@ packages/focal-picker/LICENSE
 
 # Scratch checkouts /feature-implement makes for a round of phases (context/verify.md)
 .phase-trees/
+
+# Vitest browser mode writes failure screenshots and attachments here
+.vitest/

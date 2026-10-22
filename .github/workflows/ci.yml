@@ -23,6 +23,18 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - id: playwright
+        run: echo "version=$(node -p "require('./packages/focal-picker/package.json').devDependencies.playwright")" >> "$GITHUB_OUTPUT"
+      - id: browser-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      # A cache hit restores the browser but not the system libraries it needs, so those are installed either way.
+      - if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @dynjandi/focal-picker exec playwright install --with-deps --only-shell chromium
+      - if: steps.browser-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @dynjandi/focal-picker exec playwright install-deps chromium
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm typecheck

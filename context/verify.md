@@ -14,7 +14,7 @@ ones that exit 0.** Filling them in by hand is fine too; running them first is n
 What each section takes, and the alternative answers written out, are in
 [`verify.notes.md`](verify.notes.md). `/onboard` reads that file when it fills this one.
 
-All commands run from the repository root and were run, exit 0, on 2026-10-19 (Node 24, pnpm 10.32.1), in
+All commands run from the repository root and were run, exit 0, on 2026-10-22 (Node 24, pnpm 10.32.1), in
 this tree and in a fresh clone prepared as *Prepare a fresh tree* says. `.github/workflows/ci.yml` runs the
 same commands.
 
@@ -73,8 +73,12 @@ nothing and its dry run always runs. Its tarball allowlist is the same four entr
 pnpm test
 ```
 
-The picker's tests run with `vitest run --typecheck`, so its type-level test (`tests/sdk-compat.test-d.ts`) is run
-too; `pnpm typecheck` covers it as well.
+The picker runs two Vitest projects (`packages/focal-picker/vitest.config.ts`): `node`, its helper tests plus the
+type-level test (`tests/sdk-compat.test-d.ts`, which `pnpm typecheck` covers as well), and `browser`, which runs
+`tests/browser/**/*.browser.test.ts` in headless Chromium through `@vitest/browser-playwright`. It needs the
+browser installed (see *Prepare a fresh tree*); without it the browser project fails rather than skips. The picker
+uses the `verbose` reporter so the output names the project of every test (`|node|`, `|browser (chromium)|`).
+Failure screenshots land in `packages/focal-picker/.vitest/`, which `.gitignore` lists.
 
 This excludes `packages/sdk/tests/live/`, which needs a secret and the network: see *Not run by Gate 1*.
 
@@ -154,14 +158,18 @@ row differs by more than its tolerance. Never `cat` `.env` or echo the variable;
 
 ```bash
 pnpm install --frozen-lockfile
+pnpm --filter @dynjandi/focal-picker exec playwright install --only-shell chromium
 ```
+
+The second command downloads the headless Chromium the picker's browser tests run in, at the Playwright version
+the picker pins. On Linux, CI adds `--with-deps` for the system libraries.
 
 What makes a clean checkout of this repository runnable, in order — the dependency install, and anything
 else that has to exist before the sections above can pass. **Gate 1 does not run it**, which is why it sits
 below that line: an ordinary phase works in a tree that is already prepared.
 
-That is the whole of it here: nothing is generated before the gate (`api.d.ts` is committed), and `dist/`
-is built by `pnpm build` itself. Verified by `/onboard` on 2026-10-19 in a `git clone --no-hardlinks` of
+Nothing else is needed: nothing is generated before the gate (`api.d.ts` is committed), and `dist/`
+is built by `pnpm build` itself. Verified on 2026-10-22 (Node 24, with the browser install above) in a `git clone --no-hardlinks` of
 this repository: the install, then every section above, exit 0, and `git status --porcelain` printed
 nothing afterwards.
 

@@ -38,6 +38,7 @@ Requires Node 22 or newer and pnpm (the version is pinned in `package.json`).
 
 ```bash
 pnpm install --frozen-lockfile
+pnpm --filter @dynjandi/focal-picker exec playwright install --only-shell chromium
 pnpm lint
 pnpm format:check
 pnpm typecheck

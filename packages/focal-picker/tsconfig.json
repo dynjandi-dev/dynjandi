@@ -5,5 +5,5 @@
       "@dynjandi/sdk": ["../sdk/src/index.ts"]
     }
   },
-  "include": ["src", "tests"]
+  "include": ["src", "tests", "vitest.config.ts"]
 }

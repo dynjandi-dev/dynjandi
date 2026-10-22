@@ -27,8 +27,8 @@ is a `devDependency`. The design is in issue #4.
 | Language | TypeScript 7 (strict, `tsconfig.base.json`), ESM |
 | Package manager | pnpm 10 workspaces, no Nx (`packageManager` in `package.json`) |
 | Lint and format | Biome 2 (`biome.json`), scoped to code: `context/`, `.claude/` and `.agents/` are ignored; the OpenAPI spec is linted by Redocly CLI (`recommended-strict`), called from the root `lint` script |
-| Test | Vitest 5. `pnpm test` runs the offline tests only; `packages/sdk/tests/live/` is a live smoke test against `cdn.dynjandi.dev`, run by `test:live` and never by `pnpm test` |
-| CI | GitHub Actions: `ci.yml` on Node 22 and 24 (its `build` and `check:package` steps cover the SDK and the picker); `pages.yml` deploys the checker page; `smoke.yml` runs the live smoke test daily, on demand, and as the precondition `publish.yml` calls; `publish.yml` publishes the SDK to npm (trusted publishing, no token); nothing publishes the picker |
+| Test | Vitest 5; for the picker it also runs in a real browser (headless Chromium through `@vitest/browser-playwright`, a separate `browser` project beside its `node` one). `pnpm test` runs the offline tests only; `packages/sdk/tests/live/` is a live smoke test against `cdn.dynjandi.dev`, run by `test:live` and never by `pnpm test` |
+| CI | GitHub Actions: `ci.yml` on Node 22 and 24 (its `build` and `check:package` steps cover the SDK and the picker; it installs Playwright's Chromium, cached by the pinned version, before `pnpm test`); `pages.yml` deploys the checker page; `smoke.yml` runs the live smoke test daily, on demand, and as the precondition `publish.yml` calls; `publish.yml` publishes the SDK to npm (trusted publishing, no token); nothing publishes the picker |
 | Database | None |
 | Storage | None |
 | Hosting | GitHub Pages serves `packages/checker`'s page at `https://dynjandi-dev.github.io/dynjandi/`, deployed by `pages.yml` once a person sets the repo's Pages source to "GitHub Actions"; nothing else is deployed from here. `@dynjandi/sdk` is the one package this repository publishes to npm: its first version by hand, every later one by `publish.yml`; `@dynjandi/focal-picker` is not published yet |
@@ -42,7 +42,7 @@ packages/spec/    openapi.yaml (OpenAPI 3.1, upload + file read + URL grammar pr
 packages/sdk/     @dynjandi/sdk: src/ (client, upload, files, http, url, next, errors, generated/api.d.ts), tests/ (live/ = smoke test),
                   scripts/check-package.mjs, tsconfig.json, tsconfig.build.json (emits dist/, gitignored), README.md
 packages/focal-picker/ @dynjandi/focal-picker (public, unpublished): src/ (point, geometry, index), tests/ (point.test.ts, geometry.test.ts, sdk-compat.test-d.ts = the type-level
-                  tie to the SDK), scripts/check-package.mjs, tsconfig.json, tsconfig.build.json (emits dist/, gitignored), README.md
+                  tie to the SDK, browser/ = tests run in Chromium), vitest.config.ts (node and browser projects), scripts/check-package.mjs, tsconfig.json, tsconfig.build.json (emits dist/, gitignored), README.md
 packages/checker/ @dynjandi/checker (private): src/ (check, render, main, style.css), index.html, scripts/build.mjs (esbuild into
                   dist/, gitignored), tests/, README.md
 .pnpmfile.cjs     gives openapi-typescript its own TypeScript 5 (it cannot run on TypeScript 7)

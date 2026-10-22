@@ -43,3 +43,17 @@ deletes it.
 - `pointFromRect` with an infinite pointer and an infinite `rect.left` gives the centre (Inf − Inf); the
   JSDoc covers finite rectangles only. Harmless.
 - `context/stack.md`'s edited helpers sentence runs past the surrounding wrap width.
+
+## Phase 4 — Browser test driver
+
+- Not provable before the push: CI's Node 22/24 matrix, the new `ci.yml` browser steps (cache miss and hit),
+  and the `--only-shell` launch path. Check them on the PR's first CI run.
+- The clean-clone proof ran with Chromium already in the machine-wide Playwright cache, so a cold download
+  was not exercised; `verify.md`'s "fails rather than skips" without a browser was not shown either.
+- `publish.yml`'s build job now runs only the SDK's tests (it used to run the checker's too, through root
+  `pnpm test`); `ci.yml` still runs every package's. A picker failure still blocks an SDK publish through
+  `build` and `check:package` (the phase 1 note above).
+- The README's Developing block has no Linux `--with-deps` hint, which `verify.md` carries.
+- `biome.json` does not exclude `.vitest/` (it holds only PNGs today); the CI cache key reads the
+  `package.json` specifier, which equals the installed version only while the pin is exact.
+- `publish.yml`'s header comment line for `build` runs past the neighbouring wrap width.
