@@ -132,6 +132,24 @@ environment, without printing it:
 Never `cat` the file or echo the variable. The test and the SDK keep the key out of their output, but a
 shell trace or a pasted log would not.
 
+### Focal crop capture
+
+```bash
+(set -a; . ./.env; set +a; pnpm --filter @dynjandi/focal-picker run capture:crops)
+```
+
+Uploads two gradient PNGs (510x255 and 255x510, built in memory; red rises with x, green with y) to the
+dedicated test project, fetches 20 `crop/<w>x<h>/focal/<x>x<y>/` variants as PNG, decodes them and rewrites
+`packages/focal-picker/tests/fixtures/service-crops.json` with the window each one showed, as fractions of the
+source, with a per-row tolerance. The committed fixture is what the picker's crop geometry follows. A run is 22
+requests (2 uploads, 20 variants), each variant counting against the test project's cap.
+
+It is not in the gate for the same reasons as the smoke test: it needs the key and the network, spends the cap,
+and can go red with nothing in the diff because the service changed. Run it by hand only when the service's
+crop behaviour is in doubt. To compare the live service with the committed fixture without rewriting it, and
+at about a quarter of the cost (6 requests), add `--check --every 6` after the script name; it exits non-zero when a
+row differs by more than its tolerance. Never `cat` `.env` or echo the variable; the script never prints the key.
+
 ## Prepare a fresh tree
 
 ```bash
