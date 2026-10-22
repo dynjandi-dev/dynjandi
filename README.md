@@ -16,6 +16,7 @@ source and placeholder helpers.
 |---|---|
 | [`packages/spec`](packages/spec/README.md) | The OpenAPI spec for the API (not published to npm; served from this repository) |
 | [`packages/sdk`](packages/sdk/README.md) | `@dynjandi/sdk`, a TypeScript client built on `fetch`, `FormData` and `Blob` |
+| [`packages/checker`](packages/checker/README.md) | A static page that checks which operations of an Uploadcare URL Dynjandi supports (private; deployed to GitHub Pages by `pages.yml` once Pages is enabled: <https://dynjandi-dev.github.io/dynjandi/>) |
 
 ## Using it
 
