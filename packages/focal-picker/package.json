@@ -1,0 +1,43 @@
+{
+  "name": "@dynjandi/focal-picker",
+  "version": "0.0.0",
+  "description": "A focal point picker for images uploaded to Dynjandi, an image CDN. Not yet published.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dynjandi-dev/dynjandi.git",
+    "directory": "packages/focal-picker"
+  },
+  "homepage": "https://github.com/dynjandi-dev/dynjandi/tree/main/packages/focal-picker#readme",
+  "bugs": {
+    "url": "https://github.com/dynjandi-dev/dynjandi/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "check:package": "node scripts/check-package.mjs",
+    "prepack": "pnpm run build && cp ../../LICENSE LICENSE",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --typecheck"
+  },
+  "devDependencies": {
+    "@dynjandi/sdk": "workspace:*"
+  }
+}

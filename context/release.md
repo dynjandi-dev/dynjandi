@@ -33,6 +33,7 @@ Set by `/onboard` on 2026-10-01, after `release-init` put changesets in place.
 | Path | Announces to | Deserves a note when | A bump means |
 |---|---|---|---|
 | `packages/sdk` | people installing `@dynjandi/sdk` from npm | its public API, runtime behaviour, dependencies or supported runtimes change — **not** tests, internal refactors, README wording or CI | while `0.x`: **minor is a breaking change**, patch is everything else (additions and fixes); ordinary semver from `1.0` |
+| `packages/focal-picker` | people installing `@dynjandi/focal-picker` from npm — **nobody can yet**: it is not published, and nothing publishes it (`publish.yml` publishes the SDK only) | its public API, runtime behaviour, dependencies or supported runtimes change, **once it is published** — until then its changes announce nothing. Notes are written like the SDK's, and are then collected from `.changeset/` | while `0.x`: **minor is a breaking change**, patch is everything else (additions and fixes); ordinary semver from `1.0`, the same rule as the SDK's |
 | `packages/spec` | integrators reading the spec at its raw GitHub URL | **never on its own.** A contract change regenerates the SDK's types (`pnpm check:generated` fails until it does), so it is announced by the SDK's note | nothing changesets moves: the spec's version is `info.version` in `openapi.yaml`, bumped by hand by the rule in `packages/spec/README.md` |
 | everything else — `context/`, `.github/`, `.changeset/`, root config | nobody | never | — |
 
@@ -64,6 +65,13 @@ none.
   here runs — `publish.yml` publishes with `npm publish --access public`.
 - **The changelog is generated** into `packages/sdk/CHANGELOG.md` by `changeset:prepare-release`. It is an
   output, not a documentation surface, so `stack.md` does not index it.
+
+**`packages/focal-picker` is public and unpublished.** Its `package.json` is not private, so changesets
+would version and tag it, but `publish.yml` reads `packages/sdk/package.json` only and publishes the SDK
+only: **nothing publishes `@dynjandi/focal-picker`**, and its first publish needs a person and a decision of
+its own (the plan for issue #4 leaves it out). `pnpm check:package` packs it and runs `npm publish
+--dry-run` over it all the same, which is how it is kept publishable; `npm view` finds no such package, so
+the dry run is always run.
 
 **Nothing asks for a note on a change — a gap.** No CI job runs `changeset:status`, and no pull request is
 asked whether it carries one. If a check is added, it must **exempt a commit where `packages/sdk`'s

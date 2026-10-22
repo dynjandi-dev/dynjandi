@@ -51,24 +51,30 @@ pnpm build
 pnpm check:package
 ```
 
-`pnpm build` compiles `@dynjandi/sdk` into `packages/sdk/dist/` (ESM JavaScript and `.d.ts`, with the
-generated types copied in, which `tsc` does not emit) under `NodeNext` resolution, so a relative import
+`pnpm build` compiles `@dynjandi/sdk` into `packages/sdk/dist/` and `@dynjandi/focal-picker` into
+`packages/focal-picker/dist/` (ESM JavaScript and `.d.ts`; the SDK's build also copies the generated types
+in, which `tsc` does not emit) under `NodeNext` resolution, so a relative import
 missing its `.js` extension fails here and not in a consumer's build.
 
-`pnpm check:package` packs the SDK exactly as `publish.yml` does (`pnpm pack`, whose `prepack` builds and
+`pnpm check:package` runs for the SDK and for `@dynjandi/focal-picker`. It packs the SDK exactly as `publish.yml` does (`pnpm pack`, whose `prepack` builds and
 copies the root `LICENSE` in) and asserts the tarball holds `dist/`, `README.md`, `LICENSE` and
 `package.json` and **nothing else** (so no `src/`, `tests/`, `scripts/` or `node_modules`), that its
 `package.json` is not private and has no `workspace:`, `file:` or `link:` specifier, and then runs
 `npm publish --dry-run` over the tarball. npm refuses a dry run over a version the registry already
 holds, which is the state between releases, so the dry run is skipped (with a message) when
 `npm view @dynjandi/sdk@<version>` returns that version; the assertions always run. The real dry run is
-therefore seen on the change that bumps the version.
+therefore seen on the change that bumps the version. The picker is not on npm at all, so `npm view` finds
+nothing and its dry run always runs. Its tarball allowlist is the same four entries, and it requires
+`dist/index.js` and `dist/index.d.ts`.
 
 ## Test
 
 ```bash
 pnpm test
 ```
+
+The picker's tests run with `vitest run --typecheck`, so its type-level test (`tests/sdk-compat.test-d.ts`) is run
+too; `pnpm typecheck` covers it as well.
 
 This excludes `packages/sdk/tests/live/`, which needs a secret and the network: see *Not run by Gate 1*.
 
