@@ -80,6 +80,36 @@ is empty or holds anything but two positive finite numbers is replaced by the de
 picker.ratios = [[3, 2], [1, 1]];
 ```
 
+## Accessibility
+
+The image surface, its marker and the crop previews are a pointer affordance and are hidden from assistive
+technology. The path for keyboard and screen reader users is the two labelled number inputs, X and Y in
+percent: Tab reaches X, then Y, then leaves the element (no focus trap), and typing a value moves the point
+and the previews.
+
+**Automated**, in `tests/browser/`, all in headless Chromium (`pnpm test`):
+
+- axe-core (`a11y.browser.test.ts`) finds no violations, against its WCAG 2.0, 2.1 and 2.2 A and AA rules
+  and best practices, in four states: empty (no image, no point), with a point (image loaded, previews
+  shown), with an error (an unreadable image), and at a narrow viewport (320 px).
+- A keyboard-only path (`e2e.browser.test.ts`): Tab order X then Y with nothing else focusable, typing
+  changes the point and the previews, and each focused input has a visible focus indicator (computed
+  outline).
+- `forced-colors: active`: the marker keeps a solid border and an outline in a different colour (forced
+  colours remove the shadow that makes it two-tone otherwise), and the focus indicator stays.
+- Reflow at 320 CSS px (200% zoom of a 640 px window): the element and the page do not scroll sideways.
+- `prefers-reduced-motion: reduce`: the element has no transitions or animations to turn off, asserted on
+  every element in its shadow root.
+- A drag over a generated 6000 by 4000 image with all four previews costs well under one 60 Hz frame
+  (16.7 ms) per `pointermove`.
+
+**Not automated, and needs a person**: a read-through with a screen reader (VoiceOver, NVDA) and a drag on
+a touch device. Nothing in this repository drives either.
+
+**Browsers.** Chromium is the only browser the tests run in. The element uses standard platform features
+(custom elements, shadow DOM, pointer events, constructable stylesheets with a `<style>` fallback), so it is
+intended to work in current Firefox and Safari, but that is not tested and not claimed.
+
 ## The helpers
 
 The package root (`@dynjandi/focal-picker`) is DOM-free and registers nothing: `FocalPoint` (the `{ x, y }`

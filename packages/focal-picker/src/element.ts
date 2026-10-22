@@ -31,6 +31,10 @@ const STYLE = `
   pointer-events: none;
 }
 .marker[hidden] { display: none; }
+/* Forced colours drop box-shadow and recolour the border to CanvasText, so the second tone is an outline in a system colour (which is kept). */
+@media (forced-colors: active) {
+  .marker { outline: 2px solid Canvas; }
+}
 .error { margin: 0; padding: 0.75em 1em; border: 1px solid currentColor; }
 .error[hidden] { display: none; }
 .fields { display: flex; flex-wrap: wrap; gap: 0.75em 1.5em; margin-top: 0.75em; }

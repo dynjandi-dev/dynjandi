@@ -41,7 +41,7 @@ tsconfig.base.json, biome.json, LICENSE (MIT)        shared config
 packages/spec/    openapi.yaml (OpenAPI 3.1, upload + file read + URL grammar prose), README.md
 packages/sdk/     @dynjandi/sdk: src/ (client, upload, files, http, url, next, errors, generated/api.d.ts), tests/ (live/ = smoke test),
                   scripts/check-package.mjs, tsconfig.json, tsconfig.build.json (emits dist/, gitignored), README.md
-packages/focal-picker/ @dynjandi/focal-picker (public, unpublished): src/ (point, geometry, index, element), tests/ (point.test.ts, geometry.test.ts, browser/element.browser.test.ts, browser/previews.browser.test.ts, sdk-compat.test-d.ts = the type-level
+packages/focal-picker/ @dynjandi/focal-picker (public, unpublished): src/ (point, geometry, index, element), tests/ (point.test.ts, geometry.test.ts, browser/element.browser.test.ts, browser/previews.browser.test.ts, browser/a11y.browser.test.ts (axe-core), browser/e2e.browser.test.ts (keyboard, forced colours, reflow, reduced motion, drag cost), browser/support.ts (shared helpers), sdk-compat.test-d.ts = the type-level
                   tie to the SDK, browser/ = tests run in Chromium), vitest.config.ts (node and browser projects), scripts/check-package.mjs, tsconfig.json, tsconfig.build.json (emits dist/, gitignored), README.md
 packages/checker/ @dynjandi/checker (private): src/ (check, render, main, style.css), index.html, scripts/build.mjs (esbuild into
                   dist/, gitignored), tests/, README.md

@@ -83,3 +83,17 @@ deletes it.
   the same proportions and could be cited as the source instead.
 - `previews.browser.test.ts` casts with `as` where `HTMLElementTagNameMap` already types the element, and
   queries by `part` (the previews are aria-hidden, so there is no role to query).
+
+## Phase 7 — Accessibility and end-to-end pass
+
+- The README says a drag "costs well under one 60 Hz frame per `pointermove`"; what is measured is the
+  element's handler plus the style/layout it forces, not paint or compositing of the 24-megapixel image.
+- Chromium coarsens `performance.now()` to 100 µs in the test context, so the per-sample median reads 0.000;
+  the mean is the meaningful figure.
+- "200% zoom" is covered as a 320 CSS px viewport (WCAG 1.4.10 reflow); text-only resize (1.4.4) is not
+  exercised.
+- The keyboard test's third leg focuses X programmatically (`select()`), not with Shift+Tab; the Tab-order
+  test covers backward navigation.
+- The README says axe runs over "four states"; the test runs five.
+- `support.ts` and `e2e.browser.test.ts` repeat the `as DynjandiFocalPicker` cast the tag map makes
+  unnecessary.
