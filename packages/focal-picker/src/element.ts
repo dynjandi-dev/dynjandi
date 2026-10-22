@@ -1,4 +1,4 @@
-import { pointFromRect } from "./geometry.js";
+import { cropWindow, type ImageSize, pointFromRect } from "./geometry.js";
 import { type FocalPoint, roundPoint } from "./point.js";
 
 /** The tag name `./element` registers. */
@@ -36,7 +36,44 @@ const STYLE = `
 .fields { display: flex; flex-wrap: wrap; gap: 0.75em 1.5em; margin-top: 0.75em; }
 .field { display: flex; flex-direction: column; gap: 0.25em; }
 .field input { width: 8em; font: inherit; }
+.previews { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75em 1em; margin-top: 0.75em; }
+.previews[hidden] { display: none; }
+.preview { margin: 0; }
+/* The box has the ratio's shape; the image inside is sized and offset in percent of the box. */
+.preview-box { position: relative; overflow: hidden; height: 7rem; }
+.preview-image { position: absolute; display: block; max-width: none; }
+.preview-caption { margin-top: 0.25em; font-size: 0.875em; }
 `;
+
+/** What `ratios` holds until it is set: the sizes a CMS most often crops to. */
+const DEFAULT_RATIOS: ReadonlyArray<readonly [number, number]> = [
+  [16, 9],
+  [1, 1],
+  [4, 5],
+  [9, 16],
+];
+
+/** A list of `[width, height]` pairs that are all positive and finite, and not empty. */
+function isRatioList(list: unknown): list is [number, number][] {
+  return (
+    Array.isArray(list) &&
+    list.length > 0 &&
+    list.every(
+      (pair) =>
+        Array.isArray(pair) &&
+        pair.length === 2 &&
+        pair.every((side) => typeof side === "number" && Number.isFinite(side) && side > 0),
+    )
+  );
+}
+
+interface Preview {
+  figure: HTMLElement;
+  ratio: number;
+  label: string;
+  image: HTMLImageElement;
+  caption: HTMLElement;
+}
 
 let sheet: CSSStyleSheet | undefined;
 
@@ -87,6 +124,8 @@ function createField(label: string): { wrapper: HTMLLabelElement; input: HTMLInp
  * - `file` (property): a `File` or `Blob` to show. Wins over `src`.
  * - `src` (attribute and property): a URL to show.
  * - `value` (property): `{ x, y }` (each 0 to 1) or `null` for no point. Setting it emits no event.
+ * - `ratios` (property): the crop shapes to preview, as `[width, height]` pairs; default 16:9, 1:1, 4:5, 9:16.
+ *   An invalid list is replaced by the default and warned about once.
  * - `input` event: while a drag moves the point. `change` event: once when a drag ends, and when a typed
  *   entry is committed. Both carry `detail: { x, y }`.
  */
@@ -98,11 +137,18 @@ export class DynjandiFocalPicker extends HTMLElement {
   #objectUrl: string | null = null;
   /** The value when the current drag began; null when no drag is under way. */
   #dragStart: { pointerId: number; from: FocalPoint | null } | null = null;
+  #ratios: [number, number][] = DEFAULT_RATIOS.map(([w, h]) => [w, h]);
+  #previews: Preview[] = [];
+  /** The loaded image's natural size, which the preview geometry needs; null until it has loaded. */
+  #natural: ImageSize | null = null;
+  /** The URL the surface image shows, which every preview image shows too: one object URL, not many. */
+  #source: string | null = null;
 
   readonly #surface = document.createElement("div");
   readonly #image = document.createElement("img");
   readonly #marker = document.createElement("div");
   readonly #error = document.createElement("p");
+  readonly #previewStrip = document.createElement("div");
   readonly #x = createField("Focal point X (%)");
   readonly #y = createField("Focal point Y (%)");
 
@@ -137,8 +183,15 @@ export class DynjandiFocalPicker extends HTMLElement {
     fields.setAttribute("aria-label", "Focal point");
     fields.append(this.#x.wrapper, this.#y.wrapper);
 
+    // Like the surface, the previews are a visual aid; the inputs carry the same point for everyone.
+    this.#previewStrip.className = "previews";
+    this.#previewStrip.setAttribute("part", "previews");
+    this.#previewStrip.setAttribute("aria-hidden", "true");
+    this.#previewStrip.hidden = true;
+    this.#buildPreviews();
+
     this.#surface.hidden = true;
-    root.append(this.#surface, this.#error, fields);
+    root.append(this.#surface, this.#error, fields, this.#previewStrip);
 
     this.#surface.addEventListener("pointerdown", (event) => this.#onPointerDown(event));
     this.#surface.addEventListener("pointermove", (event) => this.#onPointerMove(event));
@@ -168,6 +221,30 @@ export class DynjandiFocalPicker extends HTMLElement {
   set value(point: FocalPoint | null) {
     this.#value = point === null ? null : roundPoint(point);
     this.#render();
+  }
+
+  /**
+   * The crop shapes to preview, as `[width, height]` pairs (`[16, 9]`). Pairs rather than "16:9" strings
+   * so there is nothing to parse and no format to get wrong; the caption is built from the pair. A list
+   * that is empty, or holds anything but two positive finite numbers, is replaced by the default
+   * (16:9, 1:1, 4:5, 9:16) with one `console.warn` per assignment. The getter returns a copy.
+   */
+  get ratios(): [number, number][] {
+    return this.#ratios.map(([w, h]) => [w, h]);
+  }
+
+  set ratios(list: [number, number][]) {
+    if (isRatioList(list)) {
+      this.#ratios = list.map(([w, h]) => [w, h]);
+    } else {
+      // biome-ignore lint/suspicious/noConsole: a rejected option is reported to the developer, once.
+      console.warn(
+        "dynjandi-focal-picker: ratios must be a non-empty list of [width, height] pairs of positive finite numbers; using the default 16:9, 1:1, 4:5, 9:16.",
+      );
+      this.#ratios = DEFAULT_RATIOS.map(([w, h]) => [w, h]);
+    }
+    this.#buildPreviews();
+    this.#renderPreviews();
   }
 
   /** The image to show as a `File` or `Blob`. It wins over `src`. The picker revokes its object URL. */
@@ -200,7 +277,7 @@ export class DynjandiFocalPicker extends HTMLElement {
 
   disconnectedCallback(): void {
     this.#releaseObjectUrl();
-    this.#image.removeAttribute("src");
+    this.#setSource(null);
   }
 
   attributeChangedCallback(): void {
@@ -222,17 +299,87 @@ export class DynjandiFocalPicker extends HTMLElement {
       source = this.#objectUrl;
     }
     if (source === null || source === "") {
-      this.#image.removeAttribute("src");
+      this.#setSource(null);
       this.#surface.hidden = true;
+      this.#previewStrip.hidden = true;
       this.#error.hidden = true;
       return;
     }
-    this.#image.src = source;
+    this.#setSource(source);
+  }
+
+  /** Points the surface image and every preview image at one URL, or at nothing. */
+  #setSource(source: string | null): void {
+    if (source === this.#source) return;
+    this.#source = source;
+    if (source === null) this.#natural = null;
+    for (const image of [this.#image, ...this.#previews.map((preview) => preview.image)]) {
+      if (source === null) image.removeAttribute("src");
+      else image.src = source;
+    }
   }
 
   #showImage(loaded: boolean): void {
+    this.#natural = loaded
+      ? { width: this.#image.naturalWidth, height: this.#image.naturalHeight }
+      : null;
+    // A loaded image with no size (an SVG without one) has no geometry to preview.
+    if (this.#natural !== null && !(this.#natural.width > 0 && this.#natural.height > 0)) {
+      this.#natural = null;
+    }
     this.#surface.hidden = !loaded;
+    this.#previewStrip.hidden = this.#natural === null;
     this.#error.hidden = loaded;
+    this.#renderPreviews();
+  }
+
+  /** Makes one box per ratio. Runs when the ratios change, never while a point moves. */
+  #buildPreviews(): void {
+    this.#previews = this.#ratios.map(([width, height]) => {
+      const figure = document.createElement("figure");
+      figure.className = "preview";
+      figure.setAttribute("part", "preview");
+      const box = document.createElement("div");
+      box.className = "preview-box";
+      box.setAttribute("part", "preview-box");
+      box.style.aspectRatio = `${width} / ${height}`;
+      const image = document.createElement("img");
+      image.className = "preview-image";
+      image.setAttribute("part", "preview-image");
+      image.alt = "";
+      image.draggable = false;
+      if (this.#source !== null) image.src = this.#source;
+      box.append(image);
+      const caption = document.createElement("figcaption");
+      caption.className = "preview-caption";
+      caption.setAttribute("part", "preview-caption");
+      figure.append(box, caption);
+      return { figure, ratio: width / height, label: `${width}:${height}`, image, caption };
+    });
+    this.#previewStrip.replaceChildren(...this.#previews.map((preview) => preview.figure));
+  }
+
+  /**
+   * Positions each preview's image from `cropWindow`. The box has the ratio's shape, so an image sized
+   * 1 / crop-width of the box's width and 1 / crop-height of its height keeps its proportions, and
+   * pulling it left and up by crop-left / crop-width (and top / height) of the box shows the window.
+   * Only style values and a caption string change here: this runs for every pointer move.
+   */
+  #renderPreviews(): void {
+    const natural = this.#natural;
+    if (natural === null) return;
+    const point = this.#value ?? { x: 0.5, y: 0.5 };
+    const note = this.#value === null ? ", centre crop (no point chosen)" : "";
+    for (const preview of this.#previews) {
+      const crop = cropWindow(natural, preview.ratio, point);
+      const style = preview.image.style;
+      style.width = `${100 / crop.width}%`;
+      style.height = `${100 / crop.height}%`;
+      style.left = `${(-crop.left / crop.width) * 100}%`;
+      style.top = `${(-crop.top / crop.height) * 100}%`;
+      const text = preview.label + note;
+      if (preview.caption.textContent !== text) preview.caption.textContent = text;
+    }
   }
 
   #render(): void {
@@ -243,6 +390,7 @@ export class DynjandiFocalPicker extends HTMLElement {
       this.#marker.style.top = `${point.y * 100}%`;
     }
     this.#syncInputs();
+    this.#renderPreviews();
   }
 
   /** Shows the point in the inputs, which also restores the last good value after a rejected entry. */

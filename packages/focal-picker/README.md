@@ -5,8 +5,8 @@ a CMS or admin to choose the part of a photo that survives a crop, and hand the 
 [`@dynjandi/sdk`](../sdk/README.md).
 
 **Status: not published, and only part of the picker is built.** This package is not on npm, and nothing
-publishes it. What exists: the `<dynjandi-focal-picker>` element (image, marker, X and Y inputs), and the
-DOM-free helpers behind it. Crop previews and a React wrapper are not built yet.
+publishes it. What exists: the `<dynjandi-focal-picker>` element (image, marker, X and Y inputs, crop
+previews), and the DOM-free helpers behind it. A React wrapper is not built yet.
 
 ## Install
 
@@ -57,7 +57,28 @@ both are set. An image that cannot be read shows an error message instead of the
   `detail: { x, y }`, and bubble and cross the shadow root. Typing in the inputs does not fire `input`.
 - With no point yet, the first typed entry in one input takes the centre (0.5) for the other axis.
 
-Styling hooks: the parts `surface`, `image`, `marker`, `error` and `fields`.
+Styling hooks: the parts `surface`, `image`, `marker`, `error`, `fields`, `previews`, `preview`,
+`preview-box`, `preview-image` and `preview-caption`.
+
+### Crop previews
+
+Under the inputs, one box per crop shape shows what survives a crop to that shape for the current point,
+captioned with the shape (`16:9`). Each box draws the same image the surface shows (the same URL, so a
+`File` still has one object URL) positioned with `cropWindow`, the service's measured behaviour. That is
+not CSS `object-position`: at 9:16 on a 2:1 photo with the point at 60% across, the service's window
+starts at 45.9% of the width, and `object-position: 60%` would start at 43.1%. With no point yet, the
+previews show the centre crop and their captions say so. The previews are hidden from assistive technology,
+like the surface; the inputs carry the same point. They follow a drag (every `input` event), a typed
+commit and a set `value`, and only restyle their images while the point moves.
+
+`picker.ratios` sets the shapes: a list of `[width, height]` pairs, default
+`[[16, 9], [1, 1], [4, 5], [9, 16]]`. Pairs, not `"16:9"` strings, so there is nothing to parse. A list that
+is empty or holds anything but two positive finite numbers is replaced by the default, with one
+`console.warn` per assignment. The getter returns a copy.
+
+```js
+picker.ratios = [[3, 2], [1, 1]];
+```
 
 ## The helpers
 

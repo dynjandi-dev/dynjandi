@@ -71,3 +71,15 @@ deletes it.
 - `tests/browser/element.browser.test.ts` casts with `as` (`DynjandiFocalPicker`, `HTMLImageElement`,
   `CustomEvent`); the `HTMLElementTagNameMap` entry should make most of them unnecessary.
 - The outside-release drag test uses a `position: fixed` target, so it assumes a viewport about 350px tall.
+
+## Phase 6 — Element: crop previews
+
+- Nothing pins "no DOM rebuild per pointer move" (rebuilding the previews on every render passes every
+  test); asserting the preview nodes' identity across a drag would.
+- "Warns once" for an invalid `ratios` is read as once per assignment, not per page; the README says so.
+- Untested: the `ratios` getter and setter copying, and the preview strip staying hidden until the image
+  loads.
+- The previews' expected values are worked from §4.2's formula; the Phase 2 fixture's 2:1 and 1:2 rows have
+  the same proportions and could be cited as the source instead.
+- `previews.browser.test.ts` casts with `as` where `HTMLElementTagNameMap` already types the element, and
+  queries by `part` (the previews are aria-hidden, so there is no role to query).
