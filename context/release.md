@@ -33,6 +33,7 @@ Set by `/onboard` on 2026-10-01, after `release-init` put changesets in place.
 | Path | Announces to | Deserves a note when | A bump means |
 |---|---|---|---|
 | `packages/sdk` | people installing `@dynjandi/sdk` from npm | its public API, runtime behaviour, dependencies or supported runtimes change — **not** tests, internal refactors, README wording or CI | while `0.x`: **minor is a breaking change**, patch is everything else (additions and fixes); ordinary semver from `1.0` |
+| `packages/focal-picker` | people installing `@dynjandi/focal-picker` from npm — **nobody can yet**: it is not published, and nothing publishes it (`publish.yml` publishes the SDK only) | its public API, runtime behaviour, dependencies or supported runtimes change, **once it is published** — until then its changes announce nothing. Notes are written like the SDK's, and are then collected from `.changeset/` | while `0.x`: **minor is a breaking change**, patch is everything else (additions and fixes); ordinary semver from `1.0`, the same rule as the SDK's |
 | `packages/spec` | integrators reading the spec at its raw GitHub URL | **never on its own.** A contract change regenerates the SDK's types (`pnpm check:generated` fails until it does), so it is announced by the SDK's note | nothing changesets moves: the spec's version is `info.version` in `openapi.yaml`, bumped by hand by the rule in `packages/spec/README.md` |
 | everything else — `context/`, `.github/`, `.changeset/`, root config | nobody | never | — |
 
@@ -64,6 +65,13 @@ none.
   here runs — `publish.yml` publishes with `npm publish --access public`.
 - **The changelog is generated** into `packages/sdk/CHANGELOG.md` by `changeset:prepare-release`. It is an
   output, not a documentation surface, so `stack.md` does not index it.
+
+**`packages/focal-picker` is public and unpublished.** Its `package.json` is not private, so changesets
+would version and tag it, but `publish.yml` reads `packages/sdk/package.json` only and publishes the SDK
+only: **nothing publishes `@dynjandi/focal-picker`**, and its first publish needs a person and a decision of
+its own (the plan for issue #4 leaves it out). `pnpm check:package` packs it and runs `npm publish
+--dry-run` over it all the same, which is how it is kept publishable; `npm view` finds no such package, so
+the dry run is always run.
 
 **Nothing asks for a note on a change — a gap.** No CI job runs `changeset:status`, and no pull request is
 asked whether it carries one. If a check is added, it must **exempt a commit where `packages/sdk`'s
@@ -150,7 +158,7 @@ As of 2026-10-19, one line each:
 | Event | a **push to `main` that touches `packages/sdk/**`, `pnpm-lock.yaml`, `LICENSE` or `publish.yml`**. That only starts the run; whether anything publishes is the next row. There is no `workflow_dispatch`, so nothing can start it by hand |
 | Gate | **the registry.** `check` reads `version` from `packages/sdk/package.json` and runs `npm view "@dynjandi/sdk@<version>" version`. On npm already: a notice and a green stop (so a re-run, an unbumped change and a run after a half-failed publish all stop green). Not on npm: smoke, build, publish, release. `publish` asks again, in case the registry moved |
 | Precondition | the live smoke test, `smoke.yml` called with the Actions secret `DYNJANDI_SMOKE_PUBLIC_KEY`, **only when there is a version to publish**. A smoke failure (drift between the spec and the service, or an outage) blocks the publish; fix the cause and re-run the failed workflow, or push again |
-| Jobs | `check` (`contents: read`) → `smoke` → `build` (`contents: read`: install, build, `pnpm test`, `pnpm check:package`, `pnpm pack`, upload the tarball) → `publish` (`id-token: write`, **no checkout, no install, no cache**: downloads the tarball, `npm publish`) → `release` (`contents: write`, runs only `gh`). So no dependency's code runs in a job that can request an npm OIDC token, and the job that can write the repository runs no dependency code either. Every job refuses any ref but `refs/heads/main`, because npm trusts any run of this file; that stops accidental runs, not someone with push access, since it is only as strong as the copy of the file being run |
+| Jobs | `check` (`contents: read`) → `smoke` → `build` (`contents: read`: install, build, `pnpm --filter @dynjandi/sdk run test` (the SDK's tests; the picker's browser tests run in `ci.yml`, and this job installs no Chromium), `pnpm check:package`, `pnpm pack`, upload the tarball) → `publish` (`id-token: write`, **no checkout, no install, no cache**: downloads the tarball, `npm publish`) → `release` (`contents: write`, runs only `gh`). So no dependency's code runs in a job that can request an npm OIDC token, and the job that can write the repository runs no dependency code either. Every job refuses any ref but `refs/heads/main`, because npm trusts any run of this file; that stops accidental runs, not someone with push access, since it is only as strong as the copy of the file being run |
 | Authentication | npm **trusted publishing** (OIDC). **No npm token exists**, in the repository, in secrets or anywhere. It needs npm >= 11.5.1 and Node >= 22.14.0; the job uses Node 24 and fails if `npm --version` is older |
 | Provenance | **yes, for every version the workflow publishes.** npm generates it automatically for a trusted publish from a public repository of a public package ([docs.npmjs.com/trusted-publishers](https://docs.npmjs.com/trusted-publishers), "Automatic provenance generation"); the workflow also passes `--provenance`, so a publish that could not produce it fails. `repository.url` in `package.json` must match this repository. **`0.1.0` has none**: it is published from a person's machine |
 | Pack and publish | `pnpm pack` from `packages/sdk` (its `prepack` rebuilds `dist/` and copies the root `LICENSE` in; the SDK has no `workspace:` dependency, so nothing is rewritten), then `npm publish <tarball> --access public --provenance` |
@@ -177,7 +185,7 @@ tag and release are not created). To recover, do steps 1–4 below from `main`. 
 alone; no run follows on its own. Re-running all jobs stops green at `check`. Re-running only the failed
 job lets `publish` find `0.1.0` and exit 0, and `release` then tags `sdk-v0.1.0` on the merge commit.
 
-1. `pnpm install --frozen-lockfile`, then `pnpm build && pnpm test && pnpm check:package`.
+1. `pnpm install --frozen-lockfile`, then `pnpm build && pnpm --filter @dynjandi/sdk run test && pnpm check:package`.
 2. From `packages/sdk`: `pnpm pack --pack-destination "$(mktemp -d)"` (note the directory it prints), which
    runs `prepack`. A bare `npm publish` from the package directory would also run `prepack`, but publish the
    tarball so that it is the one that was inspected.

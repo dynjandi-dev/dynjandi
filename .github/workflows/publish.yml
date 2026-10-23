@@ -15,7 +15,7 @@ name: Publish SDK
 #   check    reads the version and asks the registry. No OIDC permission.
 #   smoke    the live smoke test (smoke.yml) against the real service. A precondition, not a courtesy: a
 #            published version is permanent, so a spec that has drifted from the service blocks it.
-#   build    installs, builds, tests and packs, and hands the tarball over as an artifact. No OIDC permission.
+#   build    installs, builds, tests the SDK and packs, and hands the tarball over as an artifact. No OIDC permission.
 #   publish  `id-token: write`, and nothing else: it installs nothing, has no cache and no checkout, and only
 #            runs `npm publish <tarball>`. A compromised dependency can therefore not request an npm OIDC
 #            token, because no dependency's code runs in the job that can.
@@ -107,7 +107,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: pnpm test
+      # The SDK's tests only: this workflow publishes the SDK, and the picker's browser tests need a Chromium
+      # this job does not install (ci.yml runs them). `build` and `check:package` above and below still cover both.
+      - run: pnpm --filter @dynjandi/sdk run test
       - run: pnpm check:package
 
       # `pnpm pack` runs the package's `prepack` (build, then the root LICENSE copied in) and rewrites any

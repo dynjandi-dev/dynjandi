@@ -14,7 +14,7 @@ ones that exit 0.** Filling them in by hand is fine too; running them first is n
 What each section takes, and the alternative answers written out, are in
 [`verify.notes.md`](verify.notes.md). `/onboard` reads that file when it fills this one.
 
-All commands run from the repository root and were run, exit 0, on 2026-10-19 (Node 24, pnpm 10.32.1), in
+All commands run from the repository root and were run, exit 0, on 2026-10-22 (Node 24, pnpm 10.32.1), in
 this tree and in a fresh clone prepared as *Prepare a fresh tree* says. `.github/workflows/ci.yml` runs the
 same commands.
 
@@ -51,24 +51,34 @@ pnpm build
 pnpm check:package
 ```
 
-`pnpm build` compiles `@dynjandi/sdk` into `packages/sdk/dist/` (ESM JavaScript and `.d.ts`, with the
-generated types copied in, which `tsc` does not emit) under `NodeNext` resolution, so a relative import
+`pnpm build` compiles `@dynjandi/sdk` into `packages/sdk/dist/` and `@dynjandi/focal-picker` into
+`packages/focal-picker/dist/` (ESM JavaScript and `.d.ts`; the SDK's build also copies the generated types
+in, which `tsc` does not emit) under `NodeNext` resolution, so a relative import
 missing its `.js` extension fails here and not in a consumer's build.
 
-`pnpm check:package` packs the SDK exactly as `publish.yml` does (`pnpm pack`, whose `prepack` builds and
+`pnpm check:package` runs for the SDK and for `@dynjandi/focal-picker`. It packs the SDK exactly as `publish.yml` does (`pnpm pack`, whose `prepack` builds and
 copies the root `LICENSE` in) and asserts the tarball holds `dist/`, `README.md`, `LICENSE` and
 `package.json` and **nothing else** (so no `src/`, `tests/`, `scripts/` or `node_modules`), that its
 `package.json` is not private and has no `workspace:`, `file:` or `link:` specifier, and then runs
 `npm publish --dry-run` over the tarball. npm refuses a dry run over a version the registry already
 holds, which is the state between releases, so the dry run is skipped (with a message) when
 `npm view @dynjandi/sdk@<version>` returns that version; the assertions always run. The real dry run is
-therefore seen on the change that bumps the version.
+therefore seen on the change that bumps the version. The picker is not on npm at all, so `npm view` finds
+nothing and its dry run always runs. Its tarball allowlist is the same four entries, and it requires
+`dist/index.js`, `dist/index.d.ts`, `dist/element.js`, `dist/element.d.ts`, `dist/react.js` and `dist/react.d.ts`. It also fails when the packed `package.json` has `dependencies`, or when React and `react-dom` are not both optional peers (`peerDependenciesMeta`) or any other peer is present.
 
 ## Test
 
 ```bash
 pnpm test
 ```
+
+The picker runs two Vitest projects (`packages/focal-picker/vitest.config.ts`): `node`, its helper tests (including `tests/readme.test.ts`, which holds the README's hand-off snippets equal to the type-checked files in `tests/handoff/`) plus the
+type-level test (`tests/sdk-compat.test-d.ts`, which `pnpm typecheck` covers as well), and `browser`, which runs
+`tests/browser/**/*.browser.test.{ts,tsx}` in headless Chromium (the `.tsx` one renders the React wrapper through `vitest-browser-react`) through `@vitest/browser-playwright`. It needs the
+browser installed (see *Prepare a fresh tree*); without it the browser project fails rather than skips. The picker
+uses the `verbose` reporter so the output names the project of every test (`|node|`, `|browser (chromium)|`).
+Failure screenshots land in `packages/focal-picker/.vitest/`, which `.gitignore` lists.
 
 This excludes `packages/sdk/tests/live/`, which needs a secret and the network: see *Not run by Gate 1*.
 
@@ -126,18 +136,40 @@ environment, without printing it:
 Never `cat` the file or echo the variable. The test and the SDK keep the key out of their output, but a
 shell trace or a pasted log would not.
 
+### Focal crop capture
+
+```bash
+(set -a; . ./.env; set +a; pnpm --filter @dynjandi/focal-picker run capture:crops)
+```
+
+Uploads two gradient PNGs (510x255 and 255x510, built in memory; red rises with x, green with y) to the
+dedicated test project, fetches 20 `crop/<w>x<h>/focal/<x>x<y>/` variants as PNG, decodes them and rewrites
+`packages/focal-picker/tests/fixtures/service-crops.json` with the window each one showed, as fractions of the
+source, with a per-row tolerance. The committed fixture is what the picker's crop geometry follows. A run is 22
+requests (2 uploads, 20 variants), each variant counting against the test project's cap.
+
+It is not in the gate for the same reasons as the smoke test: it needs the key and the network, spends the cap,
+and can go red with nothing in the diff because the service changed. Run it by hand only when the service's
+crop behaviour is in doubt. To compare the live service with the committed fixture without rewriting it, and
+at about a quarter of the cost (6 requests), add `--check --every 6` after the script name; it exits non-zero when a
+row differs by more than its tolerance. Never `cat` `.env` or echo the variable; the script never prints the key.
+
 ## Prepare a fresh tree
 
 ```bash
 pnpm install --frozen-lockfile
+pnpm --filter @dynjandi/focal-picker exec playwright install --only-shell chromium
 ```
+
+The second command downloads the headless Chromium the picker's browser tests run in, at the Playwright version
+the picker pins. On Linux, CI adds `--with-deps` for the system libraries.
 
 What makes a clean checkout of this repository runnable, in order — the dependency install, and anything
 else that has to exist before the sections above can pass. **Gate 1 does not run it**, which is why it sits
 below that line: an ordinary phase works in a tree that is already prepared.
 
-That is the whole of it here: nothing is generated before the gate (`api.d.ts` is committed), and `dist/`
-is built by `pnpm build` itself. Verified by `/onboard` on 2026-10-19 in a `git clone --no-hardlinks` of
+Nothing else is needed: nothing is generated before the gate (`api.d.ts` is committed), and `dist/`
+is built by `pnpm build` itself. Verified on 2026-10-22 (Node 24, with the browser install above) in a `git clone --no-hardlinks` of
 this repository: the install, then every section above, exit 0, and `git status --porcelain` printed
 nothing afterwards.
 

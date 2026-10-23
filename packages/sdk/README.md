@@ -41,6 +41,9 @@ const { id, url } = await client.upload(file, { focal: { x: 0.42, y: 0.18 } });
 **Uploads are server-side only.** The CDN sends no CORS headers, so a browser cannot `POST /upload`
 cross-origin. Call `upload` from Node or a server.
 
+To get a `focal` point from a person looking at the image, see the focal point picker
+([`packages/focal-picker`](../focal-picker/README.md); it is in this repository and not yet on npm).
+
 ### `getFile(fileId)`
 
 Reads the stored record of a file and resolves with `{ id, contentType, bytes, originalFilename, source,

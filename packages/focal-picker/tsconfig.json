@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "paths": {
+      "@dynjandi/sdk": ["../sdk/src/index.ts"],
+      "@dynjandi/focal-picker": ["./src/index.ts"],
+      "@dynjandi/focal-picker/react": ["./src/react.ts"]
+    }
+  },
+  "include": ["src", "tests", "vitest.config.ts"]
+}

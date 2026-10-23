@@ -1,0 +1,458 @@
+{
+  "description": "Where the live service puts a crop/<w>x<h>/focal/<x>x<y>/ window, as fractions of the source image. Captured by scripts/capture-crops.mjs from gradient PNGs (red rises with x, green with y). A row's observed values are within its tolerance of what the service did.",
+  "capturedOn": "2026-10-22",
+  "gradientLevels": 255,
+  "sources": [
+    {
+      "width": 510,
+      "height": 255
+    },
+    {
+      "width": 255,
+      "height": 510
+    }
+  ],
+  "serviceVersion": null,
+  "rows": [
+    {
+      "source": {
+        "width": 510,
+        "height": 255
+      },
+      "ratio": "1:1",
+      "output": {
+        "width": 200,
+        "height": 200
+      },
+      "point": {
+        "x": 0,
+        "y": 0
+      },
+      "observed": {
+        "left": 0.0001,
+        "top": 0.002,
+        "width": 0.4999,
+        "height": 1
+      },
+      "tolerance": 0.0089
+    },
+    {
+      "source": {
+        "width": 510,
+        "height": 255
+      },
+      "ratio": "1:1",
+      "output": {
+        "width": 200,
+        "height": 200
+      },
+      "point": {
+        "x": 1,
+        "y": 1
+      },
+      "observed": {
+        "left": 0.5,
+        "top": 0.002,
+        "width": 0.4999,
+        "height": 1
+      },
+      "tolerance": 0.0089
+    },
+    {
+      "source": {
+        "width": 510,
+        "height": 255
+      },
+      "ratio": "1:1",
+      "output": {
+        "width": 200,
+        "height": 200
+      },
+      "point": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "observed": {
+        "left": 0.25,
+        "top": 0.002,
+        "width": 0.4999,
+        "height": 1
+      },
+      "tolerance": 0.0089
+    },
+    {
+      "source": {
+        "width": 510,
+        "height": 255
+      },
+      "ratio": "1:1",
+      "output": {
+        "width": 200,
+        "height": 200
+      },
+      "point": {
+        "x": 0.1,
+        "y": 0.1
+      },
+      "observed": {
+        "left": 0.0001,
+        "top": 0.002,
+        "width": 0.4999,
+        "height": 1
+      },
+      "tolerance": 0.0089
+    },
+    {
+      "source": {
+        "width": 510,
+        "height": 255
+      },
+      "ratio": "1:1",
+      "output": {
+        "width": 200,
+        "height": 200
+      },
+      "point": {
+        "x": 0.9,
+        "y": 0.9
+      },
+      "observed": {
+        "left": 0.5,
+        "top": 0.002,
+        "width": 0.4999,
+        "height": 1
+      },
+      "tolerance": 0.0089
+    },
+    {
+      "source": {
+        "width": 510,
+        "height": 255
+      },
+      "ratio": "1:1",
+      "output": {
+        "width": 200,
+        "height": 200
+      },
+      "point": {
+        "x": 0.42,
+        "y": 0.18
+      },
+      "observed": {
+        "left": 0.1701,
+        "top": 0.002,
+        "width": 0.4999,
+        "height": 1
+      },
+      "tolerance": 0.0089
+    },
+    {
+      "source": {
+        "width": 510,
+        "height": 255
+      },
+      "ratio": "16:9",
+      "output": {
+        "width": 320,
+        "height": 180
+      },
+      "point": {
+        "x": 0,
+        "y": 0
+      },
+      "observed": {
+        "left": 0,
+        "top": 0.0019,
+        "width": 0.8888,
+        "height": 1
+      },
+      "tolerance": 0.0095
+    },
+    {
+      "source": {
+        "width": 510,
+        "height": 255
+      },
+      "ratio": "16:9",
+      "output": {
+        "width": 320,
+        "height": 180
+      },
+      "point": {
+        "x": 1,
+        "y": 1
+      },
+      "observed": {
+        "left": 0.1112,
+        "top": 0.0019,
+        "width": 0.8887,
+        "height": 1
+      },
+      "tolerance": 0.0095
+    },
+    {
+      "source": {
+        "width": 510,
+        "height": 255
+      },
+      "ratio": "16:9",
+      "output": {
+        "width": 320,
+        "height": 180
+      },
+      "point": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "observed": {
+        "left": 0.0556,
+        "top": 0.0019,
+        "width": 0.8887,
+        "height": 1
+      },
+      "tolerance": 0.0095
+    },
+    {
+      "source": {
+        "width": 510,
+        "height": 255
+      },
+      "ratio": "16:9",
+      "output": {
+        "width": 320,
+        "height": 180
+      },
+      "point": {
+        "x": 0.1,
+        "y": 0.1
+      },
+      "observed": {
+        "left": 0,
+        "top": 0.0019,
+        "width": 0.8888,
+        "height": 1
+      },
+      "tolerance": 0.0095
+    },
+    {
+      "source": {
+        "width": 510,
+        "height": 255
+      },
+      "ratio": "16:9",
+      "output": {
+        "width": 320,
+        "height": 180
+      },
+      "point": {
+        "x": 0.9,
+        "y": 0.9
+      },
+      "observed": {
+        "left": 0.1112,
+        "top": 0.0019,
+        "width": 0.8887,
+        "height": 1
+      },
+      "tolerance": 0.0095
+    },
+    {
+      "source": {
+        "width": 510,
+        "height": 255
+      },
+      "ratio": "16:9",
+      "output": {
+        "width": 320,
+        "height": 180
+      },
+      "point": {
+        "x": 0.42,
+        "y": 0.18
+      },
+      "observed": {
+        "left": 0,
+        "top": 0.0019,
+        "width": 0.8888,
+        "height": 1
+      },
+      "tolerance": 0.0095
+    },
+    {
+      "source": {
+        "width": 510,
+        "height": 255
+      },
+      "ratio": "9:16",
+      "output": {
+        "width": 180,
+        "height": 320
+      },
+      "point": {
+        "x": 0,
+        "y": 0
+      },
+      "observed": {
+        "left": -0.0007,
+        "top": 0.0004,
+        "width": 0.2813,
+        "height": 1.0002
+      },
+      "tolerance": 0.007
+    },
+    {
+      "source": {
+        "width": 510,
+        "height": 255
+      },
+      "ratio": "9:16",
+      "output": {
+        "width": 180,
+        "height": 320
+      },
+      "point": {
+        "x": 1,
+        "y": 1
+      },
+      "observed": {
+        "left": 0.7179,
+        "top": 0.0004,
+        "width": 0.2813,
+        "height": 1.0002
+      },
+      "tolerance": 0.007
+    },
+    {
+      "source": {
+        "width": 510,
+        "height": 255
+      },
+      "ratio": "9:16",
+      "output": {
+        "width": 180,
+        "height": 320
+      },
+      "point": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "observed": {
+        "left": 0.3586,
+        "top": 0.0004,
+        "width": 0.2812,
+        "height": 1.0002
+      },
+      "tolerance": 0.007
+    },
+    {
+      "source": {
+        "width": 510,
+        "height": 255
+      },
+      "ratio": "9:16",
+      "output": {
+        "width": 180,
+        "height": 320
+      },
+      "point": {
+        "x": 0.1,
+        "y": 0.1
+      },
+      "observed": {
+        "left": -0.0007,
+        "top": 0.0004,
+        "width": 0.2813,
+        "height": 1.0002
+      },
+      "tolerance": 0.007
+    },
+    {
+      "source": {
+        "width": 510,
+        "height": 255
+      },
+      "ratio": "9:16",
+      "output": {
+        "width": 180,
+        "height": 320
+      },
+      "point": {
+        "x": 0.9,
+        "y": 0.9
+      },
+      "observed": {
+        "left": 0.7179,
+        "top": 0.0004,
+        "width": 0.2813,
+        "height": 1.0002
+      },
+      "tolerance": 0.007
+    },
+    {
+      "source": {
+        "width": 510,
+        "height": 255
+      },
+      "ratio": "9:16",
+      "output": {
+        "width": 180,
+        "height": 320
+      },
+      "point": {
+        "x": 0.42,
+        "y": 0.18
+      },
+      "observed": {
+        "left": 0.2789,
+        "top": 0.0004,
+        "width": 0.2813,
+        "height": 1.0002
+      },
+      "tolerance": 0.007
+    },
+    {
+      "source": {
+        "width": 255,
+        "height": 510
+      },
+      "ratio": "16:9",
+      "output": {
+        "width": 320,
+        "height": 180
+      },
+      "point": {
+        "x": 0.42,
+        "y": 0.18
+      },
+      "observed": {
+        "left": 0.0004,
+        "top": 0.0383,
+        "width": 1.0002,
+        "height": 0.2813
+      },
+      "tolerance": 0.007
+    },
+    {
+      "source": {
+        "width": 255,
+        "height": 510
+      },
+      "ratio": "16:9",
+      "output": {
+        "width": 320,
+        "height": 180
+      },
+      "point": {
+        "x": 0.9,
+        "y": 0.9
+      },
+      "observed": {
+        "left": 0.0004,
+        "top": 0.7179,
+        "width": 1.0002,
+        "height": 0.2813
+      },
+      "tolerance": 0.007
+    }
+  ]
+}
