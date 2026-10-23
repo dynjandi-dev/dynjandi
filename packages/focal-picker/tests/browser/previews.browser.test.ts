@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { DynjandiFocalPicker } from "../../src/element.js";
 import "../../src/element.js";
+import { shown } from "./support.js";
 
 // Real layout: each preview's window is read back from where Chromium put its <img> inside its box, and
 // compared with numbers worked by hand from the plan's section 4.2 (the service's measured behaviour):
@@ -46,7 +47,7 @@ async function mount(width: number, height: number): Promise<DynjandiFocalPicker
   picker.style.cssText = "width: 400px;";
   document.body.append(picker);
   picker.file = await pngFile(width, height);
-  await (part(picker, "image") as HTMLImageElement).decode();
+  await shown(picker);
   // The previews' own images load the same source; wait for them too.
   await Promise.all(
     previews(picker).map((preview) =>

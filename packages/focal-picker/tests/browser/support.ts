@@ -1,8 +1,7 @@
 import type { DynjandiFocalPicker } from "../../src/element.js";
 import "../../src/element.js";
 
-// Shared by the accessibility and end-to-end browser tests. Not a test file: the browser project only
-// runs *.browser.test.ts.
+// Shared by the browser tests. Not a test file: the browser project only runs *.browser.test.ts.
 
 export const TAG = "dynjandi-focal-picker";
 
@@ -53,7 +52,26 @@ export async function mount(
   return picker;
 }
 
+/**
+ * Resolves once the element shows its image, loaded. The element reveals it from the image's `load` event,
+ * which can come after `decode()` resolves, so a test that waits on `decode()` alone can measure a hidden,
+ * 0 px image. The element's own `load` listener was added first, so it has run by the time this one does.
+ * A reconnected element reloads into a surface that is already showing, hence `complete` too.
+ */
+export async function shown(picker: DynjandiFocalPicker): Promise<void> {
+  const image = part(picker, "image") as HTMLImageElement;
+  if (!part(picker, "surface").hidden && image.complete) return;
+  await new Promise<void>((resolve, reject) => {
+    image.addEventListener("load", () => resolve(), { once: true });
+    image.addEventListener("error", () => reject(new Error("the image did not load")), {
+      once: true,
+    });
+  });
+}
+
+/** Waits for the element to show its image, then for every image in it to decode. */
 export async function decodeAll(picker: DynjandiFocalPicker): Promise<void> {
+  await shown(picker);
   const images = picker.shadowRoot?.querySelectorAll("img") ?? [];
   await Promise.all([...images].map((image) => image.decode()));
 }

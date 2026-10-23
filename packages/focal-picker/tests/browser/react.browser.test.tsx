@@ -5,7 +5,7 @@ import { render } from "vitest-browser-react";
 import type { DynjandiFocalPicker } from "../../src/element.js";
 import type { FocalPoint } from "../../src/point.js";
 import { FocalPicker } from "../../src/react.js";
-import { part, pngFile } from "./support.js";
+import { part, pngFile, shown } from "./support.js";
 
 // The wrapper is rendered with React in Chromium, and clicks and drags go through Playwright's mouse, as in
 // element.browser.test.ts. Every expected point is arithmetic on the displayed image's measured rectangle (a
@@ -24,8 +24,9 @@ function Box({ children }: { children: ReactElement }): ReactElement {
 }
 
 async function loaded(picker: DynjandiFocalPicker): Promise<HTMLImageElement> {
+  await shown(picker);
   const image = part(picker, "image") as HTMLImageElement;
-  await expect.poll(() => image.naturalWidth).toBe(200);
+  expect(image.naturalWidth).toBe(200);
   return image;
 }
 
@@ -131,6 +132,66 @@ describe("FocalPicker", () => {
     expect(ref.current.src).toBe(url);
     await loaded(ref.current);
     URL.revokeObjectURL(url);
+  });
+
+  test('taking src away leaves the element with no src, not the URL "undefined"', async () => {
+    const file = await pngFile(200, 100);
+    const url = URL.createObjectURL(file);
+    const ref = createRef<DynjandiFocalPicker>();
+    const screen = await render(
+      <Box>
+        <FocalPicker ref={ref} src={url} />
+      </Box>,
+    );
+    const picker = ref.current;
+    if (picker === null) throw new Error("the ref did not reach the element");
+    await loaded(picker);
+
+    await screen.rerender(
+      <Box>
+        <FocalPicker ref={ref} />
+      </Box>,
+    );
+
+    expect(picker.hasAttribute("src")).toBe(false);
+    expect(part(picker, "error").checkVisibility()).toBe(false);
+    URL.revokeObjectURL(url);
+  });
+
+  test("an inline ratios array with the same shapes keeps the previews; new shapes rebuild them", async () => {
+    const ref = createRef<DynjandiFocalPicker>();
+    const file = await pngFile(200, 100);
+    const view = (ratios: [number, number][]) => (
+      <Box>
+        <FocalPicker ref={ref} file={file} ratios={ratios} />
+      </Box>
+    );
+    const screen = await render(
+      view([
+        [3, 2],
+        [1, 1],
+      ]),
+    );
+    const picker = ref.current;
+    if (picker === null) throw new Error("the ref did not reach the element");
+    const previews = () => [...(picker.shadowRoot?.querySelectorAll('[part~="preview"]') ?? [])];
+    const before = previews();
+    expect(before).toHaveLength(2);
+
+    // A parent re-rendering on every onInput hands over a new array each time.
+    await screen.rerender(
+      view([
+        [3, 2],
+        [1, 1],
+      ]),
+    );
+    expect(previews()).toEqual(before);
+    previews().forEach((preview, index) => {
+      expect(preview).toBe(before[index]);
+    });
+
+    await screen.rerender(view([[16, 9]]));
+    expect(previews()).toHaveLength(1);
   });
 
   test("unmounting revokes the object URL the element made for the file", async () => {

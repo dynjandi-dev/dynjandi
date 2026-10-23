@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { DynjandiFocalPicker } from "../../src/element.js";
 import "../../src/element.js";
+import { shown } from "./support.js";
 
 // Real layout and real input: clicks and drags go through Playwright's mouse (userEvent.click and
 // userEvent.dragAndDrop), so Chromium itself raises the pointer events at real coordinates, and typing is
@@ -46,7 +47,7 @@ async function mount(width = 400): Promise<DynjandiFocalPicker> {
   picker.style.cssText = `width: ${width}px; padding: ${PADDING}px;`;
   document.body.append(picker);
   picker.file = await pngFile(200, 100);
-  await (part(picker, "image") as HTMLImageElement).decode();
+  await shown(picker);
   return picker;
 }
 
@@ -159,6 +160,65 @@ describe("surface", () => {
     expectAgreement(picker, 0.25, 1);
     expect(seen.at(-1)).toEqual({ type: "change", detail: { x: 0.25, y: 1 } });
     expect(seen.filter((entry) => entry.type === "change")).toHaveLength(1);
+  });
+
+  // Playwright's mouse cannot lose capture halfway through a drag, so these two dispatch the pointer events
+  // themselves. They test what ends a drag, not where a point lands.
+  describe("a drag that loses pointer capture without a pointerup", () => {
+    function pointer(image: DOMRect, type: string, x: number, y: number): PointerEvent {
+      return new PointerEvent(type, {
+        pointerId: 1,
+        isPrimary: true,
+        button: 0,
+        clientX: image.left + x,
+        clientY: image.top + y,
+        bubbles: true,
+        composed: true,
+      });
+    }
+
+    test("ends at lostpointercapture, with one change, and a hover afterwards moves nothing", async () => {
+      // A synthetic pointer is not an active pointer, so the browser would refuse to capture it.
+      vi.spyOn(Element.prototype, "setPointerCapture").mockImplementation(() => {});
+      const picker = await mount(400);
+      const seen = record(picker);
+      const surface = part(picker, "surface");
+      const image = part(picker, "image").getBoundingClientRect();
+
+      surface.dispatchEvent(pointer(image, "pointerdown", 100, 50));
+      surface.dispatchEvent(pointer(image, "lostpointercapture", 100, 50));
+      surface.dispatchEvent(pointer(image, "pointermove", 300, 150));
+
+      // 100 of 400 = 0.25 across, 50 of 200 = 0.25 down; the hover after the loss is ignored.
+      expect(seen).toEqual([
+        { type: "input", detail: { x: 0.25, y: 0.25 } },
+        { type: "change", detail: { x: 0.25, y: 0.25 } },
+      ]);
+
+      // And the next press starts a drag again.
+      surface.dispatchEvent(pointer(image, "pointerdown", 300, 150));
+      expect(picker.value).toEqual({ x: 0.75, y: 0.75 });
+    });
+
+    test("ends when the element is moved mid-drag, and a hover afterwards moves nothing", async () => {
+      vi.spyOn(Element.prototype, "setPointerCapture").mockImplementation(() => {});
+      const picker = await mount(400);
+      const surface = part(picker, "surface");
+      const image = part(picker, "image").getBoundingClientRect();
+
+      surface.dispatchEvent(pointer(image, "pointerdown", 100, 50));
+      picker.remove();
+      document.body.append(picker);
+      await shown(picker);
+      const seen = record(picker);
+      surface.dispatchEvent(pointer(image, "pointermove", 300, 150));
+
+      expect(seen).toEqual([]);
+      expect(picker.value).toEqual({ x: 0.25, y: 0.25 });
+
+      surface.dispatchEvent(pointer(image, "pointerdown", 300, 150));
+      expect(picker.value).toEqual({ x: 0.75, y: 0.75 });
+    });
   });
 
   test("a click on the point that is already set emits nothing", async () => {
@@ -415,6 +475,18 @@ describe("image source", () => {
     await image.decode();
     expect(image.naturalWidth).toBe(50);
     expect(picker.src).toBe(picker.getAttribute("src"));
+  });
+
+  test("setting src to null or undefined removes the attribute", async () => {
+    const picker = document.createElement(TAG) as DynjandiFocalPicker;
+    document.body.append(picker);
+
+    for (const cleared of [null, undefined]) {
+      picker.src = "https://example.invalid/a.png";
+      picker.src = cleared;
+      expect(picker.hasAttribute("src")).toBe(false);
+      expect(picker.src).toBeNull();
+    }
   });
 
   test("an image that cannot be read shows an error, not a blank", async () => {

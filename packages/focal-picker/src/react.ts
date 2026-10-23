@@ -75,14 +75,19 @@ export const FocalPicker = forwardRef(function FocalPicker(
   const controlled = value !== undefined;
   const pointX = value?.x;
   const pointY = value?.y;
+  // The same for the shapes: an inline `ratios` array is a new one each render, and assigning it rebuilds
+  // the previews.
+  const ratiosKey = ratios === undefined ? undefined : JSON.stringify(ratios);
 
   useEffect(() => {
     if (element.current !== null) element.current.file = file ?? null;
   }, [file]);
 
   useEffect(() => {
-    if (element.current !== null && ratios !== undefined) element.current.ratios = ratios;
-  }, [ratios]);
+    if (element.current !== null && ratiosKey !== undefined) {
+      element.current.ratios = JSON.parse(ratiosKey) as [number, number][];
+    }
+  }, [ratiosKey]);
 
   // Mounted once with the default; after that the element owns the point until `value` is given.
   const initial = useRef(defaultValue);

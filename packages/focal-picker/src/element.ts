@@ -201,6 +201,8 @@ export class DynjandiFocalPicker extends HTMLElement {
     this.#surface.addEventListener("pointermove", (event) => this.#onPointerMove(event));
     this.#surface.addEventListener("pointerup", (event) => this.#onPointerEnd(event));
     this.#surface.addEventListener("pointercancel", (event) => this.#onPointerEnd(event));
+    // Capture can be lost without either of the two above; a drag left running would follow a bare hover.
+    this.#surface.addEventListener("lostpointercapture", (event) => this.#onPointerEnd(event));
     this.#image.addEventListener("load", () => this.#showImage(true));
     this.#image.addEventListener("error", () => this.#showImage(false));
 
@@ -270,8 +272,9 @@ export class DynjandiFocalPicker extends HTMLElement {
     return this.getAttribute("src");
   }
 
-  set src(url: string | null) {
-    if (url === null) this.removeAttribute("src");
+  /** `undefined` removes it too: React 19 sets a prop that was taken away to `undefined`. */
+  set src(url: string | null | undefined) {
+    if (url === null || url === undefined) this.removeAttribute("src");
     else this.setAttribute("src", url);
   }
 
@@ -280,6 +283,8 @@ export class DynjandiFocalPicker extends HTMLElement {
   }
 
   disconnectedCallback(): void {
+    // Removing or moving the element releases pointer capture without a pointerup reaching the surface.
+    this.#dragStart = null;
     this.#releaseObjectUrl();
     this.#setSource(null);
   }

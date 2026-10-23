@@ -97,7 +97,9 @@ import { FocalPicker } from "@dynjandi/focal-picker/react"; // registers the ele
   typed entry is still reported to `onChange`, and the picker moves under the pointer while it drags, but once
   the change is committed the picker returns to `value` unless the parent has passed the new point back. So
   `value={point} onChange={setPoint}` follows the person, and a parent that refuses a point keeps the old one.
-- `file` and `ratios` are set on the element in effects; `src` is an attribute. Nothing else is forwarded.
+- `file` and `ratios` are set on the element in effects, `ratios` only when its shapes change, so an inline
+  array is fine. `src` is passed to the element, which React 19 sets as its `src` property. Nothing else is
+  forwarded.
 
 **Versions.** The peer range is React and `react-dom` `^19.0.0`, the only version the tests run (19.3.1). The
 wrapper sets properties and listens to events in effects rather than leaning on React 19's custom element
