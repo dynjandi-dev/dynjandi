@@ -14,7 +14,8 @@
   },
   "type": "module",
   "sideEffects": [
-    "./dist/element.js"
+    "./dist/element.js",
+    "./dist/react.js"
   ],
   "types": "./dist/index.d.ts",
   "exports": {
@@ -25,6 +26,10 @@
     "./element": {
       "types": "./dist/element.d.ts",
       "import": "./dist/element.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
     }
   },
   "files": [
@@ -32,6 +37,18 @@
   ],
   "engines": {
     "node": ">=22"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
   },
   "publishConfig": {
     "access": "public"
@@ -46,8 +63,13 @@
   },
   "devDependencies": {
     "@dynjandi/sdk": "workspace:*",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "@vitest/browser-playwright": "5.0.3",
     "axe-core": "4.14.0",
-    "playwright": "1.64.1"
+    "playwright": "1.64.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "vitest-browser-react": "2.3.0"
   }
 }

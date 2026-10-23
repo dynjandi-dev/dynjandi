@@ -4,9 +4,9 @@ A focal point picker for images uploaded to [Dynjandi](https://cdn.dynjandi.dev)
 a CMS or admin to choose the part of a photo that survives a crop, and hand the point to `upload` in
 [`@dynjandi/sdk`](../sdk/README.md).
 
-**Status: not published, and only part of the picker is built.** This package is not on npm, and nothing
-publishes it. What exists: the `<dynjandi-focal-picker>` element (image, marker, X and Y inputs, crop
-previews), and the DOM-free helpers behind it. A React wrapper is not built yet.
+**Status: not published.** This package is not on npm, and nothing publishes it. What exists: the
+`<dynjandi-focal-picker>` element (image, marker, X and Y inputs, crop previews), a React wrapper for it,
+and the DOM-free helpers behind it.
 
 ## Install
 
@@ -17,7 +17,8 @@ npm install @dynjandi/focal-picker
 ```
 
 ESM only. It has no runtime dependencies and makes no network request: it reports a point and sends
-nothing. Node 22 or newer for the tooling.
+nothing. Node 22 or newer for the tooling. React and `react-dom` are optional peer dependencies, needed only
+for the `./react` entry.
 
 ## The element
 
@@ -79,6 +80,115 @@ is empty or holds anything but two positive finite numbers is replaced by the de
 ```js
 picker.ratios = [[3, 2], [1, 1]];
 ```
+
+## React
+
+```tsx
+import { FocalPicker } from "@dynjandi/focal-picker/react"; // registers the element too
+```
+
+`FocalPicker` is the element in a React component. Props: `file`, `src`, `ratios` (as on the element),
+`value`, `defaultValue`, `onChange(point)`, `onInput(point)`, and a `ref` that reaches the
+`<dynjandi-focal-picker>` element. `onChange` and `onInput` receive the `{ x, y }` point itself, not the event.
+
+- **Uncontrolled**, with no `value`: the picker keeps the point. `defaultValue` is where it starts (read once,
+  on mount).
+- **Controlled**, with `value` (`{ x, y }`, or `null` for no point): the picker shows `value`. A drag or a
+  typed entry is still reported to `onChange`, and the picker moves under the pointer while it drags, but once
+  the change is committed the picker returns to `value` unless the parent has passed the new point back. So
+  `value={point} onChange={setPoint}` follows the person, and a parent that refuses a point keeps the old one.
+- `file` and `ratios` are set on the element in effects; `src` is an attribute. Nothing else is forwarded.
+
+**Versions.** The peer range is React and `react-dom` `^19.0.0`, the only version the tests run (19.3.1). The
+wrapper sets properties and listens to events in effects rather than leaning on React 19's custom element
+support, and a one-off run of the same tests on React 18.3.1 passed, but 18 is not tested in this repository
+and not claimed.
+
+**Client only.** Importing `./react` imports `./element`, which needs a DOM (`HTMLElement`, `customElements`)
+when it loads, so importing it throws where there is no DOM. Load the module only in the browser: where a
+framework renders on a server, a client component alone is not enough, because its imports are still
+evaluated during server pre-rendering. Use a dynamic `import()` that runs only in the browser, such as
+`next/dynamic` with `ssr: false`. The form below imports the wrapper statically, so it is for code that
+only ever runs in the browser.
+
+## From the picker to `upload`
+
+The picker sends nothing, and `upload` is server-side only (the CDN sends no CORS headers), so the point goes
+through your own server: the picker reports `{ x, y }`, your form puts it in your own request, and your
+server hands it to the SDK. `null` means no point was chosen, and then the request carries no `focalX` or
+`focalY` and the server calls `upload` without a `focal` option.
+
+In the browser, a form that holds the file and the picker and posts both (`focalX` and `focalY` are your
+field names to choose):
+
+```tsx
+import type { FocalPoint } from "@dynjandi/focal-picker";
+import { FocalPicker } from "@dynjandi/focal-picker/react";
+import { type FormEvent, useState } from "react";
+
+export function UploadForm() {
+  const [file, setFile] = useState<File | null>(null);
+  const [focal, setFocal] = useState<FocalPoint | null>(null);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (file === null) return;
+    const body = new FormData();
+    body.set("file", file);
+    if (focal !== null) {
+      body.set("focalX", String(focal.x));
+      body.set("focalY", String(focal.y));
+    }
+    await fetch("/api/images", { method: "POST", body });
+  }
+
+  return (
+    <form onSubmit={submit}>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(event) => {
+          setFile(event.currentTarget.files?.[0] ?? null);
+          setFocal(null);
+        }}
+      />
+      {file !== null && <FocalPicker file={file} value={focal} onChange={setFocal} />}
+      <button type="submit" disabled={file === null}>
+        Upload
+      </button>
+    </form>
+  );
+}
+```
+
+On the server, receiving that request and calling [`client.upload`](../sdk/README.md):
+
+```ts
+import { createClient } from "@dynjandi/sdk";
+
+const client = createClient({ publicKey: "pk_your_project_key" });
+
+// POST /api/images: the form the browser sent, with focalX and focalY only when a point was chosen.
+export async function handleUpload(request: Request): Promise<Response> {
+  const form = await request.formData();
+  const file = form.get("file");
+  if (!(file instanceof File)) return new Response("file is required", { status: 400 });
+
+  const x = form.get("focalX");
+  const y = form.get("focalY");
+  const stored =
+    typeof x === "string" && typeof y === "string"
+      ? await client.upload(file, { focal: { x: Number(x), y: Number(y) } })
+      : await client.upload(file); // no point chosen: no `focal` option
+
+  return Response.json({ id: stored.id, url: stored.url });
+}
+```
+
+Both snippets are real files, `tests/handoff/UploadForm.tsx` and `tests/handoff/server.ts`, compiled against
+the SDK and this package's entries by `pnpm typecheck`; `tests/readme.test.ts` fails if the text here is not
+the text of those files. `upload` refuses a point outside 0 to 1 before any request, and the picker only
+emits points inside it.
 
 ## Accessibility
 

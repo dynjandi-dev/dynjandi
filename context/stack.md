@@ -18,7 +18,7 @@ the spec is served from its raw GitHub URL. The design is in issue #1 (`sdk-ecos
 
 `packages/focal-picker` is a public package (`0.0.0`, built to `dist/`) that is **not on npm and that nothing
 publishes yet**; so far it holds DOM-free helpers — the point (`FocalPoint`, `clampPoint`, `roundPoint`,
-`stepPoint`) and the crop geometry (`cropWindow`, `pointFromRect`) — plus, at the separate `./element` entry (the only one with a side effect), the `<dynjandi-focal-picker>` custom element: image surface, marker, X/Y inputs and DOM crop previews (`ratios`), no React wrapper yet. No runtime dependencies. Its only tie to the SDK is a type-level test, so `@dynjandi/sdk`
+`stepPoint`) and the crop geometry (`cropWindow`, `pointFromRect`) — plus, at the separate `./element` entry (the only one with a side effect), the `<dynjandi-focal-picker>` custom element: image surface, marker, X/Y inputs and DOM crop previews (`ratios`) — and, at `./react`, the `FocalPicker` component over it (React and `react-dom` are optional peers, `^19.0.0`). No runtime dependencies. Its only tie to the SDK is a type-level test, so `@dynjandi/sdk`
 is a `devDependency`. The design is in issue #4.
 
 | Concern | Target |
@@ -41,7 +41,7 @@ tsconfig.base.json, biome.json, LICENSE (MIT)        shared config
 packages/spec/    openapi.yaml (OpenAPI 3.1, upload + file read + URL grammar prose), README.md
 packages/sdk/     @dynjandi/sdk: src/ (client, upload, files, http, url, next, errors, generated/api.d.ts), tests/ (live/ = smoke test),
                   scripts/check-package.mjs, tsconfig.json, tsconfig.build.json (emits dist/, gitignored), README.md
-packages/focal-picker/ @dynjandi/focal-picker (public, unpublished): src/ (point, geometry, index, element), tests/ (point.test.ts, geometry.test.ts, browser/element.browser.test.ts, browser/previews.browser.test.ts, browser/a11y.browser.test.ts (axe-core), browser/e2e.browser.test.ts (keyboard, forced colours, reflow, reduced motion, drag cost), browser/support.ts (shared helpers), sdk-compat.test-d.ts = the type-level
+packages/focal-picker/ @dynjandi/focal-picker (public, unpublished): src/ (point, geometry, index, element, react), tests/ (point.test.ts, readme.test.ts + handoff/ (the README's hand-off snippets as compiled files), browser/react.browser.test.tsx, geometry.test.ts, browser/element.browser.test.ts, browser/previews.browser.test.ts, browser/a11y.browser.test.ts (axe-core), browser/e2e.browser.test.ts (keyboard, forced colours, reflow, reduced motion, drag cost), browser/support.ts (shared helpers), sdk-compat.test-d.ts = the type-level
                   tie to the SDK, browser/ = tests run in Chromium), vitest.config.ts (node and browser projects), scripts/check-package.mjs, tsconfig.json, tsconfig.build.json (emits dist/, gitignored), README.md
 packages/checker/ @dynjandi/checker (private): src/ (check, render, main, style.css), index.html, scripts/build.mjs (esbuild into
                   dist/, gitignored), tests/, README.md
@@ -82,7 +82,7 @@ context/   workflow state and project answers (verify, git, tracking, release, e
   bundle-size baseline and the command that measured it, and how to run the live smoke test. A change to the
   SDK's public API or its dependencies owes it an update.
 
-- `packages/focal-picker/README.md` — what the picker package holds so far (install, the element, `value` and its events, the crop previews and `ratios`, and the point and crop-geometry helpers), and that it is not published and its React wrapper is not built yet. It must not claim a feature before a phase has landed it, nor that the package is on npm before it is.
+- `packages/focal-picker/README.md` — what the picker package holds so far (install, the element, `value` and its events, the crop previews and `ratios`, and the point and crop-geometry helpers), the React wrapper and its version range, the hand-off from the picker to `upload`, and that it is not published. It must not claim a feature before a phase has landed it, nor that the package is on npm before it is.
 
 - `packages/checker/README.md` — what the checker page checks, how to build and serve it, the grammar version
   and gzipped bundle size it records (with the command), and how `pages.yml` deploys it. A change to the

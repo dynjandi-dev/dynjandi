@@ -65,7 +65,7 @@ holds, which is the state between releases, so the dry run is skipped (with a me
 `npm view @dynjandi/sdk@<version>` returns that version; the assertions always run. The real dry run is
 therefore seen on the change that bumps the version. The picker is not on npm at all, so `npm view` finds
 nothing and its dry run always runs. Its tarball allowlist is the same four entries, and it requires
-`dist/index.js`, `dist/index.d.ts`, `dist/element.js` and `dist/element.d.ts`.
+`dist/index.js`, `dist/index.d.ts`, `dist/element.js`, `dist/element.d.ts`, `dist/react.js` and `dist/react.d.ts`. It also fails when the packed `package.json` has `dependencies`, or when React and `react-dom` are not both optional peers (`peerDependenciesMeta`) or any other peer is present.
 
 ## Test
 
@@ -73,9 +73,9 @@ nothing and its dry run always runs. Its tarball allowlist is the same four entr
 pnpm test
 ```
 
-The picker runs two Vitest projects (`packages/focal-picker/vitest.config.ts`): `node`, its helper tests plus the
+The picker runs two Vitest projects (`packages/focal-picker/vitest.config.ts`): `node`, its helper tests (including `tests/readme.test.ts`, which holds the README's hand-off snippets equal to the type-checked files in `tests/handoff/`) plus the
 type-level test (`tests/sdk-compat.test-d.ts`, which `pnpm typecheck` covers as well), and `browser`, which runs
-`tests/browser/**/*.browser.test.ts` in headless Chromium through `@vitest/browser-playwright`. It needs the
+`tests/browser/**/*.browser.test.{ts,tsx}` in headless Chromium (the `.tsx` one renders the React wrapper through `vitest-browser-react`) through `@vitest/browser-playwright`. It needs the
 browser installed (see *Prepare a fresh tree*); without it the browser project fails rather than skips. The picker
 uses the `verbose` reporter so the output names the project of every test (`|node|`, `|browser (chromium)|`).
 Failure screenshots land in `packages/focal-picker/.vitest/`, which `.gitignore` lists.

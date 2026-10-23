@@ -33,6 +33,8 @@ try {
     "package/dist/index.d.ts",
     "package/dist/element.js",
     "package/dist/element.d.ts",
+    "package/dist/react.js",
+    "package/dist/react.d.ts",
   ];
   for (const entry of required) {
     if (!entries.includes(entry)) failures.push(`missing from the tarball: ${entry}`);
@@ -47,6 +49,24 @@ try {
   if (JSON.parse(packed).private === true) failures.push("the packed package.json is private");
   if (/\b(workspace|file|link):/.test(packed)) {
     failures.push("the packed package.json holds a workspace:, file: or link: specifier");
+  }
+  // React belongs to the ./react entry only, and only as an optional peer: no runtime dependency, ever.
+  const packedManifest = JSON.parse(packed);
+  if (packedManifest.dependencies !== undefined) {
+    failures.push("the packed package.json has dependencies; this package has none");
+  }
+  for (const name of ["react", "react-dom"]) {
+    if (packedManifest.peerDependencies?.[name] === undefined) {
+      failures.push(`the packed package.json lacks the peer dependency ${name}`);
+    }
+    if (packedManifest.peerDependenciesMeta?.[name]?.optional !== true) {
+      failures.push(`the peer dependency ${name} is not optional`);
+    }
+  }
+  if (
+    Object.keys(packedManifest.peerDependencies ?? {}).some((name) => !name.startsWith("react"))
+  ) {
+    failures.push("the packed package.json has a peer dependency that is not React");
   }
 
   if (failures.length === 0) {

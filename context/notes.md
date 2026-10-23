@@ -97,3 +97,20 @@ deletes it.
 - The README says axe runs over "four states"; the test runs five.
 - `support.ts` and `e2e.browser.test.ts` repeat the `as DynjandiFocalPicker` cast the tag map makes
   unnecessary.
+
+## Phase 8 — React wrapper and hand-off docs
+
+- `./react` and `./element` throw on import without a DOM (`HTMLElement`); the README says to load them only
+  in the browser. Making the element importable on a server is outside this feature (a `/roadmap` candidate).
+- `src/react.ts`'s doc comment says "load it from client code only", which can be read as "a client component";
+  the README's "Client only" section is the precise version.
+- The README says a one-off run on React 18.3.1 passed; nothing in the repository records it (18 is not
+  claimed).
+- Nothing pins the value effect's primitive dependencies (a parent passing a fresh `{x, y}` each render must
+  not re-apply the value mid-drag).
+- The hand-off type-check resolves `@dynjandi/focal-picker/react` through `tsconfig.json` `paths`, not the
+  `exports` map.
+- `tests/handoff/server.ts`: `Number("")` is 0 and `Number("abc")` is NaN, which `upload` refuses with an
+  unhandled error; acceptable for a snippet, but readers may copy it.
+- The root `README.md` row is missing a word ("helpers the `<dynjandi-focal-picker>` element"); the test
+  helper casts `as HTMLImageElement`; the wrapper was written before its tests.
