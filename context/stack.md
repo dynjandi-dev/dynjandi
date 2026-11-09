@@ -46,6 +46,7 @@ packages/focal-picker/ @dynjandi/focal-picker (public, unpublished): src/ (point
 packages/checker/ @dynjandi/checker (private): src/ (check, render, main, style.css), index.html, scripts/build.mjs (esbuild into
                   dist/, gitignored), tests/, README.md
 .pnpmfile.cjs     gives openapi-typescript its own TypeScript 5 (it cannot run on TypeScript 7)
+.worktree.yml     team settings for the worktree CLI (context/executors.md): source branch origin/main, branch prefixes
 .changeset/       release notes, one file each; consumed by changeset:prepare-release (context/release.md)
 .github/workflows/ci.yml                             lint, format, typecheck, build, package check, test, generated-types drift
 .github/workflows/smoke.yml                          live smoke test: daily, workflow_dispatch, workflow_call
