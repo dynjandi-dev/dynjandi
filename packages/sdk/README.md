@@ -36,6 +36,17 @@ Earlier versions took `createClient({ publicKey })`. That option still works, bu
 sent as `X-Project-Key` exactly like `projectKey`. Rename it to `projectKey`. Passing both options, neither,
 or an empty key throws a `DynjandiError` with status `0`.
 
+`ClientOptions` is now a union of the two key options, which changes how it composes. An
+`interface X extends ClientOptions` no longer compiles: write `type X = ClientOptions & { … }`. `Omit` and
+`Pick` are not distributive over a union, so `Omit<ClientOptions, "fetch">` loses which key is required and
+the result no longer passes to `createClient`. Use a distributive form:
+
+```ts
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
+const make = (options: DistributiveOmit<ClientOptions, "fetch">) => createClient({ ...options, fetch });
+```
+
 `origin` defaults to `https://cdn.dynjandi.dev`. Pass `origin` to use another one.
 
 ### `upload(file, { focal? })`

@@ -1,8 +1,16 @@
 import { describe, expect, test } from "vitest";
 import { createClient, DynjandiError } from "../src/index";
-import { aFile, fakeFetch, firstRequest, jsonResponse, PROJECT_KEY, UPLOAD_BODY } from "./helpers";
-
-const FILE_ID = UPLOAD_BODY.id;
+import {
+  aFile,
+  FILE_BODY,
+  FILE_ID,
+  fakeFetch,
+  firstGetRequest,
+  firstRequest,
+  jsonResponse,
+  PROJECT_KEY,
+  UPLOAD_BODY,
+} from "./helpers";
 
 // Expected values come from plan decisions D1 (only X-Project-Key is sent), D2 (publicKey stays as a
 // deprecated alias) and D3 (both, neither or empty throw status 0 and never echo a value).
@@ -19,13 +27,12 @@ describe("the deprecated publicKey option", () => {
   });
 
   test("still authenticates getFile, and goes out as X-Project-Key only", async () => {
-    const fetchMock = fakeFetch(() => jsonResponse({ ...UPLOAD_BODY, id: FILE_ID }, 200));
+    const fetchMock = fakeFetch(() => jsonResponse(FILE_BODY, 200));
     const client = createClient({ publicKey: PROJECT_KEY, fetch: fetchMock });
 
-    await client.getFile(FILE_ID).catch(() => undefined);
+    expect(await client.getFile(FILE_ID)).toEqual(FILE_BODY);
 
-    const [, init] = fetchMock.mock.calls[0] ?? [];
-    const headers = new Headers(init?.headers);
+    const { headers } = firstGetRequest(fetchMock);
     expect(headers.get("X-Project-Key")).toBe(PROJECT_KEY);
     expect(headers.has("x-public-key")).toBe(false);
   });
