@@ -22,3 +22,10 @@ Non-blocking observations from the review gates of #36 (rename-public-key-to-pro
   could follow the variable when it is renamed.
 - **Phase 2:** `ClientOptions` is now a type alias (an interface cannot extend a union), so a consumer's
   `interface X extends ClientOptions` stops compiling. Worth a line in the changeset at `/feature-close`.
+- **Phase 3:** in `packages/sdk/README.md` the sentence "`origin` defaults to `https://cdn.dynjandi.dev`…"
+  now sits under the new `### Migrating from \`publicKey\`` heading rather than under `## Usage`; moving
+  the migration subsection below it, before `### upload(...)`, files it correctly.
+- **Phase 3:** the migration paragraph says "Earlier versions" without naming 0.1.x; until this ships,
+  `main` documents `projectKey` while npm 0.1.1 does not accept it (the picker's snippet too).
+- **Phase 3:** the SDK README omits D6's "Anyone holding it can upload to the project and use up its
+  storage." Only the spec was required to carry it.

@@ -286,11 +286,11 @@ async function upload(client, source, name) {
 }
 
 async function capture(rows) {
-  const publicKey = process.env[KEY_VARIABLE];
-  if (publicKey === undefined || publicKey === "") {
+  const projectKey = process.env[KEY_VARIABLE];
+  if (projectKey === undefined || projectKey === "") {
     throw new Error(`${KEY_VARIABLE} is not set. Load it from .env as context/verify.md shows.`);
   }
-  const client = createClient({ publicKey });
+  const client = createClient({ projectKey });
 
   const uploads = new Map();
   let version;

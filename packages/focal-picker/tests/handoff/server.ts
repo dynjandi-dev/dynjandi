@@ -1,6 +1,6 @@
 import { createClient } from "@dynjandi/sdk";
 
-const client = createClient({ publicKey: "pk_your_project_key" });
+const client = createClient({ projectKey: "pk_your_project_key" });
 
 // POST /api/images: the form the browser sent, with focalX and focalY only when a point was chosen.
 export async function handleUpload(request: Request): Promise<Response> {
