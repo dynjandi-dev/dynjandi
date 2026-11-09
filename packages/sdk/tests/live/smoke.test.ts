@@ -6,7 +6,7 @@ import { createClient } from "../../src/index";
 // Live smoke test: real network, real service, a dedicated test project. It is NOT part of `pnpm test`
 // (see `test` and `test:live` in package.json). See context/verify.md, "Not run by Gate 1".
 
-const KEY_VARIABLE = "DYNJANDI_SMOKE_PUBLIC_KEY";
+const KEY_VARIABLE = "DYNJANDI_SMOKE_PROJECT_KEY";
 
 // A valid 1x1 PNG, so no binary fixture is tracked.
 const PNG_1X1_BASE64 =

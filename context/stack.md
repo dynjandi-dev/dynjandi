@@ -69,7 +69,7 @@ context/   workflow state and project answers (verify, git, tracking, release, e
 - Relative imports in `packages/sdk/src` end in `.js`: the emitted ESM has to resolve under Node, and the
   build compiles under `NodeNext` to enforce it. `packages/spec`'s `info.version` is the spec's version;
   the package's own `version` is unused (it is private).
-- The live smoke test's key is `DYNJANDI_SMOKE_PUBLIC_KEY`: an Actions secret in CI, a gitignored `.env` at the
+- The live smoke test's key is `DYNJANDI_SMOKE_PROJECT_KEY`: an Actions secret in CI, a gitignored `.env` at the
   repository root locally. It belongs to a dedicated test project, and no tracked file holds it.
 
 ## Documentation

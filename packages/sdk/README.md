@@ -309,7 +309,7 @@ expects `200`: a `srcset` candidate (`image/*`, a PNG body), an `avif` source fr
 (content type `image/avif` or `image/heif`, as the service mislabels AVIF; the body must have an AVIF
 `ftyp` box) and the `placeholder` (`image/*`). It also prints the width the service returns for a 320w
 resize of the 1x1 original, which shows whether it upscales. It needs the project's key in
-`DYNJANDI_SMOKE_PUBLIC_KEY` and the network, so `pnpm test` skips it. It fails if the key is unset.
+`DYNJANDI_SMOKE_PROJECT_KEY` and the network, so `pnpm test` skips it. It fails if the key is unset.
 
 ```bash
 pnpm --filter @dynjandi/sdk run test:live

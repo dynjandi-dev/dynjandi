@@ -157,7 +157,7 @@ As of 2026-10-19, one line each:
 |---|---|
 | Event | a **push to `main` that touches `packages/sdk/**`, `pnpm-lock.yaml`, `LICENSE` or `publish.yml`**. That only starts the run; whether anything publishes is the next row. There is no `workflow_dispatch`, so nothing can start it by hand |
 | Gate | **the registry.** `check` reads `version` from `packages/sdk/package.json` and runs `npm view "@dynjandi/sdk@<version>" version`. On npm already: a notice and a green stop (so a re-run, an unbumped change and a run after a half-failed publish all stop green). Not on npm: smoke, build, publish, release. `publish` asks again, in case the registry moved |
-| Precondition | the live smoke test, `smoke.yml` called with the Actions secret `DYNJANDI_SMOKE_PUBLIC_KEY`, **only when there is a version to publish**. A smoke failure (drift between the spec and the service, or an outage) blocks the publish; fix the cause and re-run the failed workflow, or push again |
+| Precondition | the live smoke test, `smoke.yml` called with the Actions secret `DYNJANDI_SMOKE_PROJECT_KEY`, **only when there is a version to publish**. A smoke failure (drift between the spec and the service, or an outage) blocks the publish; fix the cause and re-run the failed workflow, or push again |
 | Jobs | `check` (`contents: read`) → `smoke` → `build` (`contents: read`: install, build, `pnpm --filter @dynjandi/sdk run test` (the SDK's tests; the picker's browser tests run in `ci.yml`, and this job installs no Chromium), `pnpm check:package`, `pnpm pack`, upload the tarball) → `publish` (`id-token: write`, **no checkout, no install, no cache**: downloads the tarball, `npm publish`) → `release` (`contents: write`, runs only `gh`). So no dependency's code runs in a job that can request an npm OIDC token, and the job that can write the repository runs no dependency code either. Every job refuses any ref but `refs/heads/main`, because npm trusts any run of this file; that stops accidental runs, not someone with push access, since it is only as strong as the copy of the file being run |
 | Authentication | npm **trusted publishing** (OIDC). **No npm token exists**, in the repository, in secrets or anywhere. It needs npm >= 11.5.1 and Node >= 22.14.0; the job uses Node 24 and fails if `npm --version` is older |
 | Provenance | **yes, for every version the workflow publishes.** npm generates it automatically for a trusted publish from a public repository of a public package ([docs.npmjs.com/trusted-publishers](https://docs.npmjs.com/trusted-publishers), "Automatic provenance generation"); the workflow also passes `--provenance`, so a publish that could not produce it fails. `repository.url` in `package.json` must match this repository. **`0.1.0` has none**: it is published from a person's machine |
@@ -209,7 +209,7 @@ job lets `publish` find `0.1.0` and exit 0, and `release` then tags `sdk-v0.1.0`
    wording in `README.md` and `packages/sdk/README.md`, which is true today and stops being true then; and if
    step 6's tag was made, the "No such tag exists yet" sentence in `packages/spec/README.md`.
 
-The Actions secret `DYNJANDI_SMOKE_PUBLIC_KEY` must exist for the smoke test to pass (phase 5 set it).
+The Actions secret `DYNJANDI_SMOKE_PROJECT_KEY` must exist for the smoke test to pass (phase 5 set it).
 
 ### How a release is cut
 

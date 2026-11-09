@@ -118,13 +118,13 @@ then fetches SDK-built variants of it and reads it back, expecting 200 for each 
 - the `placeholder`, `image/*`.
 
 That is five variants per run, each counting against the test project's cap. It needs the project's key in
-`DYNJANDI_SMOKE_PUBLIC_KEY` and the network (`https://cdn.dynjandi.dev`), so `pnpm test` excludes `tests/live/` and never touches
+`DYNJANDI_SMOKE_PROJECT_KEY` and the network (`https://cdn.dynjandi.dev`), so `pnpm test` excludes `tests/live/` and never touches
 either. It fails, rather than skips, when the key is unset.
 
 It is not in the gate because it can go red with nothing in the diff: the service changes, the network
 drops, the test project's quota fills. It belongs to whatever watches the service, not the change:
 `.github/workflows/smoke.yml` runs it daily and on demand, and is callable (`workflow_call`): `publish.yml`
-calls it before it publishes, with the key from the Actions secret `DYNJANDI_SMOKE_PUBLIC_KEY`.
+calls it before it publishes, with the key from the Actions secret `DYNJANDI_SMOKE_PROJECT_KEY`.
 
 By hand, load the key from the gitignored `.env` at the repository root into the one command's
 environment, without printing it:

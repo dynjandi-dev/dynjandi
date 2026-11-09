@@ -29,3 +29,5 @@ Non-blocking observations from the review gates of #36 (rename-public-key-to-pro
   `main` documents `projectKey` while npm 0.1.1 does not accept it (the picker's snippet too).
 - **Phase 3:** the SDK README omits D6's "Anyone holding it can upload to the project and use up its
   storage." Only the spec was required to carry it.
+- **Phase 4:** the old Actions secret `DYNJANDI_SMOKE_PUBLIC_KEY` and its line in the local `.env` still
+  exist; once the smoke run on the new name is green, the owner may delete both.

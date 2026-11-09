@@ -88,7 +88,7 @@ jobs:
       contents: read
     uses: ./.github/workflows/smoke.yml
     secrets:
-      DYNJANDI_SMOKE_PUBLIC_KEY: ${{ secrets.DYNJANDI_SMOKE_PUBLIC_KEY }}
+      DYNJANDI_SMOKE_PROJECT_KEY: ${{ secrets.DYNJANDI_SMOKE_PROJECT_KEY }}
 
   build:
     name: Build and pack
