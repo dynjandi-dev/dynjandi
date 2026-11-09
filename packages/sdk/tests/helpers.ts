@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 
-export const PUBLIC_KEY = "pk_test_0123456789abcdef";
+export const PROJECT_KEY = "pk_test_0123456789abcdef";
 
 export const UPLOAD_BODY = {
   file: "00000000-0000-4000-8000-000000000000",

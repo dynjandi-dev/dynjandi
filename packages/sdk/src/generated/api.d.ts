@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Upload an image
-         * @description Stores the file in the project identified by the public key and returns its id. The service
+         * @description Stores the file in the project identified by the project key and returns its id. The service
          *     stores any non-empty file; it does not check the file's type. The request is
          *     `multipart/form-data` with a `file` part and, optionally, a focal point given as both
          *     `focalX` and `focalY`. Giving only one of them is an error, as is an empty value.
@@ -41,7 +41,7 @@ export interface paths {
         };
         /**
          * Read a stored file
-         * @description Returns the record of a file stored in the project identified by the public key, including the
+         * @description Returns the record of a file stored in the project identified by the project key, including the
          *     focal point saved at upload or later in the dashboard. Pass the point to a variant URL (see the
          *     `focal` crop position) to crop on it: variants are cached by URL, so the service does not apply
          *     it for you.
@@ -199,7 +199,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description The public key is missing (`Missing X-Public-Key`) or unknown (`Invalid public key`). */
+            /** @description The project key is missing (`Missing X-Project-Key`) or unknown (`Invalid project key`). */
             401: {
                 headers: {
                     "Cache-Control": components["headers"]["CacheControlNoStore"];
@@ -208,7 +208,7 @@ export interface operations {
                 content: {
                     /**
                      * @example {
-                     *       "error": "Invalid public key"
+                     *       "error": "Invalid project key"
                      *     }
                      */
                     "application/json": components["schemas"]["Error"];
@@ -283,7 +283,7 @@ export interface operations {
                     "application/json": components["schemas"]["FileRecord"];
                 };
             };
-            /** @description The public key is missing (`Missing X-Public-Key`) or unknown (`Invalid public key`). */
+            /** @description The project key is missing (`Missing X-Project-Key`) or unknown (`Invalid project key`). */
             401: {
                 headers: {
                     "Cache-Control": components["headers"]["CacheControlNoStore"];
@@ -292,7 +292,7 @@ export interface operations {
                 content: {
                     /**
                      * @example {
-                     *       "error": "Invalid public key"
+                     *       "error": "Invalid project key"
                      *     }
                      */
                     "application/json": components["schemas"]["Error"];

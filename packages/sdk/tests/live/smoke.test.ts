@@ -6,7 +6,7 @@ import { createClient } from "../../src/index";
 // Live smoke test: real network, real service, a dedicated test project. It is NOT part of `pnpm test`
 // (see `test` and `test:live` in package.json). See context/verify.md, "Not run by Gate 1".
 
-const KEY_VARIABLE = "DYNJANDI_SMOKE_PUBLIC_KEY";
+const KEY_VARIABLE = "DYNJANDI_SMOKE_PROJECT_KEY";
 
 // A valid 1x1 PNG, so no binary fixture is tracked.
 const PNG_1X1_BASE64 =
@@ -69,7 +69,7 @@ function expectAvifFtyp(bytes: Uint8Array): void {
 }
 
 describe("live service", () => {
-  const client = createClient({ publicKey: requirePublicKey() });
+  const client = createClient({ projectKey: requirePublicKey() });
   let fileId: string;
 
   test("uploads an image, reads its record back and serves variants of it", {

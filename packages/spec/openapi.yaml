@@ -1,24 +1,24 @@
 openapi: 3.1.0
 info:
   title: Dynjandi API
-  version: 0.2.1
+  version: 0.3.0
   summary: Upload images to Dynjandi, read a stored file back, and address variants by URL.
   license:
     name: MIT
     identifier: MIT
   description: |
     Dynjandi is an image CDN at `https://cdn.dynjandi.dev`. This document describes the operations a
-    project's public key authorises: `POST /upload` and `GET /files/{id}`. Variants of an uploaded
+    project key authorises: `POST /upload` and `GET /files/{id}`. Variants of an uploaded
     image are addressed by URL, not by an API call; the URL grammar is described below.
 
     The spec is versioned on its own (semantic versioning of this document, see `info.version`). It
-    covers only operations the public key authorises; the management API is not part of it until it has
+    covers only operations the project key authorises; the management API is not part of it until it has
     key-based authentication.
 
     ## Uploads and file reads are server-side only
 
     The service sends no CORS headers, and answers a preflight `OPTIONS` request with `405`. Both
-    operations send `X-Public-Key`, which makes a cross-origin browser request preflighted, so the
+    operations send `X-Project-Key`, which makes a cross-origin browser request preflighted, so the
     preflight fails and neither `POST /upload` nor `GET /files/{id}` is sent. Call both from a server or
     another non-browser runtime. Variants and originals load normally in `<img>`, CSS and other
     non-CORS contexts, but GET responses carry no CORS headers either, so a cross-origin `fetch()` from
@@ -26,10 +26,14 @@ info:
 
     ## Authentication
 
-    `POST /upload` and `GET /files/{id}` take a project's public key in the `X-Public-Key` header. The
-    public key is a publishable identifier for a project, not a secret, but it still selects the project
-    that receives an upload or that a file is read from, and is checked on every request: a missing key
-    is `401`, an unknown key is `401`.
+    `POST /upload` and `GET /files/{id}` take the project key in the `X-Project-Key` header. The
+    project key is a credential that authorises uploads and file reads for one project. Anyone holding
+    it can upload to the project and use up its storage. Use it from your server, never in a web page
+    or app. It is checked on every request: a missing key is `401`, an unknown key is `401`.
+
+    `X-Public-Key` is the key's former header name. It is a deprecated alias that the service still
+    accepts, with the same meaning. Sending both headers with different values is `400`
+    (`X-Project-Key and X-Public-Key differ`). New clients send `X-Project-Key` only.
 
     ## Relative URLs
 
@@ -109,7 +113,7 @@ paths:
         - Upload
       summary: Upload an image
       description: |
-        Stores the file in the project identified by the public key and returns its id. The service
+        Stores the file in the project identified by the project key and returns its id. The service
         stores any non-empty file; it does not check the file's type. The request is
         `multipart/form-data` with a `file` part and, optionally, a focal point given as both
         `focalX` and `focalY`. Giving only one of them is an error, as is an empty value.
@@ -119,7 +123,7 @@ paths:
 
         Uploads are server-side only; see the API description on CORS.
       security:
-        - publicKey: []
+        - projectKey: []
       requestBody:
         required: true
         content:
@@ -161,7 +165,7 @@ paths:
                 error: No file provided
         "401":
           description: |
-            The public key is missing (`Missing X-Public-Key`) or unknown (`Invalid public key`).
+            The project key is missing (`Missing X-Project-Key`) or unknown (`Invalid project key`).
           headers:
             Cache-Control:
               $ref: "#/components/headers/CacheControlNoStore"
@@ -170,7 +174,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
               example:
-                error: Invalid public key
+                error: Invalid project key
         "413":
           description: |
             The file is too large. The `error` message is `File exceeds maximum allowed size` (over the
@@ -202,7 +206,7 @@ paths:
         - Files
       summary: Read a stored file
       description: |
-        Returns the record of a file stored in the project identified by the public key, including the
+        Returns the record of a file stored in the project identified by the project key, including the
         focal point saved at upload or later in the dashboard. Pass the point to a variant URL (see the
         `focal` crop position) to crop on it: variants are cached by URL, so the service does not apply
         it for you.
@@ -212,7 +216,7 @@ paths:
 
         Reads are server-side only; see the API description on CORS.
       security:
-        - publicKey: []
+        - projectKey: []
       parameters:
         - name: id
           in: path
@@ -242,7 +246,7 @@ paths:
                 createdAt: "2026-10-04T15:31:34.000Z"
         "401":
           description: |
-            The public key is missing (`Missing X-Public-Key`) or unknown (`Invalid public key`).
+            The project key is missing (`Missing X-Project-Key`) or unknown (`Invalid project key`).
           headers:
             Cache-Control:
               $ref: "#/components/headers/CacheControlNoStore"
@@ -251,7 +255,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
               example:
-                error: Invalid public key
+                error: Invalid project key
         "404":
           description: |
             The file is not found (`File not found`): no such id, an id that is not a UUID, or a file
@@ -267,14 +271,15 @@ paths:
                 error: File not found
 components:
   securitySchemes:
-    publicKey:
+    projectKey:
       type: apiKey
       in: header
-      name: X-Public-Key
+      name: X-Project-Key
       description: |
-        A project's public key. It is a publishable identifier, not a secret, and identifies the
-        project that receives an upload or holds the file being read. It is an opaque string, shown on
-        the project's page in the dashboard.
+        The project key. It is a credential that authorises uploads and file reads for one
+        project: anyone holding it can upload to the project and use up its storage. Use it from your
+        server, never in a web page or app. It is an opaque string, shown on the project's page in the
+        dashboard.
   headers:
     CacheControlNoStore:
       description: Always `no-store`; responses from this API must not be cached.

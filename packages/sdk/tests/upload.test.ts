@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest";
 import { createClient, DynjandiError } from "../src/index";
-import { aFile, fakeFetch, firstRequest, jsonResponse, PUBLIC_KEY, UPLOAD_BODY } from "./helpers";
+import { aFile, fakeFetch, firstRequest, jsonResponse, PROJECT_KEY, UPLOAD_BODY } from "./helpers";
 
 describe("upload", () => {
   test("resolves the relative url against the default origin", async () => {
     const fetchMock = fakeFetch(() => jsonResponse(UPLOAD_BODY, 201));
-    const client = createClient({ publicKey: PUBLIC_KEY, fetch: fetchMock });
+    const client = createClient({ projectKey: PROJECT_KEY, fetch: fetchMock });
 
     const result = await client.upload(aFile());
 
@@ -21,7 +21,7 @@ describe("upload", () => {
   test("resolves the relative url against a custom origin", async () => {
     const fetchMock = fakeFetch(() => jsonResponse(UPLOAD_BODY, 201));
     const client = createClient({
-      publicKey: PUBLIC_KEY,
+      projectKey: PROJECT_KEY,
       origin: "https://images.example.com",
       fetch: fetchMock,
     });
@@ -36,7 +36,7 @@ describe("upload", () => {
     const fetchMock = fakeFetch(() =>
       jsonResponse({ ...UPLOAD_BODY, focalX: 0.42, focalY: 0.18 }, 201),
     );
-    const client = createClient({ publicKey: PUBLIC_KEY, fetch: fetchMock });
+    const client = createClient({ projectKey: PROJECT_KEY, fetch: fetchMock });
 
     const result = await client.upload(aFile(), { focal: { x: 0.42, y: 0.18 } });
 
@@ -50,7 +50,7 @@ describe("upload", () => {
 
   test("sends no focal fields when no focal point is given", async () => {
     const fetchMock = fakeFetch(() => jsonResponse(UPLOAD_BODY, 201));
-    const client = createClient({ publicKey: PUBLIC_KEY, fetch: fetchMock });
+    const client = createClient({ projectKey: PROJECT_KEY, fetch: fetchMock });
 
     await client.upload(aFile());
 
@@ -61,7 +61,7 @@ describe("upload", () => {
 
   test("accepts the focal bounds 0 and 1", async () => {
     const fetchMock = fakeFetch(() => jsonResponse(UPLOAD_BODY, 201));
-    const client = createClient({ publicKey: PUBLIC_KEY, fetch: fetchMock });
+    const client = createClient({ projectKey: PROJECT_KEY, fetch: fetchMock });
 
     await client.upload(aFile(), { focal: { x: 0, y: 1 } });
 
@@ -79,7 +79,7 @@ describe("upload", () => {
     ["y infinite", { x: 0.5, y: Number.POSITIVE_INFINITY }],
   ])("refuses a focal point with %s before sending anything", async (_name, focal) => {
     const fetchMock = fakeFetch(() => jsonResponse(UPLOAD_BODY, 201));
-    const client = createClient({ publicKey: PUBLIC_KEY, fetch: fetchMock });
+    const client = createClient({ projectKey: PROJECT_KEY, fetch: fetchMock });
 
     const failure = await client.upload(aFile(), { focal }).catch((error: unknown) => error);
 
@@ -88,31 +88,32 @@ describe("upload", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  test("sends the public key only in the X-Public-Key header", async () => {
+  test("sends the project key only in the X-Project-Key header", async () => {
     const fetchMock = fakeFetch(() => jsonResponse(UPLOAD_BODY, 201));
-    const client = createClient({ publicKey: PUBLIC_KEY, fetch: fetchMock });
+    const client = createClient({ projectKey: PROJECT_KEY, fetch: fetchMock });
 
     await client.upload(aFile(), { focal: { x: 0.1, y: 0.2 } });
 
     const { url, headers, form } = firstRequest(fetchMock);
-    expect(headers.get("X-Public-Key")).toBe(PUBLIC_KEY);
-    expect([...headers].filter(([name]) => name !== "x-public-key").join()).not.toContain(
-      PUBLIC_KEY,
+    expect(headers.get("X-Project-Key")).toBe(PROJECT_KEY);
+    expect(headers.has("x-public-key")).toBe(false);
+    expect([...headers].filter(([name]) => name !== "x-project-key").join()).not.toContain(
+      PROJECT_KEY,
     );
-    expect(url).not.toContain(PUBLIC_KEY);
+    expect(url).not.toContain(PROJECT_KEY);
     for (const [, value] of form) {
-      expect(typeof value === "string" ? value : value.name).not.toContain(PUBLIC_KEY);
+      expect(typeof value === "string" ? value : value.name).not.toContain(PROJECT_KEY);
     }
   });
 });
 
 describe("createClient", () => {
-  test("refuses an empty public key", () => {
-    expect(() => createClient({ publicKey: "" })).toThrow(DynjandiError);
+  test("refuses an empty project key", () => {
+    expect(() => createClient({ projectKey: "" })).toThrow(DynjandiError);
   });
 
   test("refuses an origin that is not an absolute URL", () => {
-    expect(() => createClient({ publicKey: PUBLIC_KEY, origin: "cdn.dynjandi.dev" })).toThrow(
+    expect(() => createClient({ projectKey: PROJECT_KEY, origin: "cdn.dynjandi.dev" })).toThrow(
       DynjandiError,
     );
   });

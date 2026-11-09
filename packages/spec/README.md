@@ -26,21 +26,21 @@ names the SDK's version, not the spec's: read `info.version` in the document for
 ## The contract
 
 - **Request.** `POST https://cdn.dynjandi.dev/upload`, `multipart/form-data`, a `file` part and optional
-  `focalX` and `focalY` (both or neither, each from 0 to 1 inclusive). Authenticated by an `X-Public-Key`
-  header carrying the project's public key.
+  `focalX` and `focalY` (both or neither, each from 0 to 1 inclusive). Authenticated by an `X-Project-Key`
+  header carrying the project key.
 - **Success.** `201` with `{ file, id, url, focalX, focalY }` and `Cache-Control: no-store`. `file` and
   `id` are the same UUID. `url` is relative (`/<id>`): resolve it against the origin you called.
   `focalX` and `focalY` are `null` when no focal point was sent.
 - **Errors** (upload). Always `{ "error": "<message>" }` with `Cache-Control: no-store`: `400` (not
   multipart, no file, bad focal point), `401` (missing or invalid key), `413` (over the file-size limit
   or the storage quota), `500` (unexpected error).
-- **Read.** `GET https://cdn.dynjandi.dev/files/{id}` with the same `X-Public-Key` header. `200` with
+- **Read.** `GET https://cdn.dynjandi.dev/files/{id}` with the same `X-Project-Key` header. `200` with
   `{ id, contentType, bytes, originalFilename, source, focalX, focalY, createdAt }` and
   `Cache-Control: no-store`; `focalX` and `focalY` are `null` when no point is stored. Errors have
   the same body and header: `401` (missing or invalid key) and `404` (no such file, not a UUID, or
   another project's file).
 - **Server-side only.** The service sends no CORS headers and refuses the preflight that the
-  `X-Public-Key` header triggers, so a browser cannot call `POST /upload` or `GET /files/{id}`
+  `X-Project-Key` header triggers, so a browser cannot call `POST /upload` or `GET /files/{id}`
   cross-origin. Call both from a server.
 
 The URL grammar for variants (`/<id>/-/resize/800x600/` and so on) is described in the spec's

@@ -14,14 +14,25 @@ import { type StoredFile, type UrlOptions, url } from "./url.js";
 
 export const DEFAULT_ORIGIN = "https://cdn.dynjandi.dev";
 
-export interface ClientOptions {
-  /** The project's public key. Sent only in the `X-Public-Key` header. */
-  publicKey: string;
+/** The project key, given as `projectKey` or as the deprecated `publicKey`, never both. */
+type KeyOption =
+  | {
+      /** The project key. A credential: keep it on your server. Sent only in the `X-Project-Key` header. */
+      projectKey: string;
+      publicKey?: never;
+    }
+  | {
+      /** @deprecated Use `projectKey`. Sent in the `X-Project-Key` header, like `projectKey`. */
+      publicKey: string;
+      projectKey?: never;
+    };
+
+export type ClientOptions = KeyOption & {
   /** The service origin. Defaults to `https://cdn.dynjandi.dev`. */
   origin?: string;
   /** The `fetch` to use. Defaults to `globalThis.fetch`; tests inject their own. */
   fetch?: typeof fetch;
-}
+};
 
 export interface Client {
   /** Uploads a file. Server-side only: the CDN sends no CORS headers. See `upload`. */
@@ -60,8 +71,17 @@ export interface Client {
 }
 
 export function createClient(options: ClientOptions): Client {
-  if (options.publicKey === "") {
-    throw new DynjandiError("createClient needs a non-empty publicKey.", 0);
+  // The one place the deprecated alias is read; everything past here says projectKey. The messages name
+  // the options and never a value.
+  if (options.projectKey !== undefined && options.publicKey !== undefined) {
+    throw new DynjandiError("createClient takes projectKey or publicKey, not both.", 0);
+  }
+  const projectKey = options.projectKey ?? options.publicKey;
+  if (projectKey === undefined) {
+    throw new DynjandiError("createClient needs a projectKey.", 0);
+  }
+  if (projectKey === "") {
+    throw new DynjandiError("createClient needs a non-empty projectKey.", 0);
   }
 
   let origin: string;
@@ -72,7 +92,7 @@ export function createClient(options: ClientOptions): Client {
   }
 
   const config = {
-    publicKey: options.publicKey,
+    projectKey,
     origin,
     fetch: options.fetch ?? globalThis.fetch,
   };

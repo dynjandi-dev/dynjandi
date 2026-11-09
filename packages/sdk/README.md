@@ -24,7 +24,27 @@ that as untested.
 ```ts
 import { createClient } from "@dynjandi/sdk";
 
-const client = createClient({ publicKey: "YOUR_PUBLIC_KEY" });
+const client = createClient({ projectKey: "YOUR_PROJECT_KEY" });
+```
+
+The project key is a credential that authorises uploads and file reads for one project. Keep it on your
+server and out of web pages and apps. It is sent only in the `X-Project-Key` header.
+
+### Migrating from `publicKey`
+
+Earlier versions took `createClient({ publicKey })`. That option still works, but it is deprecated: it is
+sent as `X-Project-Key` exactly like `projectKey`. Rename it to `projectKey`. Passing both options, neither,
+or an empty key throws a `DynjandiError` with status `0`.
+
+`ClientOptions` is now a union of the two key options, which changes how it composes. An
+`interface X extends ClientOptions` no longer compiles: write `type X = ClientOptions & { … }`. `Omit` and
+`Pick` are not distributive over a union, so `Omit<ClientOptions, "fetch">` loses which key is required and
+the result no longer passes to `createClient`. Use a distributive form:
+
+```ts
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
+const make = (options: DistributiveOmit<ClientOptions, "fetch">) => createClient({ ...options, fetch });
 ```
 
 `origin` defaults to `https://cdn.dynjandi.dev`. Pass `origin` to use another one.
@@ -270,20 +290,20 @@ try {
 `status` is the HTTP status of the response that caused the failure (401 invalid key, 400 bad request,
 404 file not found, 413 over the size limit or quota). It is `0` when there was no HTTP response: the
 network request failed, or the SDK refused the call before sending anything (bad focal point, bad
-options, an empty or dot-segment file id). The public key is never
+options, an empty or dot-segment file id). The project key is never
 part of a message.
 
 ## Bundle size
 
-The browser bundle of `src/index.ts`, with `@dynjandi/transform-grammar` included, is **3,590 bytes gzipped**
-(10,111 bytes minified) as of 2026-10-19, with `@dynjandi/transform-grammar` 0.2.0. Measured from this
+The browser bundle of `src/index.ts`, with `@dynjandi/transform-grammar` included, is **3,642 bytes gzipped**
+(10,313 bytes minified) as of 2026-11-09, with `@dynjandi/transform-grammar` 0.2.0. Measured from this
 directory:
 
 ```bash
 pnpm exec esbuild --bundle --minify --platform=browser --format=esm src/index.ts | gzip -9 -c | wc -c
 ```
 
-The SDK's own code is 2,489 bytes gzipped (6,338 bytes minified); add
+The SDK's own code is 2,543 bytes gzipped (6,540 bytes minified); add
 `--external:@dynjandi/transform-grammar` to the command to see it. The rest is the grammar package's code.
 The SDK imports its zod-free `./builder` entry, so `zod` is not in a browser bundle;
 `tests/bundle.test.ts` bundles `src/index.ts` and `src/next.ts` the same way and fails if it ever is. The byte figure is a
@@ -300,7 +320,7 @@ expects `200`: a `srcset` candidate (`image/*`, a PNG body), an `avif` source fr
 (content type `image/avif` or `image/heif`, as the service mislabels AVIF; the body must have an AVIF
 `ftyp` box) and the `placeholder` (`image/*`). It also prints the width the service returns for a 320w
 resize of the 1x1 original, which shows whether it upscales. It needs the project's key in
-`DYNJANDI_SMOKE_PUBLIC_KEY` and the network, so `pnpm test` skips it. It fails if the key is unset.
+`DYNJANDI_SMOKE_PROJECT_KEY` and the network, so `pnpm test` skips it. It fails if the key is unset.
 
 ```bash
 pnpm --filter @dynjandi/sdk run test:live

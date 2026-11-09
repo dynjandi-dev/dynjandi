@@ -1,7 +1,7 @@
 # Dynjandi SDK ecosystem
 
 The public integration surface for [Dynjandi](https://cdn.dynjandi.dev), an image CDN: an OpenAPI
-description of its public-key API (upload, and reading a stored file) and a TypeScript SDK,
+description of its project-key API (upload, and reading a stored file) and a TypeScript SDK,
 `@dynjandi/sdk`.
 
 **Status: early.** `@dynjandi/sdk` is published to npm (`npm i @dynjandi/sdk`).

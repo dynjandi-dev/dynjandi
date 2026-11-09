@@ -1,11 +1,11 @@
 import { describe, expect, test, vi } from "vitest";
 import { createClient, DEFAULT_FORMATS, DEFAULT_WIDTHS, DynjandiError } from "../src/index";
-import { fakeFetch, PUBLIC_KEY } from "./helpers";
+import { fakeFetch, PROJECT_KEY } from "./helpers";
 
 const ID = "00000000-0000-4000-8000-000000000000";
 const CDN = "https://cdn.dynjandi.dev";
 
-const client = createClient({ publicKey: PUBLIC_KEY });
+const client = createClient({ projectKey: PROJECT_KEY });
 
 function failureOf(run: () => unknown): DynjandiError {
   try {
@@ -27,7 +27,7 @@ describe("client.srcset", () => {
   });
 
   test("uses the client's origin", () => {
-    const other = createClient({ publicKey: PUBLIC_KEY, origin: "https://img.example.com" });
+    const other = createClient({ projectKey: PROJECT_KEY, origin: "https://img.example.com" });
     expect(other.srcset(ID, { widths: [320] })).toBe(
       `https://img.example.com/${ID}/-/resize/320x/ 320w`,
     );
@@ -84,7 +84,7 @@ describe("client.srcset", () => {
 
   test("makes no request", () => {
     const fetchMock = fakeFetch(() => new Response(null, { status: 200 }));
-    const offline = createClient({ publicKey: PUBLIC_KEY, fetch: fetchMock });
+    const offline = createClient({ projectKey: PROJECT_KEY, fetch: fetchMock });
     const globalFetch = vi.spyOn(globalThis, "fetch");
     offline.srcset(ID);
     expect(fetchMock).not.toHaveBeenCalled();
@@ -215,7 +215,7 @@ describe("client.pictureSources", () => {
 
   test("makes no request", () => {
     const fetchMock = fakeFetch(() => new Response(null, { status: 200 }));
-    const offline = createClient({ publicKey: PUBLIC_KEY, fetch: fetchMock });
+    const offline = createClient({ projectKey: PROJECT_KEY, fetch: fetchMock });
     const globalFetch = vi.spyOn(globalThis, "fetch");
     offline.pictureSources(ID);
     expect(fetchMock).not.toHaveBeenCalled();
@@ -262,7 +262,7 @@ describe("client.placeholder", () => {
   });
 
   test("uses the client's origin", () => {
-    const other = createClient({ publicKey: PUBLIC_KEY, origin: "https://img.example.com" });
+    const other = createClient({ projectKey: PROJECT_KEY, origin: "https://img.example.com" });
     expect(other.placeholder(ID)).toBe(
       `https://img.example.com/${ID}/-/resize/24x/-/format/webp/-/quality/20/`,
     );
@@ -299,7 +299,7 @@ describe("client.placeholder", () => {
 
   test("makes no request", () => {
     const fetchMock = fakeFetch(() => new Response(null, { status: 200 }));
-    const offline = createClient({ publicKey: PUBLIC_KEY, fetch: fetchMock });
+    const offline = createClient({ projectKey: PROJECT_KEY, fetch: fetchMock });
     const globalFetch = vi.spyOn(globalThis, "fetch");
     offline.placeholder(ID);
     expect(fetchMock).not.toHaveBeenCalled();

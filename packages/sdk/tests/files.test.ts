@@ -6,12 +6,12 @@ import {
   fakeFetch,
   firstGetRequest,
   jsonResponse,
-  PUBLIC_KEY,
+  PROJECT_KEY,
 } from "./helpers";
 
 function clientAnswering(respond: () => Response | Promise<Response>) {
   const fetchMock = fakeFetch(respond);
-  return { fetchMock, client: createClient({ publicKey: PUBLIC_KEY, fetch: fetchMock }) };
+  return { fetchMock, client: createClient({ projectKey: PROJECT_KEY, fetch: fetchMock }) };
 }
 
 async function rejection(promise: Promise<unknown>): Promise<DynjandiError> {
@@ -39,15 +39,16 @@ describe("getFile", () => {
     const request = firstGetRequest(fetchMock);
     expect(request.url).toBe(`https://cdn.dynjandi.dev/files/${FILE_ID}`);
     expect(request.method).toBe("GET");
-    expect(request.headers.get("X-Public-Key")).toBe(PUBLIC_KEY);
+    expect(request.headers.get("X-Project-Key")).toBe(PROJECT_KEY);
+    expect(request.headers.has("x-public-key")).toBe(false);
     expect(request.body).toBeUndefined();
-    expect(request.url).not.toContain(PUBLIC_KEY);
+    expect(request.url).not.toContain(PROJECT_KEY);
   });
 
   test("uses a custom origin", async () => {
     const fetchMock = fakeFetch(() => jsonResponse(FILE_BODY, 200));
     const client = createClient({
-      publicKey: PUBLIC_KEY,
+      projectKey: PROJECT_KEY,
       origin: "https://images.example.com",
       fetch: fetchMock,
     });
@@ -71,21 +72,21 @@ describe("getFile", () => {
   });
 
   test("throws the service message and status on 401 for a missing key", async () => {
-    const { client } = clientAnswering(() => jsonResponse({ error: "Missing X-Public-Key" }, 401));
+    const { client } = clientAnswering(() => jsonResponse({ error: "Missing X-Project-Key" }, 401));
 
     const error = await rejection(client.getFile(FILE_ID));
 
     expect(error.status).toBe(401);
-    expect(error.message).toBe("Missing X-Public-Key");
+    expect(error.message).toBe("Missing X-Project-Key");
   });
 
   test("throws the service message and status on 401 for an invalid key", async () => {
-    const { client } = clientAnswering(() => jsonResponse({ error: "Invalid public key" }, 401));
+    const { client } = clientAnswering(() => jsonResponse({ error: "Invalid project key" }, 401));
 
     const error = await rejection(client.getFile(FILE_ID));
 
     expect(error.status).toBe(401);
-    expect(error.message).toBe("Invalid public key");
+    expect(error.message).toBe("Invalid project key");
   });
 
   test("throws the service message and status on 404", async () => {
@@ -184,21 +185,21 @@ describe("getFile", () => {
 
   test("never puts the key in a message, even when the service echoes it", async () => {
     const answers = [
-      () => jsonResponse({ error: `Invalid public key ${PUBLIC_KEY}` }, 401),
+      () => jsonResponse({ error: `Invalid project key ${PROJECT_KEY}` }, 401),
       () => jsonResponse({ error: "File not found" }, 404),
       () => new Response("not json", { status: 200 }),
       () => jsonResponse({ id: FILE_ID }, 200),
       () => {
-        throw new TypeError(`connect failed for ${PUBLIC_KEY}`);
+        throw new TypeError(`connect failed for ${PROJECT_KEY}`);
       },
     ];
 
     for (const answer of answers) {
       const { client } = clientAnswering(answer);
       const error = await rejection(client.getFile(FILE_ID));
-      expect(error.message).not.toContain(PUBLIC_KEY);
+      expect(error.message).not.toContain(PROJECT_KEY);
     }
     const { client } = clientAnswering(() => jsonResponse(FILE_BODY, 200));
-    expect((await rejection(client.getFile(""))).message).not.toContain(PUBLIC_KEY);
+    expect((await rejection(client.getFile(""))).message).not.toContain(PROJECT_KEY);
   });
 });

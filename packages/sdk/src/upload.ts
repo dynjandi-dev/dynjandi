@@ -17,7 +17,7 @@ export interface UploadOptions {
 
 /** What `upload` needs from the client, already validated by `createClient`. */
 export interface UploadConfig {
-  publicKey: string;
+  projectKey: string;
   origin: string;
   fetch: typeof fetch;
 }
@@ -59,7 +59,7 @@ function resolveOnOrigin(path: string, origin: string): string | undefined {
 }
 
 /**
- * Uploads `file` to the project that owns the client's public key.
+ * Uploads `file` to the project that owns the client's project key.
  *
  * Server-side only: the CDN sends no CORS headers, so a cross-origin browser `POST /upload` is
  * blocked. Call this from Node, a server or another non-browser runtime.
@@ -72,7 +72,7 @@ export async function upload(
   file: Blob,
   options: UploadOptions = {},
 ): Promise<UploadResult> {
-  const fail = createFail(config.publicKey);
+  const fail = createFail(config.projectKey);
 
   const form = new FormData();
   form.append("file", file);
@@ -90,7 +90,7 @@ export async function upload(
     const { fetch } = config;
     response = await fetch(new URL("/upload", config.origin).href, {
       method: "POST",
-      headers: { "X-Public-Key": config.publicKey },
+      headers: { "X-Project-Key": config.projectKey },
       body: form,
     });
   } catch (cause) {

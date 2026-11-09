@@ -22,7 +22,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { crc32, deflateSync, inflateSync } from "node:zlib";
 import { createClient } from "@dynjandi/sdk";
 
-const KEY_VARIABLE = "DYNJANDI_SMOKE_PUBLIC_KEY";
+const KEY_VARIABLE = "DYNJANDI_SMOKE_PROJECT_KEY";
 const DEFAULT_OUT = new URL("../tests/fixtures/service-crops.json", import.meta.url);
 
 // 2:1 landscape and its portrait transpose. 255 is the number of steps an 8-bit channel can take, so a
@@ -286,11 +286,11 @@ async function upload(client, source, name) {
 }
 
 async function capture(rows) {
-  const publicKey = process.env[KEY_VARIABLE];
-  if (publicKey === undefined || publicKey === "") {
+  const projectKey = process.env[KEY_VARIABLE];
+  if (projectKey === undefined || projectKey === "") {
     throw new Error(`${KEY_VARIABLE} is not set. Load it from .env as context/verify.md shows.`);
   }
-  const client = createClient({ publicKey });
+  const client = createClient({ projectKey });
 
   const uploads = new Map();
   let version;

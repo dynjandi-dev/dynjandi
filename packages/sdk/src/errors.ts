@@ -6,7 +6,7 @@
  * request failed, or the SDK refused the call before sending anything (bad options, bad focal point, a bad file id).
  * `message` is the service's `error` text when it sent one. `cause` holds the underlying error, if any.
  *
- * The client's public key is never part of `message`.
+ * The client's project key is never part of `message`.
  */
 export class DynjandiError extends Error {
   readonly status: number;

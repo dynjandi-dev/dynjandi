@@ -28,7 +28,7 @@ export function errorMessageFrom(body: unknown): string | undefined {
  * Builds the `DynjandiError` factory for one client. The key is sent in a header only, and scrubbed from
  * every message so it cannot leak into logs.
  */
-export function createFail(publicKey: string) {
+export function createFail(projectKey: string) {
   return (message: string, status: number, cause?: unknown): DynjandiError =>
-    new DynjandiError(message.replaceAll(publicKey, "[redacted]"), status, { cause });
+    new DynjandiError(message.replaceAll(projectKey, "[redacted]"), status, { cause });
 }
