@@ -40,7 +40,7 @@ function isFileRecord(body: unknown): body is FileRecord {
 }
 
 /**
- * Reads the stored record of `fileId` from the project that owns the client's public key.
+ * Reads the stored record of `fileId` from the project that owns the client's project key.
  *
  * Server-side only: the CDN sends no CORS headers, so a cross-origin browser `GET` is blocked. The
  * response is `Cache-Control: no-store` and the SDK does not cache it, so keep the record rather than
@@ -51,7 +51,7 @@ function isFileRecord(body: unknown): body is FileRecord {
  * `fileId` (status 0, before any request).
  */
 export async function getFile(config: UploadConfig, fileId: string): Promise<FileRecord> {
-  const fail = createFail(config.publicKey);
+  const fail = createFail(config.projectKey);
 
   if (fileId === "") {
     throw fail("getFile needs a non-empty file id.", 0);
@@ -67,7 +67,7 @@ export async function getFile(config: UploadConfig, fileId: string): Promise<Fil
     const { fetch } = config;
     response = await fetch(new URL(`/files/${encodeURIComponent(fileId)}`, config.origin).href, {
       method: "GET",
-      headers: { "X-Public-Key": config.publicKey },
+      headers: { "X-Project-Key": config.projectKey },
     });
   } catch (cause) {
     const reason = cause instanceof Error ? `: ${cause.message}` : "";

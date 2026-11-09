@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest";
 import { createClient, DynjandiError } from "../src/index";
-import { aFile, fakeFetch, jsonResponse, PUBLIC_KEY, UPLOAD_BODY } from "./helpers";
+import { aFile, fakeFetch, jsonResponse, PROJECT_KEY, UPLOAD_BODY } from "./helpers";
 
 async function failureOf(fetchMock: ReturnType<typeof fakeFetch>): Promise<DynjandiError> {
-  const client = createClient({ publicKey: PUBLIC_KEY, fetch: fetchMock });
+  const client = createClient({ projectKey: PROJECT_KEY, fetch: fetchMock });
   const failure = await client.upload(aFile()).then(
     () => undefined,
     (error: unknown) => error,
@@ -30,7 +30,7 @@ describe("DynjandiError", () => {
 describe("service errors", () => {
   test.each([
     [400, "No file provided"],
-    [401, "Invalid public key"],
+    [401, "Invalid project key"],
     [413, "File exceeds maximum allowed size"],
     [500, "Internal server error"],
   ])("maps a %i response to a DynjandiError with the service's message", async (status, error) => {
@@ -94,21 +94,21 @@ describe("malformed 2xx body", () => {
   });
 });
 
-describe("the public key", () => {
+describe("the project key", () => {
   test("never appears in a thrown error's message, even when the service echoes it", async () => {
     const failures = await Promise.all([
-      failureOf(fakeFetch(() => jsonResponse({ error: "Invalid public key" }, 401))),
-      failureOf(fakeFetch(() => jsonResponse({ error: `Unknown key ${PUBLIC_KEY}` }, 401))),
+      failureOf(fakeFetch(() => jsonResponse({ error: "Invalid project key" }, 401))),
+      failureOf(fakeFetch(() => jsonResponse({ error: `Unknown key ${PROJECT_KEY}` }, 401))),
       failureOf(
         fakeFetch(() => {
-          throw new TypeError(`could not reach host with ${PUBLIC_KEY}`);
+          throw new TypeError(`could not reach host with ${PROJECT_KEY}`);
         }),
       ),
       failureOf(fakeFetch(() => jsonResponse({ ...UPLOAD_BODY, url: 5 }, 201))),
     ]);
 
     for (const failure of failures) {
-      expect(failure.message).not.toContain(PUBLIC_KEY);
+      expect(failure.message).not.toContain(PROJECT_KEY);
     }
     expect(failures[1]?.message).toBe("Unknown key [redacted]");
     expect(failures[2]?.message).toBe(
@@ -118,7 +118,7 @@ describe("the public key", () => {
 
   test("is not in the message of a refused focal point or invalid options", async () => {
     const client = createClient({
-      publicKey: PUBLIC_KEY,
+      projectKey: PROJECT_KEY,
       fetch: fakeFetch(() => jsonResponse(UPLOAD_BODY, 201)),
     });
     const focalFailure = await client
@@ -126,9 +126,9 @@ describe("the public key", () => {
       .catch((error: unknown) => error);
 
     expect(focalFailure).toBeInstanceOf(DynjandiError);
-    expect((focalFailure as DynjandiError).message).not.toContain(PUBLIC_KEY);
-    expect(() => createClient({ publicKey: PUBLIC_KEY, origin: PUBLIC_KEY })).toThrow(
-      expect.objectContaining({ message: expect.not.stringContaining(PUBLIC_KEY) }),
+    expect((focalFailure as DynjandiError).message).not.toContain(PROJECT_KEY);
+    expect(() => createClient({ projectKey: PROJECT_KEY, origin: PROJECT_KEY })).toThrow(
+      expect.objectContaining({ message: expect.not.stringContaining(PROJECT_KEY) }),
     );
   });
 });

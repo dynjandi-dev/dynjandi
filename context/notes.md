@@ -11,3 +11,14 @@ Non-blocking observations from the review gates of #36 (rename-public-key-to-pro
   differing-headers 400, and the README never mentions the deprecated `X-Public-Key` alias.
 - **Phase 1:** the `projectKey` scheme description joins D6's first two sentences with a colon; the
   Authentication section uses them verbatim. Cosmetic.
+- **Phase 2:** `packages/sdk/src/client.ts` checks the resolved key only for `""`, so a JS caller bypassing
+  the types can pass `publicKey: null`, a number, an object or whitespace and it is sent coerced (while
+  `projectKey: null` is refused). Same as HEAD for non-strings, and the service answers 401; a
+  `typeof key !== "string"` refusal would close it.
+- **Phase 2:** `packages/sdk/tests/project-key.test.ts`'s `getFile` alias test answers with an upload body
+  and swallows the resulting error with `.catch(() => undefined)`; `FILE_BODY` from `helpers.ts` would let
+  it assert success. It also casts `(error as DynjandiError)`, as `errors.test.ts` already does.
+- **Phase 2:** `packages/sdk/tests/live/smoke.test.ts` keeps the helper name `requirePublicKey`, which
+  could follow the variable when it is renamed.
+- **Phase 2:** `ClientOptions` is now a type alias (an interface cannot extend a union), so a consumer's
+  `interface X extends ClientOptions` stops compiling. Worth a line in the changeset at `/feature-close`.

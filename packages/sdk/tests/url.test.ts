@@ -1,12 +1,12 @@
 import { AppError } from "@dynjandi/transform-grammar/builder";
 import { describe, expect, test, vi } from "vitest";
 import { createClient, DynjandiError, type FileRecord, type UploadResult } from "../src/index";
-import { PUBLIC_KEY } from "./helpers";
+import { PROJECT_KEY } from "./helpers";
 
 const ID = "00000000-0000-4000-8000-000000000000";
 const CDN = "https://cdn.dynjandi.dev";
 
-const client = createClient({ publicKey: PUBLIC_KEY });
+const client = createClient({ projectKey: PROJECT_KEY });
 
 function failureOf(run: () => string): DynjandiError {
   try {
@@ -81,7 +81,7 @@ describe("client.url", () => {
 
   test("builds on the client's origin", () => {
     const custom = createClient({
-      publicKey: PUBLIC_KEY,
+      projectKey: PROJECT_KEY,
       origin: "https://img.example.com/ignored",
     });
 
@@ -182,7 +182,7 @@ describe("client.url with a stored file", () => {
 
   test("makes no request", () => {
     const fetchSpy = vi.fn<typeof fetch>();
-    const quiet = createClient({ publicKey: PUBLIC_KEY, fetch: fetchSpy });
+    const quiet = createClient({ projectKey: PROJECT_KEY, fetch: fetchSpy });
 
     quiet.url({ id: ID, focalX: 0.42, focalY: 0.18 }, { crop: CROP });
     quiet.url(ID, { width: 100 });

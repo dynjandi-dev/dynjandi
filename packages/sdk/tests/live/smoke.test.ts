@@ -69,7 +69,7 @@ function expectAvifFtyp(bytes: Uint8Array): void {
 }
 
 describe("live service", () => {
-  const client = createClient({ publicKey: requirePublicKey() });
+  const client = createClient({ projectKey: requirePublicKey() });
   let fileId: string;
 
   test("uploads an image, reads its record back and serves variants of it", {
