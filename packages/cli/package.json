@@ -38,6 +38,7 @@
     "@types/node": "22.20.4"
   },
   "dependencies": {
+    "@dynjandi/transform-grammar": "0.3.0",
     "@northguild/gmt": "^1.21.0"
   }
 }

@@ -35,3 +35,13 @@ Non-blocking review observations for the active feature (#37, local-dev-server).
 - `openStore` runs before `listen`, so a taken port still creates `.dynjandi/`; `server.test.ts`'s `mkdtemp`
   directory is never removed.
 - The gmt lint plugin `tooling/dates.md` asks for is not set up anywhere in the repo (predates this feature).
+
+## Phase 3
+
+- Unpinned (mutations survive): only renderer `200` counts as success (any other 2xx is a `502`), the
+  `Render failed` fallback for a non-JSON error body, the Docker ready-line wording, and the 30 s default
+  `DEFAULT_RENDER_TIMEOUT_MS`.
+- On a renderer 5xx the renderer's own `{ error }` text is neither read nor logged; stderr gets the status only.
+- `renderer.ts` casts `original as Uint8Array<ArrayBuffer>` for fetch's body typing, and names a helper
+  `describe` (Vitest's name).
+- The stub's `/focal-suggestion` answer omits `detector` (grammar README); nothing calls it yet.

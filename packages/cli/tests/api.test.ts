@@ -41,6 +41,7 @@ beforeEach(async () => {
     dataDir,
     projectKey: KEY,
     maxFileSize: CAP,
+    renderer: { kind: "none" },
     log: (line) => void logs.push(line),
   });
 });
@@ -565,7 +566,13 @@ describe("persistence", () => {
   it("keeps files across a restart on the same data directory", async () => {
     const { id } = await uploadOk();
     await running.close();
-    running = await startServer({ port: 0, dataDir, projectKey: KEY, maxFileSize: CAP });
+    running = await startServer({
+      port: 0,
+      dataDir,
+      projectKey: KEY,
+      maxFileSize: CAP,
+      renderer: { kind: "none" },
+    });
     const response = await fetch(`${running.url}/${id}`);
     expect(response.status).toBe(200);
     expect(await readFile(join(dataDir, "files", id, "original"))).toHaveLength(10);

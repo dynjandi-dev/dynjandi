@@ -21,7 +21,7 @@ publishes yet**; so far it holds DOM-free helpers — the point (`FocalPoint`, `
 `stepPoint`) and the crop geometry (`cropWindow`, `pointFromRect`) — plus, at the separate `./element` entry (the only one with a side effect), the `<dynjandi-focal-picker>` custom element: image surface, marker, X/Y inputs and DOM crop previews (`ratios`) — and, at `./react`, the `FocalPicker` component over it (React and `react-dom` are optional peers, `^19.0.0`). No runtime dependencies. Its only tie to the SDK is a type-level test, so `@dynjandi/sdk`
 is a `devDependency`. The design is in issue #4.
 
-`packages/cli` is a public package (`0.0.0`, built to `dist/`, bin `dynjandi`) that is likewise **not on npm and that nothing publishes**. So far it holds `dynjandi dev`, an unfinished local server on `127.0.0.1` that stores uploads on disk and serves file records and originals (`POST /upload`, `GET /files/{id}`, `GET /<id>`, `GET /health`); variants come in a later phase of issue #37. Its one runtime dependency is `@northguild/gmt`; `@dynjandi/sdk` is a `devDependency`.
+`packages/cli` is a public package (`0.0.0`, built to `dist/`, bin `dynjandi`) that is likewise **not on npm and that nothing publishes**. So far it holds `dynjandi dev`, an unfinished local server on `127.0.0.1` that stores uploads on disk and serves file records and originals (`POST /upload`, `GET /files/{id}`, `GET /<id>`, `GET /health`) and variants rendered by a renderer at `--renderer-url` (starting one with Docker comes in a later phase of issue #37). Its runtime dependencies are `@northguild/gmt` and `@dynjandi/transform-grammar` (pinned exactly); `@dynjandi/sdk` is a `devDependency`.
 
 | Concern | Target |
 |---|---|
@@ -45,7 +45,7 @@ packages/sdk/     @dynjandi/sdk: src/ (client, upload, files, http, url, next, e
                   scripts/check-package.mjs, tsconfig.json, tsconfig.build.json (emits dist/, gitignored), README.md
 packages/focal-picker/ @dynjandi/focal-picker (public, unpublished): src/ (point, geometry, index, element, react), tests/ (point.test.ts, readme.test.ts + handoff/ (the README's hand-off snippets as compiled files), browser/react.browser.test.tsx, geometry.test.ts, browser/element.browser.test.ts, browser/previews.browser.test.ts, browser/a11y.browser.test.ts (axe-core), browser/e2e.browser.test.ts (keyboard, forced colours, reflow, reduced motion, drag cost), browser/support.ts (shared helpers), sdk-compat.test-d.ts = the type-level
                   tie to the SDK, browser/ = tests run in Chromium), vitest.config.ts (node and browser projects), scripts/check-package.mjs, tsconfig.json, tsconfig.build.json (emits dist/, gitignored), README.md
-packages/cli/     @dynjandi/cli (public, unpublished): src/ (cli, dev/options, dev/server), tests/, scripts/check-package.mjs, tsconfig.json,
+packages/cli/     @dynjandi/cli (public, unpublished): src/ (cli, dev/options, dev/server, dev/variants, dev/renderer), tests/, scripts/check-package.mjs, tsconfig.json,
                   tsconfig.build.json (emits dist/, gitignored), README.md
 packages/checker/ @dynjandi/checker (private): src/ (check, render, main, style.css), index.html, scripts/build.mjs (esbuild into
                   dist/, gitignored), tests/, README.md

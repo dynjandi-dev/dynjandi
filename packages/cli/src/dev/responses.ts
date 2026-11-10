@@ -30,10 +30,10 @@ export function sendError(
 }
 
 /**
- * An original: the stored type, cached for good, and locked down so an uploaded SVG or HTML cannot run
- * script on this origin (D9).
+ * An original or a variant: its type, cached for good (D10 keeps no server-side cache, so the browser is the
+ * cache), and locked down so an uploaded SVG or HTML cannot run script on this origin (D9).
  */
-export function sendOriginal(response: ServerResponse, contentType: string, bytes: Buffer): void {
+export function sendImage(response: ServerResponse, contentType: string, bytes: Uint8Array): void {
   response.writeHead(200, {
     "Content-Type": contentType,
     "Content-Length": bytes.byteLength,

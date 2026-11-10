@@ -1,5 +1,7 @@
 import { createServer } from "node:http";
 import { createApiHandler, pathOf } from "./api.js";
+import type { RendererChoice } from "./options.js";
+import { createRenderer, probeRenderer } from "./renderer.js";
 import { openStore } from "./store.js";
 
 // The server binds loopback only: it and the renderer are unauthenticated, so there is no --host (D7).
@@ -14,6 +16,10 @@ export interface StartServerOptions {
   projectKey: string;
   /** Bytes (D7). */
   maxFileSize: number;
+  /** Where variants are rendered (D2). */
+  renderer: RendererChoice;
+  /** How long a render may take; 30 s unless a test shortens it. */
+  renderTimeoutMs?: number;
   /** Receives one line per request (method, path, status), without a newline. */
   log?: (line: string) => void;
 }
@@ -27,8 +33,13 @@ export interface RunningServer {
 export async function startServer(options: StartServerOptions): Promise<RunningServer> {
   const log = options.log ?? (() => {});
   const store = await openStore(options.dataDir, log);
+  if (options.renderer.kind === "url") await probeRenderer(options.renderer.url, log);
   const handle = createApiHandler({
     store,
+    renderer: createRenderer(options.renderer, {
+      log,
+      ...(options.renderTimeoutMs === undefined ? {} : { timeoutMs: options.renderTimeoutMs }),
+    }),
     projectKey: options.projectKey,
     maxFileSize: options.maxFileSize,
     log,

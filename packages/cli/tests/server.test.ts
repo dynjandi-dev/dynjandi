@@ -14,7 +14,12 @@ import { startServer } from "../src/dev/server.js";
 
 // Uploads and files are tested in api.test.ts; these tests only need somewhere to keep them.
 const DATA_DIR = mkdtempSync(join(tmpdir(), "dynjandi-server-"));
-const SERVER = { dataDir: DATA_DIR, projectKey: "dynjandi-local", maxFileSize: 1000 };
+const SERVER = {
+  dataDir: DATA_DIR,
+  projectKey: "dynjandi-local",
+  maxFileSize: 1000,
+  renderer: { kind: "none" } as const,
+};
 
 describe("startServer", () => {
   let logs: string[];

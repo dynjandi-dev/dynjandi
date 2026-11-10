@@ -21,7 +21,7 @@ Run "dynjandi <command> --help" for a command's options.
 function describeRenderer(options: DevOptions): string {
   switch (options.renderer.kind) {
     case "docker":
-      return "docker";
+      return "docker (not built yet: variant URLs answer 502)";
     case "url":
       return options.renderer.url;
     case "none":
@@ -67,6 +67,7 @@ async function runDev(args: string[], io: Io): Promise<number> {
     dataDir: options.dataDir,
     projectKey: options.projectKey,
     maxFileSize: options.maxFileSize,
+    renderer: options.renderer,
     log: (line) => io.stderr(`${line}\n`),
   });
   io.stdout(readyLine(server.url, options));

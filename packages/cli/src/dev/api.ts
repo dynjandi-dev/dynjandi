@@ -1,7 +1,9 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { checkProjectKey } from "./project-key.js";
-import { sendError, sendJson, sendOriginal } from "./responses.js";
+import type { Renderer } from "./renderer.js";
+import { sendError, sendImage, sendJson } from "./responses.js";
 import { type FileStore, isFileId } from "./store.js";
+import { serveVariant } from "./variants.js";
 
 // What a multipart body adds to the file: boundaries and part headers. The body cap is the file cap plus this,
 // so a file of exactly `maxFileSize` can be uploaded; the file's own size is checked again after parsing (D7).
@@ -13,6 +15,7 @@ const DECIMAL = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i;
 
 export interface ApiOptions {
   store: FileStore;
+  renderer: Renderer;
   projectKey: string;
   /** Bytes. */
   maxFileSize: number;
@@ -186,7 +189,7 @@ async function getOriginal(
     sendError(response, 404, "File not found");
     return;
   }
-  sendOriginal(response, stored.record.contentType, stored.bytes);
+  sendImage(response, stored.record.contentType, stored.bytes);
 }
 
 async function route(
@@ -216,7 +219,11 @@ async function route(
   }
 
   const rest = path.slice(1);
-  if (rest.startsWith("files/") && !rest.slice("files/".length).includes("/")) {
+  // `/<id>/-/<ops>`: everything after `/-/` is the chain, slashes included; `/<id>/-/` alone has an empty one.
+  const variant = /^([^/]+)\/-\/(.*)$/.exec(rest);
+  if (variant !== null) {
+    await serveVariant(response, options, variant[1] ?? "", variant[2] ?? "");
+  } else if (rest.startsWith("files/") && !rest.slice("files/".length).includes("/")) {
     await getFile(request, response, options, rest.slice("files/".length));
   } else if (rest !== "" && !rest.includes("/")) {
     await getOriginal(response, options, rest);

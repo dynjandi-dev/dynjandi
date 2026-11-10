@@ -38,6 +38,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@dynjandi/transform-grammar':
+        specifier: 0.3.0
+        version: 0.3.0
       '@northguild/gmt':
         specifier: ^1.21.0
         version: 1.21.0
@@ -242,6 +245,9 @@ packages:
 
   '@dynjandi/transform-grammar@0.2.0':
     resolution: {integrity: sha512-vcogcY4bROKKDPfiNleiXOMlh6SVvC8PlU/BGAPgeq3KtcIWGlzTBebvzjH3Rq+kJEll8ijm8oZnyAID91e5PA==}
+
+  '@dynjandi/transform-grammar@0.3.0':
+    resolution: {integrity: sha512-wI1MhDbUMB1iN3eZ3SOQz+ck/a5VPfi6s6XIe5ljON03o2p9BX9VAOqdORYJzD5zzIOkiumzbnOckOZjTyO+5w==}
 
   '@esbuild/aix-ppc64@0.28.2':
     resolution: {integrity: sha512-XExcO+dvLKvVtNTibSTBej1NCAbaGhWn9Ww1ZPx80qsahhPFe/8jgWP0IchNe0F3HwkU7n8ejhH8bjonqht8mQ==}
@@ -1419,6 +1425,10 @@ snapshots:
       sisteransi: 1.0.5
 
   '@dynjandi/transform-grammar@0.2.0':
+    dependencies:
+      zod: 4.6.5
+
+  '@dynjandi/transform-grammar@0.3.0':
     dependencies:
       zod: 4.6.5
 

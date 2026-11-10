@@ -4,9 +4,10 @@ The command line for [Dynjandi](https://cdn.dynjandi.dev), an image CDN. It will
 server for development, so an app can upload and fetch images without the live service.
 
 **Status: not published, and `dynjandi dev` is unfinished.** This package is not on npm, and nothing
-publishes it. Today `dev` stores uploads on disk and answers the upload, file-record and original routes
-below. It does not serve variants (resized or cropped URLs) yet and does not start a renderer; those are not
-claimed here until they land.
+publishes it. Today `dev` stores uploads on disk and answers the upload, file-record, original and variant
+routes below. Variants are rendered by a renderer you have already started and name with `--renderer-url`.
+`dev` does not start a renderer itself yet (that needs Docker and comes later), so without either renderer
+flag variant URLs answer `502`.
 
 ## Run it from a checkout
 
@@ -30,11 +31,12 @@ dynjandi dev [options]
 | `--data-dir <path>` | where files are kept | `.dynjandi` in the working directory |
 | `--project-key <key>` | the key the server accepts | `dynjandi-local` |
 | `--renderer-url <url>` | a renderer that is already running (`http:` or `https:`) | none |
-| `--no-renderer` | run without a renderer (cannot be combined with `--renderer-url`) | off |
+| `--no-renderer` | run without a renderer; variant URLs answer `502` (cannot be combined with `--renderer-url`) | off |
 | `--max-file-size <bytes>` | largest upload accepted | `26214400` |
 | `--help` | print the options | |
 
-`--renderer-url` and `--no-renderer` are checked and shown in the ready line but do nothing yet. The server
+Give `dev` one of the two renderer flags. With neither, `dev` will start the renderer with Docker, but that is
+not built yet: the ready line says so and variant URLs answer `502` with a message naming both flags. The server
 listens on `127.0.0.1` only, and there is no `--host`: it is not meant to be reachable from another machine.
 
 ### The project key
@@ -62,6 +64,7 @@ API description (`packages/spec/openapi.yaml`).
 | `POST /upload` | `201 {"file","id","url","focalX","focalY"}`, with `url` set to `/<id>`. The request is `multipart/form-data` with a `file` part and, optionally, both `focalX` and `focalY` (0 to 1). No point is chosen for you: without both, the point is `null`. |
 | `GET /files/{id}` | `200` with the file's record: `id`, `contentType`, `bytes`, `originalFilename`, `source` (`"upload"`), `focalX`, `focalY`, `createdAt`. Needs the key. |
 | `GET /<id>` | `200` with the original bytes under the type they were uploaded with. Needs no key. |
+| `GET /<id>/-/<operations>` | A variant: the original, transformed by the renderer. See *Variant URLs*. |
 | `GET /health` | `200 {"ok":true}` |
 | any other `GET` | `404` |
 | any other method | `405 {"error":"Method not allowed"}` |
@@ -75,6 +78,34 @@ Originals carry `Cache-Control: public, max-age=31536000, immutable`, `X-Content
 `Content-Security-Policy: default-src 'none'; sandbox`, so an uploaded SVG or HTML file is shown under its own
 type but cannot run script on the server's origin. The server sends no CORS headers: upload and read from
 your server, not from a browser page, as with the live service.
+
+### Variant URLs
+
+`GET /<id>/-/<operations>` takes the same operation chain as the live service, for example
+`/<id>/-/resize/800x600/format/webp` (the grammar is in `packages/spec/openapi.yaml`, *Variant URL grammar*).
+The server parses the chain with `@dynjandi/transform-grammar` (pinned to `0.3.0`), and only then looks for the
+file. It sends the original's bytes to `POST /transform` on the renderer, with the parsed chain in the
+`X-Dynjandi-Ops` header (base64url of its JSON), and answers with the renderer's bytes and `Content-Type`.
+Variants carry the same three headers as originals. Nothing is cached on the server: each request renders
+again, and the browser keeps what it fetched. There is no `Accept` negotiation: the chain's `format` decides
+the type, or the renderer does when the chain names none.
+
+| Request | Answer |
+|---|---|
+| a chain that does not parse, or `/<id>/-/` with none | `400` with the grammar's message, such as `Unknown operation: bogus`; the renderer is not called |
+| an unknown id | `404 {"error":"File not found"}` |
+| the renderer answers `4xx` or `504` | the same status and message, such as `400 Unsupported input format` |
+| the renderer is unreachable or answers anything else | `502 {"error":"Renderer unavailable"}`; standard error names the URL |
+| the renderer does not answer within 30 seconds | `504 {"error":"Render request timed out"}` |
+| started with `--no-renderer` | `502`, with a message naming `--no-renderer` |
+| started with neither renderer flag | `502`, with a message saying Docker start-up is not built yet and naming `--renderer-url` and `--no-renderer` |
+
+With `--renderer-url`, `dev` asks the renderer's `GET /health` once at start-up and warns on standard error if
+it does not answer; it starts either way. The renderer is unauthenticated, so run it on your own machine only.
+
+**How close a local render is to production.** A local render matches production on dimensions, `Content-Type`
+and status, but not on bytes: the renderer's `entropy` and `attention` crops, for one, can pick windows that
+differ by a few hundred pixels. Do not use it for pixel-exact comparison.
 
 ### The data directory
 
