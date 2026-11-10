@@ -144,9 +144,29 @@ shell trace or a pasted log would not.
 (set -a; . ./.env; set +a; pnpm --filter @dynjandi/cli run test:live)
 ```
 
-Runs the CLI's contract cases (`packages/cli/tests/contract/cases.ts`) against `https://cdn.dynjandi.dev` with the test project's key in `DYNJANDI_SMOKE_PROJECT_KEY`: both groups, **api** (upload, the file record, every `400`/`401`/`404` message, `no-store`, the original's bytes, `/<id>/-/` and unknown-operation `400`, the `OPTIONS` `405`) and **render** (a 40x20 PNG resized and cropped to four sizes, each read from the PNG header, one `format/webp/` variant, and the immutable `Cache-Control` on the original and the variants). It is one upload and five variants per run, each variant counting against the test project's cap. The offline run of the **api** group is in `pnpm test`; a case one target fails and the other passes is drift. `format/webp/` and the four sizes are not run offline until the real renderer is (issue #37, Phase 6).
+Runs the CLI's contract cases (`packages/cli/tests/contract/cases.ts`) against `https://cdn.dynjandi.dev` with the test project's key in `DYNJANDI_SMOKE_PROJECT_KEY`: both groups, **api** (upload, the file record, every `400`/`401`/`404` message, `no-store`, the original's bytes, `/<id>/-/` and unknown-operation `400`, the `OPTIONS` `405`) and **render** (a 40x20 PNG resized and cropped to four sizes, each read from the PNG header, one `format/webp/` variant, and the immutable `Cache-Control` on the original and the variants). It is one upload and five variants per run, each variant counting against the test project's cap. The offline run of the **api** group is in `pnpm test`; a case one target fails and the other passes is drift. `format/webp/` and the four sizes are not run offline, since a stub renderer cannot decode a picture; the end-to-end run below runs them against the real renderer.
 
 Like the smoke test it needs the key and the network, fails rather than skips when the key is unset, and never prints it; `.github/workflows/smoke.yml` runs it after the SDK smoke test, with the secret given to that step only. Never `cat` `.env` or echo the variable.
+
+### End-to-end run with the real renderer
+
+```bash
+pnpm build
+pnpm --filter @dynjandi/cli run test:e2e
+```
+
+Starts the built `dynjandi dev` (`packages/cli/dist/cli.js`) as a child process with `--port 0` and a temporary
+`--data-dir`, takes the origin from its ready line, and drives it with the real SDK and the real renderer image
+that `dev` starts with Docker: an upload with a focal point, `getFile`, the original, the four sizes and the
+`webp` variant of the contract's **render** cases (built with `client.url()` and read back from the PNG header
+and the WebP signature), then `SIGTERM`: exit code `0` and no `dynjandi-renderer-*` container left.
+
+Preconditions: `pnpm build` has been run (it uses the built bin, not the source); Docker is installed and its
+daemon is running; the pinned image (`ghcr.io/dynjandi-dev/renderer:0.2.0@sha256:...`, in
+`packages/cli/src/dev/renderer-image.ts`) is pulled or pullable, and while the package is private that needs a
+`docker login ghcr.io` with an account that can read it. A first pull is about 100 MB; the test allows 180
+seconds to start. `pnpm test` excludes `tests/e2e/`. It is not in the gate because it needs Docker and the
+registry and can go red with nothing in the diff; whether CI runs it is open (issue #37, section 9 Q2).
 
 ### Focal crop capture
 

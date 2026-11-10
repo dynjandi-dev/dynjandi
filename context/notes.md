@@ -62,9 +62,9 @@ Non-blocking review observations for the active feature (#37, local-dev-server).
 
 ## Phase 5
 
-- Unverified until a real `docker` runs (Phase 6): whether `docker pull <tag@sha256>` contacts the registry with
-  the image already cached. If it does, `dev` fails offline or with an expired `docker login` although
-  `docker run` would work; a `docker image inspect` before the pull would avoid it.
+- Checked with the real `docker` (Phase 6): with the pinned image cached, `docker pull <tag@sha256>` under an
+  empty `DOCKER_CONFIG` exits `0` ("Image is up to date"), so an expired `docker login` does not stop `dev`. A
+  fully offline machine was not tried.
 - Also unverified against real Docker: the stderr of a down daemon and of a denied ghcr pull (the fake's strings
   are guesses); a terminal Ctrl-C during the pull can race the abort and exit `1` "could not pull"; a signal
   in the first health poll can send `docker stop` before the container exists; `docker stop` waits out its
@@ -82,3 +82,26 @@ Non-blocking review observations for the active feature (#37, local-dev-server).
   under PID 1 (six were left by development runs and killed by hand).
 - Tests use `as` casts (`JSON.parse(line) as string[]`, the spawn options); the header comment of
   `docker.test.ts` does not list the three tests the loopback added (each cites §4.5 beside it).
+- `docker.test.ts` "starts the pinned image locked down…" failed once under a load average near 176
+  (`callsTo("run")[0]` undefined) and passed five reruns: the fake's `port` answers at once and the stub is
+  already healthy, so the ready line can precede the fake `run` process logging its arguments. Real
+  `docker port` fails until the container exists; a fake that does the same removes the race.
+
+## Phase 6
+
+- The CI recipe waits on `dev`'s `/health`, which answers whether or not the renderer is up, and the image has no
+  `HEALTHCHECK`; waiting on the service's own `http://localhost:8080/health` too would be safer.
+- The CI recipe publishes `8080:8080` on every interface (harmless on hosted runners); the compose example binds
+  `127.0.0.1`.
+- The compose shell line runs `dynjandi dev`, which is not on `PATH` outside this repository until the package is
+  published (§9 Q3); the CI snippet uses `node packages/cli/dist/cli.js`.
+- `context/verify.md` *Test* still names only the `tests/live/` excludes; its e2e section says `tests/e2e/` is
+  excluded too.
+- `dev.e2e.test.ts`'s container check filters on `dynjandi-renderer-`, so another running `dev` would fail it;
+  `dynjandi-renderer-${child.pid}-` would tie it to this run. A broken ready line fails after the 180 s
+  `beforeAll` timeout rather than with a message, and `afterAll` dereferences an unset `child` if setup fails early.
+- The e2e test cannot see `--read-only` or the image reference (both pinned by `docker.test.ts`); the `stack.md`
+  *Runtime* row is unchanged, the CLI's dependencies and Docker being in the paragraph above it.
+- Named arrow consts `fixture` and `casesFor` in the e2e test (`typescript/rules.md` prefers `function`).
+- `packages/cli/tests/contract/local.test.ts:9` says "the real one is Phase 6's"; still true, but a phase reference
+  that reads oddly once the plan is archived.

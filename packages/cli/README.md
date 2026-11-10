@@ -1,10 +1,10 @@
 # @dynjandi/cli
 
-The command line for [Dynjandi](https://cdn.dynjandi.dev), an image CDN. It will run a local Dynjandi
+The command line for [Dynjandi](https://cdn.dynjandi.dev), an image CDN. Its `dev` command runs a local Dynjandi
 server for development, so an app can upload and fetch images without the live service.
 
-**Status: not published, and `dynjandi dev` is unfinished.** This package is not on npm, and nothing
-publishes it. Today `dev` stores uploads on disk and answers the upload, file-record, original and variant
+**Status: not published.** This package is not on npm, and nothing
+publishes it. `dev` stores uploads on disk and answers the upload, file-record, original and variant
 routes below. Variants are rendered by the Dynjandi renderer: by default `dev` starts it with Docker, or you
 can name one that is already running with `--renderer-url`. The renderer's image is private until
 the organization makes it public, so until then only an account that can read it can use the Docker default.
@@ -144,6 +144,65 @@ alone. If git already tracks files in the directory, it warns on standard error.
 temporary name and renamed, and its record is written last, so a record always means a whole file; temporary
 leftovers from a crash are removed at start and nothing else is ever deleted. To start again, remove the
 directory.
+
+### In CI, and with Docker Compose
+
+`dev` starting a container needs Docker on the machine that runs it. Where a runner already runs the renderer
+for you, skip that and name it with `--renderer-url`.
+
+**GitHub Actions.** A job runs the renderer as a service container, which a step on the runner reaches at
+`localhost:<port>`. Service containers need a Linux runner (`ubuntu-latest`), and `options` takes
+`docker create` options except `--network`, so `--read-only --tmpfs /tmp` goes there. Pin the same tag and
+digest `dev` uses (`RENDERER_IMAGE` in `packages/cli/src/dev/renderer-image.ts`). While the image is private,
+the service needs `credentials` that can read it; once it is public, drop them.
+
+```yaml
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      renderer:
+        image: ghcr.io/dynjandi-dev/renderer:0.2.0@sha256:0231fbce1d35499bfeafb1b238951b164aafd6d3c61a491f0b27ee7d10e5b7d6
+        ports:
+          - 8080:8080
+        options: --read-only --tmpfs /tmp
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_READ_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      # ... install and build @dynjandi/cli (it is not on npm yet), then:
+      - run: node packages/cli/dist/cli.js dev --renderer-url http://localhost:8080 --port 4600 &
+      # ... wait for http://127.0.0.1:4600/health, then run tests against origin http://127.0.0.1:4600
+```
+
+`GHCR_READ_TOKEN` is a secret holding a token that can read the package; it is yours to create, and nothing
+in this repository holds one. If the runner has no Docker at all, use `--no-renderer`: every variant URL
+answers `502`, and the rest of the server works.
+
+**Docker Compose.** Run the renderer in your project's compose file and start `dev` on the host against it.
+Publish the port on `127.0.0.1` only: the renderer is unauthenticated.
+
+```yaml
+services:
+  renderer:
+    image: ghcr.io/dynjandi-dev/renderer:0.2.0@sha256:0231fbce1d35499bfeafb1b238951b164aafd6d3c61a491f0b27ee7d10e5b7d6
+    ports:
+      - "127.0.0.1:8080:8080"
+    read_only: true
+    tmpfs:
+      - /tmp
+```
+
+```sh
+docker compose up -d renderer
+dynjandi dev --renderer-url http://127.0.0.1:8080
+```
+
+### The end-to-end test
+
+`pnpm --filter @dynjandi/cli run test:e2e` starts the built `dynjandi dev` with the real renderer image and
+drives it with the real SDK. It is not part of `pnpm test`; `context/verify.md` lists its preconditions.
 
 ### Point the SDK at the server
 

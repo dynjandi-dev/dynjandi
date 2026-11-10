@@ -17,7 +17,7 @@ source and placeholder helpers.
 | [`packages/spec`](packages/spec/README.md) | The OpenAPI spec for the API (not published to npm; served from this repository) |
 | [`packages/sdk`](packages/sdk/README.md) | `@dynjandi/sdk`, a TypeScript client built on `fetch`, `FormData` and `Blob` |
 | [`packages/focal-picker`](packages/focal-picker/README.md) | `@dynjandi/focal-picker`, a focal point picker for a CMS or admin (not published to npm; it holds the DOM-free point and crop-geometry helpers, the `<dynjandi-focal-picker>` element with its crop previews, and a React wrapper at `./react`) |
-| [`packages/cli`](packages/cli/README.md) | `@dynjandi/cli`, the `dynjandi` command line; `dynjandi dev` is unfinished (not published to npm) |
+| [`packages/cli`](packages/cli/README.md) | `@dynjandi/cli`, the `dynjandi` command line; `dynjandi dev` runs a local server for development (not published to npm) |
 | [`packages/checker`](packages/checker/README.md) | A static page that checks which operations of an Uploadcare URL Dynjandi supports (private; deployed to GitHub Pages by `pages.yml` once Pages is enabled: <https://dynjandi-dev.github.io/dynjandi/>) |
 
 ## Using it
@@ -32,6 +32,11 @@ The spec is at
 ([how it is versioned](packages/spec/README.md)).
 For `next/image`, `@dynjandi/sdk/next` is a custom loader; see
 [Using with Next.js](packages/sdk/README.md#using-with-nextjs).
+
+To develop without the live service, `dynjandi dev` (in [`packages/cli`](packages/cli/README.md); not on npm
+yet) runs a local server on `127.0.0.1` that stores uploads on disk and renders variants with the Dynjandi
+renderer, started with Docker or taken from `--renderer-url`. Point the SDK's `origin` at it with the key
+`dynjandi-local`.
 
 ## Developing
 

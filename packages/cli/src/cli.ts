@@ -20,7 +20,7 @@ export interface Io {
 const HELP = `Usage: dynjandi <command> [options]
 
 Commands:
-  dev    run a local Dynjandi server (unfinished)
+  dev    run a local Dynjandi server
 
 Run "dynjandi <command> --help" for a command's options.
 `;

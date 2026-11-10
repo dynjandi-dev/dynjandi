@@ -28,7 +28,7 @@ export class UsageError extends Error {}
 
 export const DEV_HELP = `Usage: dynjandi dev [options]
 
-Run a local Dynjandi server on 127.0.0.1. This command is unfinished.
+Run a local Dynjandi server on 127.0.0.1.
 
 Options:
   --port <n>              port to listen on, 0 for a free one (default ${DEFAULT_PORT})
