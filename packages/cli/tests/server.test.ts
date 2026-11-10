@@ -1,4 +1,7 @@
+import { mkdtempSync } from "node:fs";
 import { createServer } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { main } from "../src/cli.js";
 import { startServer } from "../src/dev/server.js";
@@ -9,13 +12,17 @@ import { startServer } from "../src/dev/server.js";
 // method, path and status (D12); the server binds 127.0.0.1 only (D7); API answers carry Cache-Control: no-store
 // and a JSON content type (section 4.2).
 
+// Uploads and files are tested in api.test.ts; these tests only need somewhere to keep them.
+const DATA_DIR = mkdtempSync(join(tmpdir(), "dynjandi-server-"));
+const SERVER = { dataDir: DATA_DIR, projectKey: "dynjandi-local", maxFileSize: 1000 };
+
 describe("startServer", () => {
   let logs: string[];
   let running: Awaited<ReturnType<typeof startServer>>;
 
   beforeEach(async () => {
     logs = [];
-    running = await startServer({ port: 0, log: (line) => void logs.push(line) });
+    running = await startServer({ port: 0, ...SERVER, log: (line) => void logs.push(line) });
   });
 
   afterEach(async () => {
@@ -69,7 +76,7 @@ describe("startServer", () => {
   it("stops listening when closed", async () => {
     await running.close();
     await expect(fetch(`${running.url}/health`)).rejects.toThrow();
-    running = await startServer({ port: 0 });
+    running = await startServer({ port: 0, ...SERVER });
   });
 });
 
@@ -80,8 +87,8 @@ describe("startServer when the port is taken", () => {
     const address = blocker.address();
     const port = typeof address === "object" && address !== null ? address.port : 0;
     try {
-      await expect(startServer({ port })).rejects.toThrow(String(port));
-      await expect(startServer({ port })).rejects.toThrow("--port 0 for a free one");
+      await expect(startServer({ port, ...SERVER })).rejects.toThrow(String(port));
+      await expect(startServer({ port, ...SERVER })).rejects.toThrow("--port 0 for a free one");
     } finally {
       await new Promise((done) => blocker.close(done));
     }
@@ -117,7 +124,7 @@ describe("main dev", () => {
     async (signal) => {
       const { out, err, io } = capture();
       const exit = main(
-        ["dev", "--port", "0", "--no-renderer", "--data-dir", "/tmp/dynjandi-test"],
+        ["dev", "--port", "0", "--no-renderer", "--data-dir", `${DATA_DIR}/ready`],
         io,
       );
       const ready = await waitForReadyLine(out);
@@ -127,7 +134,7 @@ describe("main dev", () => {
       expect(Number(origin?.[1])).toBeGreaterThan(0);
       expect(ready.trimEnd().split("\n")).toHaveLength(1);
       expect(ready).toContain("dynjandi-local");
-      expect(ready).toContain("/tmp/dynjandi-test");
+      expect(ready).toContain(`${DATA_DIR}/ready`);
       expect(ready).toContain("none");
 
       const response = await fetch(`${origin?.[0]}/health`);
@@ -142,7 +149,19 @@ describe("main dev", () => {
 
   it("never prints a --project-key value", async () => {
     const { out, err, io } = capture();
-    const exit = main(["dev", "--port", "0", "--no-renderer", "--project-key", "very-secret"], io);
+    const exit = main(
+      [
+        "dev",
+        "--port",
+        "0",
+        "--no-renderer",
+        "--data-dir",
+        DATA_DIR,
+        "--project-key",
+        "very-secret",
+      ],
+      io,
+    );
     await waitForReadyLine(out);
     process.emit("SIGTERM", "SIGTERM");
     await exit;
@@ -156,7 +175,9 @@ describe("main dev", () => {
     const port = typeof address === "object" && address !== null ? address.port : 0;
     try {
       const { out, err, io } = capture();
-      expect(await main(["dev", "--port", String(port), "--no-renderer"], io)).toBe(1);
+      expect(
+        await main(["dev", "--port", String(port), "--no-renderer", "--data-dir", DATA_DIR], io),
+      ).toBe(1);
       expect(out).toEqual([]);
       expect(err.join("")).toContain(String(port));
       expect(err.join("")).toContain("choose another with --port <n>");

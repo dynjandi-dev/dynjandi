@@ -64,6 +64,9 @@ async function runDev(args: string[], io: Io): Promise<number> {
   const stopped = waitForStopSignal();
   const server = await startServer({
     port: options.port,
+    dataDir: options.dataDir,
+    projectKey: options.projectKey,
+    maxFileSize: options.maxFileSize,
     log: (line) => io.stderr(`${line}\n`),
   });
   io.stdout(readyLine(server.url, options));

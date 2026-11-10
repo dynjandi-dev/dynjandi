@@ -1,4 +1,6 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer } from "node:http";
+import { createApiHandler, pathOf } from "./api.js";
+import { openStore } from "./store.js";
 
 // The server binds loopback only: it and the renderer are unauthenticated, so there is no --host (D7).
 const LOOPBACK = "127.0.0.1";
@@ -6,6 +8,12 @@ const LOOPBACK = "127.0.0.1";
 export interface StartServerOptions {
   /** 0 takes a free port. */
   port: number;
+  /** Where files are kept (D5, D6). */
+  dataDir: string;
+  /** The key `POST /upload` and `GET /files/{id}` accept (D1). */
+  projectKey: string;
+  /** Bytes (D7). */
+  maxFileSize: number;
   /** Receives one line per request (method, path, status), without a newline. */
   log?: (line: string) => void;
 }
@@ -16,35 +24,20 @@ export interface RunningServer {
   close: () => Promise<void>;
 }
 
-function sendJson(response: ServerResponse, status: number, body: unknown): void {
-  response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" });
-  response.end(JSON.stringify(body));
-}
-
-// The path as sent, without the query. Not parsed as a URL: "//x" would read as a host.
-function pathOf(request: IncomingMessage): string {
-  return (request.url ?? "/").split("?", 1)[0] ?? "/";
-}
-
-function handleRequest(request: IncomingMessage, response: ServerResponse): void {
-  // GET is the one method answered so far; POST /upload joins it when uploads land (D8).
-  if (request.method !== "GET") {
-    sendJson(response, 405, { error: "Method not allowed" });
-    return;
-  }
-  if (pathOf(request) === "/health") {
-    sendJson(response, 200, { ok: true });
-    return;
-  }
-  sendJson(response, 404, { error: "Not found" });
-}
-
-export function startServer(options: StartServerOptions): Promise<RunningServer> {
+export async function startServer(options: StartServerOptions): Promise<RunningServer> {
+  const log = options.log ?? (() => {});
+  const store = await openStore(options.dataDir, log);
+  const handle = createApiHandler({
+    store,
+    projectKey: options.projectKey,
+    maxFileSize: options.maxFileSize,
+    log,
+  });
   const server = createServer((request, response) => {
     response.on("finish", () => {
-      options.log?.(`${request.method} ${pathOf(request)} ${response.statusCode}`);
+      log(`${request.method} ${pathOf(request)} ${response.statusCode}`);
     });
-    handleRequest(request, response);
+    void handle(request, response);
   });
 
   return new Promise((resolve, reject) => {

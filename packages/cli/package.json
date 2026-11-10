@@ -36,5 +36,8 @@
   "devDependencies": {
     "@dynjandi/sdk": "workspace:*",
     "@types/node": "22.20.4"
+  },
+  "dependencies": {
+    "@northguild/gmt": "^1.21.0"
   }
 }

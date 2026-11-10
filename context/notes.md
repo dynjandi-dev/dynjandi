@@ -16,3 +16,22 @@ Non-blocking review observations for the active feature (#37, local-dev-server).
   "and"s in a row.
 - `--port 04600` is accepted as 4600.
 - `tests/server.test.ts` port-taken case calls `startServer` twice without closing the failed servers.
+
+## Phase 2
+
+- Unpinned rules (mutations survive): the D7 `Content-Length` pre-check alone, the D6 temp-file-then-rename and
+  record-last order, and the explicit `request.resume()` (Node discards the unread body anyway). The large-body
+  subprocess test covers the `Content-Length` path only; the streamed overflow is pinned at small sizes only.
+- `FRAMING = 65_536` in `tests/api.test.ts` copies the implementation's multipart allowance; a file at the cap
+  with more than 64 KiB of other fields is a `413`.
+- `@northguild/gmt` declares `engines.node >=22.16.0`; `@dynjandi/cli` declares `>=22`.
+- §9 Q4 open: `formData()` verified on Node 24.22.1 only; CI's Node 22 leg answers it once the branch is pushed.
+- `getUtcNow()` gives nanosecond `createdAt` (the service writes milliseconds); a bare `Blob` is stored as
+  `originalFilename: "blob"` and no test asserts it (§9 Q7, compared live in Phase 4).
+- `readBody` resolves a client abort as a `413` rather than reaching the 500 path; `trackedFiles` and
+  `removeTemporaryFiles` swallow every error, EACCES included.
+- `scripts/check-package.mjs`'s required list does not name `dist/dev/{api,store,project-key,responses}.js`.
+- `dist/dev/store.d.ts` type-imports `@dynjandi/sdk`, a devDependency (harmless for a bin with no `types`).
+- `openStore` runs before `listen`, so a taken port still creates `.dynjandi/`; `server.test.ts`'s `mkdtemp`
+  directory is never removed.
+- The gmt lint plugin `tooling/dates.md` asks for is not set up anywhere in the repo (predates this feature).
