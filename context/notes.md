@@ -45,3 +45,17 @@ Non-blocking review observations for the active feature (#37, local-dev-server).
 - `renderer.ts` casts `original as Uint8Array<ArrayBuffer>` for fetch's body typing, and names a helper
   `describe` (Vitest's name).
 - The stub's `/focal-suggestion` answer omits `detector` (grammar README); nothing calls it yet.
+
+## Phase 4
+
+- The contract fixture no longer asserts its own `201`; a refused upload shows as the upload case failing plus
+  secondary failures in the cases that use it (still red, less clear).
+- `loopbackOnly` in `tests/contract/local.test.ts` is a prefix check: `http://127.0.0.1:1@example.com/` passes it.
+  Cases only build URLs from `target.origin`; `new URL(url).hostname` would close it.
+- The D9 cache header is asserted against the CDN only (render group); locally it is pinned by `api.test.ts` and
+  `variants.test.ts` until Phase 6 runs **render** against the real renderer.
+- Variant fetches retry on 404/5xx up to 4 times, so a flaky day spends more of the test project's cap.
+- `smoke.yml` keeps `timeout-minutes: 5` with the contract step added; tight only on an already-failing run.
+- §4.6 says "six variants"; its own list is five (four PNG sizes and webp), which is what the suite and docs say.
+- §9 Q7 stays open: `createdAt` is checked for format only, and the fixture is a named `File`, so the bare-`Blob`
+  filename is never sent to the CDN.

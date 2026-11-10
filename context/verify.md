@@ -80,7 +80,9 @@ browser installed (see *Prepare a fresh tree*); without it the browser project f
 uses the `verbose` reporter so the output names the project of every test (`|node|`, `|browser (chromium)|`).
 Failure screenshots land in `packages/focal-picker/.vitest/`, which `.gitignore` lists.
 
-This excludes `packages/sdk/tests/live/`, which needs a secret and the network: see *Not run by Gate 1*.
+The CLI's run includes the offline contract suite (`packages/cli/tests/contract/local.test.ts`): the **api** cases of `packages/cli/tests/contract/cases.ts` against `dynjandi dev` started in process on a free port of `127.0.0.1`, with a `fetch` that refuses any URL outside `127.0.0.1`, so no request leaves the machine.
+
+This excludes `packages/sdk/tests/live/` and `packages/cli/tests/live/`, which need a secret and the network: see *Not run by Gate 1*.
 
 ## Generated types
 
@@ -135,6 +137,16 @@ environment, without printing it:
 
 Never `cat` the file or echo the variable. The test and the SDK keep the key out of their output, but a
 shell trace or a pasted log would not.
+
+### Live contract suite
+
+```bash
+(set -a; . ./.env; set +a; pnpm --filter @dynjandi/cli run test:live)
+```
+
+Runs the CLI's contract cases (`packages/cli/tests/contract/cases.ts`) against `https://cdn.dynjandi.dev` with the test project's key in `DYNJANDI_SMOKE_PROJECT_KEY`: both groups, **api** (upload, the file record, every `400`/`401`/`404` message, `no-store`, the original's bytes, `/<id>/-/` and unknown-operation `400`, the `OPTIONS` `405`) and **render** (a 40x20 PNG resized and cropped to four sizes, each read from the PNG header, one `format/webp/` variant, and the immutable `Cache-Control` on the original and the variants). It is one upload and five variants per run, each variant counting against the test project's cap. The offline run of the **api** group is in `pnpm test`; a case one target fails and the other passes is drift. `format/webp/` and the four sizes are not run offline until the real renderer is (issue #37, Phase 6).
+
+Like the smoke test it needs the key and the network, fails rather than skips when the key is unset, and never prints it; `.github/workflows/smoke.yml` runs it after the SDK smoke test, with the secret given to that step only. Never `cat` `.env` or echo the variable.
 
 ### Focal crop capture
 
