@@ -5,9 +5,9 @@ server for development, so an app can upload and fetch images without the live s
 
 **Status: not published, and `dynjandi dev` is unfinished.** This package is not on npm, and nothing
 publishes it. Today `dev` stores uploads on disk and answers the upload, file-record, original and variant
-routes below. Variants are rendered by a renderer you have already started and name with `--renderer-url`.
-`dev` does not start a renderer itself yet (that needs Docker and comes later), so without either renderer
-flag variant URLs answer `502`.
+routes below. Variants are rendered by the Dynjandi renderer: by default `dev` starts it with Docker, or you
+can name one that is already running with `--renderer-url`. The renderer's image is private until
+the organization makes it public, so until then only an account that can read it can use the Docker default.
 
 ## Run it from a checkout
 
@@ -30,14 +30,37 @@ dynjandi dev [options]
 | `--port <n>` | port to listen on; `0` takes a free one and the ready line shows it | `4600` |
 | `--data-dir <path>` | where files are kept | `.dynjandi` in the working directory |
 | `--project-key <key>` | the key the server accepts | `dynjandi-local` |
-| `--renderer-url <url>` | a renderer that is already running (`http:` or `https:`) | none |
+| `--renderer-url <url>` | a renderer that is already running (`http:` or `https:`), instead of starting one with Docker | starts one with Docker |
 | `--no-renderer` | run without a renderer; variant URLs answer `502` (cannot be combined with `--renderer-url`) | off |
 | `--max-file-size <bytes>` | largest upload accepted | `26214400` |
 | `--help` | print the options | |
 
-Give `dev` one of the two renderer flags. With neither, `dev` will start the renderer with Docker, but that is
-not built yet: the ready line says so and variant URLs answer `502` with a message naming both flags. The server
-listens on `127.0.0.1` only, and there is no `--host`: it is not meant to be reachable from another machine.
+Without a renderer flag, `dev` starts the renderer with Docker (see *The renderer*). The server listens on
+`127.0.0.1` only, and there is no `--host`: it is not meant to be reachable from another machine.
+
+### The renderer
+
+By default `dev` needs Docker on `PATH` and its daemon running. It pulls
+`ghcr.io/dynjandi-dev/renderer:0.2.0`, pinned by digest (the first pull is about 100 MB, and a pull is a
+no-op once the image is here), and runs it with `docker run --rm --read-only --tmpfs /tmp`, its port published
+on `127.0.0.1` only, under the name `dynjandi-renderer-<pid>-<random>`. There is no option to run another image;
+to use a renderer you built yourself, start it and pass `--renderer-url`.
+
+`dev` waits up to 60 seconds, counted from when the container starts (the pull does not count), for the
+renderer's `GET /health` to answer, and only then prints the ready line, which names the image:
+`renderer: docker (ghcr.io/dynjandi-dev/renderer:0.2.0)`. It stops the container when you press Ctrl-C, on
+`SIGTERM`, and when start-up fails. Whatever `docker` prints stays off standard output.
+
+Each failure exits `1`, prints one line on standard error that names the fix and offers `--renderer-url <url>`
+(a renderer you already run, such as a CI service container) and `--no-renderer` (run without one; variant URLs
+answer `502`), and leaves standard output empty:
+
+| Failure | The line says |
+|---|---|
+| `docker` is not on `PATH` | that `docker` was not found, and to install and start Docker |
+| the daemon is not running | Docker's first line of standard error, and to start Docker |
+| the image cannot be pulled, for example you cannot read it | Docker's first line of standard error, and to run `docker login ghcr.io` |
+| the renderer does not become healthy in 60 seconds, or its container exits | the last lines the container printed |
 
 ### The project key
 
@@ -98,7 +121,6 @@ the type, or the renderer does when the chain names none.
 | the renderer is unreachable or answers anything else | `502 {"error":"Renderer unavailable"}`; standard error names the URL |
 | the renderer does not answer within 30 seconds | `504 {"error":"Render request timed out"}` |
 | started with `--no-renderer` | `502`, with a message naming `--no-renderer` |
-| started with neither renderer flag | `502`, with a message saying Docker start-up is not built yet and naming `--renderer-url` and `--no-renderer` |
 
 With `--renderer-url`, `dev` asks the renderer's `GET /health` once at start-up and warns on standard error if
 it does not answer; it starts either way. The renderer is unauthenticated, so run it on your own machine only.
@@ -146,5 +168,5 @@ to standard error, one line per request with its method, path and status.
 | Exit code | When |
 |---|---|
 | `0` | stopped by `SIGINT` or `SIGTERM`, or `--help` |
-| `1` | a failure at run time, such as a port already in use |
+| `1` | a failure at run time, such as a port already in use or a renderer that Docker cannot start |
 | `2` | a usage error: an unknown option, a value out of range, a bad URL; the message is on standard error and standard output stays empty |

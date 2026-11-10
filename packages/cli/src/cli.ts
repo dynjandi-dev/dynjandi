@@ -2,7 +2,14 @@
 import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { DEV_HELP, type DevOptions, parseDevOptions, UsageError } from "./dev/options.js";
+import { RENDERER_IMAGE_TAG } from "./dev/renderer-image.js";
 import { startServer } from "./dev/server.js";
+
+/** Not options: values tests change so the Docker health wait does not take its 60 s. */
+export interface MainSettings {
+  dockerHealthTimeoutMs?: number | undefined;
+  dockerPollIntervalMs?: number | undefined;
+}
 
 /** Where output goes. Each call is one complete chunk, newline included. */
 export interface Io {
@@ -21,7 +28,7 @@ Run "dynjandi <command> --help" for a command's options.
 function describeRenderer(options: DevOptions): string {
   switch (options.renderer.kind) {
     case "docker":
-      return "docker (not built yet: variant URLs answer 502)";
+      return `docker (${RENDERER_IMAGE_TAG})`;
     case "url":
       return options.renderer.url;
     case "none":
@@ -40,11 +47,13 @@ function readyLine(url: string, options: DevOptions): string {
   return `Dynjandi dev server ready at ${url} (${parts.join(", ")})\n`;
 }
 
-function waitForStopSignal(): Promise<void> {
+// Also aborts `cancel`, so a signal that arrives while the renderer is still starting stops that too.
+function waitForStopSignal(cancel: AbortController): Promise<void> {
   return new Promise((resolve) => {
     const onSignal = () => {
       process.off("SIGINT", onSignal);
       process.off("SIGTERM", onSignal);
+      cancel.abort();
       resolve();
     };
     process.on("SIGINT", onSignal);
@@ -52,7 +61,7 @@ function waitForStopSignal(): Promise<void> {
   });
 }
 
-async function runDev(args: string[], io: Io): Promise<number> {
+async function runDev(args: string[], io: Io, settings: MainSettings): Promise<number> {
   const command = parseDevOptions(args, process.cwd());
   if (command.kind === "help") {
     io.stdout(DEV_HELP);
@@ -61,30 +70,41 @@ async function runDev(args: string[], io: Io): Promise<number> {
   const { options } = command;
 
   // Registered before the listener opens, so a signal during start-up is not lost.
-  const stopped = waitForStopSignal();
-  const server = await startServer({
-    port: options.port,
-    dataDir: options.dataDir,
-    projectKey: options.projectKey,
-    maxFileSize: options.maxFileSize,
-    renderer: options.renderer,
-    log: (line) => io.stderr(`${line}\n`),
-  });
-  io.stdout(readyLine(server.url, options));
+  const cancel = new AbortController();
+  const stopped = waitForStopSignal(cancel);
+  let server: Awaited<ReturnType<typeof startServer>>;
+  try {
+    server = await startServer({
+      port: options.port,
+      dataDir: options.dataDir,
+      projectKey: options.projectKey,
+      maxFileSize: options.maxFileSize,
+      renderer: options.renderer,
+      signal: cancel.signal,
+      dockerHealthTimeoutMs: settings.dockerHealthTimeoutMs,
+      dockerPollIntervalMs: settings.dockerPollIntervalMs,
+      log: (line) => io.stderr(`${line}\n`),
+    });
+  } catch (error) {
+    // A stop signal during start-up is a stop (exit 0), not a failure; the container is already stopped.
+    if (cancel.signal.aborted) return 0;
+    throw error;
+  }
+  if (!cancel.signal.aborted) io.stdout(readyLine(server.url, options));
   await stopped;
   await server.close();
   return 0;
 }
 
 /** Runs the command line and returns the exit code: 0 done, 1 runtime failure, 2 usage error (D12). */
-export async function main(argv: string[], io: Io): Promise<number> {
+export async function main(argv: string[], io: Io, settings: MainSettings = {}): Promise<number> {
   const [command, ...rest] = argv;
   try {
     if (command === "--help" || command === "-h") {
       io.stdout(HELP);
       return 0;
     }
-    if (command === "dev") return await runDev(rest, io);
+    if (command === "dev") return await runDev(rest, io, settings);
     io.stderr(
       command === undefined
         ? `dynjandi: no command given\n\n${HELP}`

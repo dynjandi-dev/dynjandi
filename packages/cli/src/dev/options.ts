@@ -34,7 +34,7 @@ Options:
   --port <n>              port to listen on, 0 for a free one (default ${DEFAULT_PORT})
   --data-dir <path>       where files are kept (default ${DEFAULT_DATA_DIR} in the working directory)
   --project-key <key>     the key the server accepts (default ${DEFAULT_PROJECT_KEY})
-  --renderer-url <url>    use a renderer that is already running (http or https)
+  --renderer-url <url>    use a renderer that is already running (http or https), not Docker
   --no-renderer           run without a renderer; variant URLs answer 502
   --max-file-size <bytes> largest upload accepted (default ${DEFAULT_MAX_FILE_SIZE})
   --help                  print this help

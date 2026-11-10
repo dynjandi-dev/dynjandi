@@ -59,3 +59,26 @@ Non-blocking review observations for the active feature (#37, local-dev-server).
 - §4.6 says "six variants"; its own list is five (four PNG sizes and webp), which is what the suite and docs say.
 - §9 Q7 stays open: `createdAt` is checked for format only, and the fixture is a named `File`, so the bare-`Blob`
   filename is never sent to the CDN.
+
+## Phase 5
+
+- Unverified until a real `docker` runs (Phase 6): whether `docker pull <tag@sha256>` contacts the registry with
+  the image already cached. If it does, `dev` fails offline or with an expired `docker login` although
+  `docker run` would work; a `docker image inspect` before the pull would avoid it.
+- Also unverified against real Docker: the stderr of a down daemon and of a denied ghcr pull (the fake's strings
+  are guesses); a terminal Ctrl-C during the pull can race the abort and exit `1` "could not pull"; a signal
+  in the first health poll can send `docker stop` before the container exists; `docker stop` waits out its
+  10 s grace if the renderer ignores SIGTERM as PID 1.
+- Any failing `docker version` reads "Docker is not running … start Docker"; on Linux a socket permission error
+  needs a different fix.
+- Unpinned (mutations survive): the 60 s `DEFAULT_HEALTH_TIMEOUT_MS`, the `container.kill` fallback when
+  `docker stop` fails, `docker port` without the abort signal, a ready line printed when a signal lands between
+  healthy and `listen`, and `localhost` for `127.0.0.1` in the renderer URL.
+- `docker.test.ts`'s `not.toContain(...)` checks on `io.stdout` cannot fail (child output could only reach
+  the real `process.stdout`); D12 is pinned by the last-log-lines assertions instead.
+- `isHealthy` drops the last `/health` fetch error, so the never-healthy message has the container's logs but
+  not why the probe failed.
+- `fake-docker.mjs`'s `run` polls for its stop marker with no lifetime cap, so a red test run leaves it running
+  under PID 1 (six were left by development runs and killed by hand).
+- Tests use `as` casts (`JSON.parse(line) as string[]`, the spawn options); the header comment of
+  `docker.test.ts` does not list the three tests the loopback added (each cites §4.5 beside it).

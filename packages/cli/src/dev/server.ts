@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { createApiHandler, pathOf } from "./api.js";
+import { type DockerRenderer, startDockerRenderer } from "./docker.js";
 import type { RendererChoice } from "./options.js";
 import { createRenderer, probeRenderer } from "./renderer.js";
 import { openStore } from "./store.js";
@@ -20,6 +21,11 @@ export interface StartServerOptions {
   renderer: RendererChoice;
   /** How long a render may take; 30 s unless a test shortens it. */
   renderTimeoutMs?: number;
+  /** Aborting while the Docker renderer starts stops its container and rejects `RendererStartAborted`. */
+  signal?: AbortSignal | undefined;
+  /** How long the Docker renderer has to become healthy (60 s) and how often it is asked; tests shorten them. */
+  dockerHealthTimeoutMs?: number | undefined;
+  dockerPollIntervalMs?: number | undefined;
   /** Receives one line per request (method, path, status), without a newline. */
   log?: (line: string) => void;
 }
@@ -33,10 +39,39 @@ export interface RunningServer {
 export async function startServer(options: StartServerOptions): Promise<RunningServer> {
   const log = options.log ?? (() => {});
   const store = await openStore(options.dataDir, log);
-  if (options.renderer.kind === "url") await probeRenderer(options.renderer.url, log);
+  // Healthy before the listener opens, so the ready line only ever follows a renderer that answers (D12).
+  let container: DockerRenderer | undefined;
+  let choice: Exclude<RendererChoice, { kind: "docker" }>;
+  if (options.renderer.kind === "docker") {
+    container = await startDockerRenderer({
+      log,
+      signal: options.signal,
+      healthTimeoutMs: options.dockerHealthTimeoutMs,
+      pollIntervalMs: options.dockerPollIntervalMs,
+    });
+    choice = { kind: "url", url: container.url };
+  } else {
+    choice = options.renderer;
+    if (choice.kind === "url") await probeRenderer(choice.url, log);
+  }
+  try {
+    return await listen(options, store, choice, container, log);
+  } catch (error) {
+    await container?.stop();
+    throw error;
+  }
+}
+
+async function listen(
+  options: StartServerOptions,
+  store: Awaited<ReturnType<typeof openStore>>,
+  choice: Exclude<RendererChoice, { kind: "docker" }>,
+  container: DockerRenderer | undefined,
+  log: (line: string) => void,
+): Promise<RunningServer> {
   const handle = createApiHandler({
     store,
-    renderer: createRenderer(options.renderer, {
+    renderer: createRenderer(choice, {
       log,
       ...(options.renderTimeoutMs === undefined ? {} : { timeoutMs: options.renderTimeoutMs }),
     }),
@@ -69,11 +104,16 @@ export async function startServer(options: StartServerOptions): Promise<RunningS
       }
       resolve({
         url: `http://${address.address}:${address.port}`,
-        close: () =>
-          new Promise<void>((done, fail) => {
-            server.close((error) => (error ? fail(error) : done()));
-            server.closeAllConnections();
-          }),
+        close: async () => {
+          try {
+            await new Promise<void>((done, fail) => {
+              server.close((error) => (error ? fail(error) : done()));
+              server.closeAllConnections();
+            });
+          } finally {
+            await container?.stop();
+          }
+        },
       });
     });
   });

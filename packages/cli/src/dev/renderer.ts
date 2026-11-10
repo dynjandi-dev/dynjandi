@@ -102,8 +102,14 @@ function rendererAt(baseUrl: string, settings: RendererSettings): Renderer {
   };
 }
 
-/** The renderer for the choice made on the command line. */
-export function createRenderer(choice: RendererChoice, settings: RendererSettings): Renderer {
+/**
+ * The renderer for the choice made on the command line. A Docker choice is a running container by now, so
+ * the caller passes its URL (`startServer` does).
+ */
+export function createRenderer(
+  choice: Exclude<RendererChoice, { kind: "docker" }>,
+  settings: RendererSettings,
+): Renderer {
   switch (choice.kind) {
     case "url":
       return rendererAt(choice.url, settings);
@@ -111,14 +117,6 @@ export function createRenderer(choice: RendererChoice, settings: RendererSetting
       return {
         render: async () =>
           unavailable(`${UNAVAILABLE}: dynjandi dev was started with --no-renderer`),
-      };
-    case "docker":
-      // Phase 5 starts the container; until then this default must not pretend to work.
-      return {
-        render: async () =>
-          unavailable(
-            `${UNAVAILABLE}: starting the renderer with Docker is not built yet; pass --renderer-url <url> to use a running renderer, or --no-renderer to run without one`,
-          ),
       };
   }
 }

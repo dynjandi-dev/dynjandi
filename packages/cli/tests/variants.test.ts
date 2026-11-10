@@ -18,8 +18,8 @@ import { type StubRenderer, startStubRenderer } from "./support/stub-renderer.js
 // - variant headers are D9's three; D10: no server-side cache, so each request reaches the renderer again.
 // - the renderer's 4xx and 504 pass through, an unreachable renderer or any other status is 502
 //   `Renderer unavailable`, no answer in the timeout is 504 `Render request timed out` (plan section 4.3,
-//   step 5; core#364 D8). `--no-renderer` is 502 naming the flag (the Phase 3 scope); the Docker default
-//   is 502 naming `--renderer-url` and `--no-renderer` because starting Docker is Phase 5.
+//   step 5; core#364 D8). `--no-renderer` is 502 naming the flag (the Phase 3 scope). The Docker default is
+//   not tested here: it starts a container, which docker.test.ts plays against a fake `docker`.
 const KEY = "dynjandi-local";
 const IMMUTABLE = "public, max-age=31536000, immutable";
 const UNKNOWN_ID = "123e4567-e89b-42d3-a456-426614174000";
@@ -32,7 +32,7 @@ let logs: string[];
 let stub: StubRenderer;
 let running: Awaited<ReturnType<typeof startServer>> | undefined;
 
-async function start(renderer: RendererChoice) {
+async function start(renderer: Exclude<RendererChoice, { kind: "docker" }>) {
   running = await startServer({
     port: 0,
     dataDir,
@@ -256,18 +256,6 @@ describe("a variant URL without a renderer", () => {
     const response = await fetch(`${server.url}/${id}/-/resize/10x10`);
     expect(response.status).toBe(502);
     const body = (await response.json()) as { error: string };
-    expect(body.error).toContain("--no-renderer");
-  });
-
-  it("answers 502 saying Docker start-up is not built, and naming both flags, by default", async () => {
-    const server = await start({ kind: "docker" });
-    const id = await upload(server);
-    const response = await fetch(`${server.url}/${id}/-/resize/10x10`);
-    expect(response.status).toBe(502);
-    const body = (await response.json()) as { error: string };
-    expect(body.error).toContain("Docker");
-    expect(body.error).toContain("not built yet");
-    expect(body.error).toContain("--renderer-url");
     expect(body.error).toContain("--no-renderer");
   });
 });
