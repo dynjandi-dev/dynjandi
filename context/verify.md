@@ -51,12 +51,12 @@ pnpm build
 pnpm check:package
 ```
 
-`pnpm build` compiles `@dynjandi/sdk` into `packages/sdk/dist/` and `@dynjandi/focal-picker` into
-`packages/focal-picker/dist/` (ESM JavaScript and `.d.ts`; the SDK's build also copies the generated types
+`pnpm build` compiles `@dynjandi/sdk` into `packages/sdk/dist/`, `@dynjandi/focal-picker` into
+`packages/focal-picker/dist/` and `@dynjandi/cli` into `packages/cli/dist/` (ESM JavaScript and `.d.ts`; the SDK's build also copies the generated types
 in, which `tsc` does not emit) under `NodeNext` resolution, so a relative import
 missing its `.js` extension fails here and not in a consumer's build.
 
-`pnpm check:package` runs for the SDK and for `@dynjandi/focal-picker`. It packs the SDK exactly as `publish.yml` does (`pnpm pack`, whose `prepack` builds and
+`pnpm check:package` runs for the SDK, for `@dynjandi/focal-picker` and for `@dynjandi/cli`. It packs the SDK exactly as `publish.yml` does (`pnpm pack`, whose `prepack` builds and
 copies the root `LICENSE` in) and asserts the tarball holds `dist/`, `README.md`, `LICENSE` and
 `package.json` and **nothing else** (so no `src/`, `tests/`, `scripts/` or `node_modules`), that its
 `package.json` is not private and has no `workspace:`, `file:` or `link:` specifier, and then runs
@@ -65,7 +65,7 @@ holds, which is the state between releases, so the dry run is skipped (with a me
 `npm view @dynjandi/sdk@<version>` returns that version; the assertions always run. The real dry run is
 therefore seen on the change that bumps the version. The picker is not on npm at all, so `npm view` finds
 nothing and its dry run always runs. Its tarball allowlist is the same four entries, and it requires
-`dist/index.js`, `dist/index.d.ts`, `dist/element.js`, `dist/element.d.ts`, `dist/react.js` and `dist/react.d.ts`. It also fails when the packed `package.json` has `dependencies`, or when React and `react-dom` are not both optional peers (`peerDependenciesMeta`) or any other peer is present.
+`dist/index.js`, `dist/index.d.ts`, `dist/element.js`, `dist/element.d.ts`, `dist/react.js` and `dist/react.d.ts`. It also fails when the packed `package.json` has `dependencies`, or when React and `react-dom` are not both optional peers (`peerDependenciesMeta`) or any other peer is present. The CLI's tarball allowlist is the same four entries, and it requires `dist/cli.js`, `dist/dev/options.js` and `dist/dev/server.js`; its `bin.dynjandi` must exist in the tarball and start with a `#!/usr/bin/env node` line. It is not on npm either, so its dry run always runs.
 
 ## Test
 

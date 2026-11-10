@@ -36,6 +36,15 @@ importers:
         specifier: 20.14.5
         version: 20.14.5
 
+  packages/cli:
+    devDependencies:
+      '@dynjandi/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@types/node':
+        specifier: 22.20.4
+        version: 22.20.4
+
   packages/focal-picker:
     devDependencies:
       '@dynjandi/sdk':
