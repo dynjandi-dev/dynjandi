@@ -8,13 +8,24 @@
 //   slow-pull     like ok, but `pull` takes 1500 ms
 //   crashes       `run` prints a line and exits 1
 // FAKE_DOCKER_PORT is the host port `docker port` reports.
+// Like the real `docker port`, it fails (exit 1, "No public port" on stderr) until the container is running,
+// that is until `run` has logged its arguments and left the `${log}.running` marker. A refused `port` attempt
+// is not appended to the log, so the log only ever holds the one attempt that answered, and `run` is always
+// logged before it.
+// `run` also gives up on its own after RUN_LIFETIME_MS (two minutes: the longest legitimate test waits
+// 30 s on the health check), so a red or killed test run cannot leave it behind under PID 1.
 import { appendFileSync, existsSync, writeFileSync } from "node:fs";
 
 const args = process.argv.slice(2);
 const log = process.env.FAKE_DOCKER_LOG;
 const scenario = process.env.FAKE_DOCKER_SCENARIO ?? "ok";
 const stopMarker = `${log}.stopped`;
-appendFileSync(log, `${JSON.stringify(args)}\n`);
+const runningMarker = `${log}.running`;
+// Read once, so that logging and answering a `port` always agree on whether the container is running.
+const running = existsSync(runningMarker);
+const RUN_LIFETIME_MS = 120_000;
+// A refused `port` is not logged: only the attempt that answers is.
+if (!(args[0] === "port" && !running)) appendFileSync(log, `${JSON.stringify(args)}\n`);
 
 switch (args[0]) {
   case "version":
@@ -42,12 +53,20 @@ switch (args[0]) {
       process.stdout.write("boom\n");
       process.exit(1);
     }
-    // Stay up, as an attached container does, until `docker stop` leaves its marker.
-    setInterval(() => {
-      if (existsSync(stopMarker)) process.exit(0);
-    }, 10);
+    writeFileSync(runningMarker, "");
+    // Stay up, as an attached container does, until `docker stop` leaves its marker or the lifetime is spent.
+    {
+      const startedAt = Date.now();
+      setInterval(() => {
+        if (existsSync(stopMarker) || Date.now() - startedAt > RUN_LIFETIME_MS) process.exit(0);
+      }, 10);
+    }
     break;
   case "port":
+    if (!running) {
+      process.stderr.write(`Error: No public port '${args[2]}' published for ${args[1]}\n`);
+      process.exit(1);
+    }
     process.stdout.write(`127.0.0.1:${process.env.FAKE_DOCKER_PORT}\n`);
     break;
   case "stop":
