@@ -43,8 +43,9 @@ function describeRenderer(options: DevOptions): string {
 
 // One line: the origin, the key only when it is the default (a --project-key value is never printed),
 // the data directory and the renderer (D12).
-function readyLine(url: string, options: DevOptions): string {
+function readyLine(url: string, options: DevOptions, containerOrigin: string | undefined): string {
   const parts = [
+    ...(containerOrigin === undefined ? [] : [`containers: ${containerOrigin}`]),
     ...(options.isDefaultProjectKey ? [`project key: ${options.projectKey}`] : []),
     `data: ${options.dataDir}`,
     `renderer: ${describeRenderer(options)}`,
@@ -54,13 +55,14 @@ function readyLine(url: string, options: DevOptions): string {
 
 // D19: the ready line as one JSON object. `projectKey` only when it is the default; a --project-key value
 // is never printed. The image is the pinned tag, as in the sentence.
-function readyJson(url: string, options: DevOptions): string {
+function readyJson(url: string, options: DevOptions, containerOrigin: string | undefined): string {
   const renderer =
     options.renderer.kind === "docker"
       ? { kind: "docker", image: RENDERER_IMAGE_TAG }
       : options.renderer;
   return `${JSON.stringify({
     origin: url,
+    ...(containerOrigin === undefined ? {} : { containerOrigin }),
     ...(options.isDefaultProjectKey ? { projectKey: options.projectKey } : {}),
     dataDir: options.dataDir,
     renderer,
@@ -110,6 +112,7 @@ async function runDev(args: string[], io: Io, settings: MainSettings): Promise<n
       maxFileSize: options.maxFileSize,
       renderer: options.renderer,
       allowHosts: options.allowHosts,
+      containers: options.containers,
       signal: cancel.signal,
       dockerHealthTimeoutMs: settings.dockerHealthTimeoutMs,
       dockerPollIntervalMs: settings.dockerPollIntervalMs,
@@ -127,7 +130,10 @@ async function runDev(args: string[], io: Io, settings: MainSettings): Promise<n
     await server.close();
     return 0;
   }
-  const ready = options.json ? readyJson(server.url, options) : readyLine(server.url, options);
+  const { containerOrigin } = server;
+  const ready = options.json
+    ? readyJson(server.url, options, containerOrigin)
+    : readyLine(server.url, options, containerOrigin);
   // Under `--` stdout belongs to the command (D18).
   if (toRun === undefined) io.stdout(ready);
   else io.stderr(ready);
@@ -142,7 +148,11 @@ async function runDev(args: string[], io: Io, settings: MainSettings): Promise<n
   try {
     return await runCommand(
       toRun,
-      { DYNJANDI_ORIGIN: server.url, DYNJANDI_PROJECT_KEY: options.projectKey },
+      {
+        DYNJANDI_ORIGIN: server.url,
+        DYNJANDI_PROJECT_KEY: options.projectKey,
+        ...(containerOrigin === undefined ? {} : { DYNJANDI_CONTAINER_ORIGIN: containerOrigin }),
+      },
       { terminal: settings.terminal },
     );
   } finally {

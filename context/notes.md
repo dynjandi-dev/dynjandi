@@ -28,3 +28,19 @@ Non-blocking review observations for #43, by phase. Read by nobody; `/feature-cl
   no-assertions rule; `files.test.ts`'s `rejection()` helper narrows with `instanceof` instead.
 - `packages/spec/README.md:32` and the SDK README's *`upload`* line run past the prevailing wrap width.
 - A non-http `apiOrigin` (`file:///x`) passes validation and fails only at request time, as `origin` already does.
+
+## Phase 2 — `--containers`: the way in for containers, and the origin they use
+
+- A gateway equal to `127.0.0.1` is planned twice (`["127.0.0.1","127.0.0.1"]`); the second bind would fail as
+  "port N is already in use on 127.0.0.1", a misleading line. Unrealistic for a Docker bridge.
+- No test uploads with `dynjandi-local` on the second listener (D4); it is pinned only through the shared
+  handler, which the `421`-on-both test shows.
+- The `--json`-under-`--` test with `very-secret` writes the environment report but never reads
+  `DYNJANDI_CONTAINER_ORIGIN`; the value cannot hold the key by construction.
+- No test covers SIGTERM while `docker network inspect` is running (the `RendererStartAborted` rethrow in
+  `readContainerPlan`).
+- The `--help` test's `not.toContain("--host ")` passes only because the help says `--host:`.
+- `packages/cli/README.md` has a double blank line before `### Host names`.
+- `DockerResult` is exported from `docker.ts` but imported nowhere else; `containers.ts` uses
+  `Awaited<ReturnType<typeof runDocker>>`. `const gatewayText = gateway;` in `containers.ts` is a redundant alias.
+- `packages/cli/src/dev/docker.ts` was not on the phase's Files line; the `runDocker` export is what §4.1 needs.

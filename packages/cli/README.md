@@ -64,11 +64,36 @@ dynjandi dev [options] -- <command> [args...]
 | `--no-renderer` | run without a renderer; variant URLs answer `502` (cannot be combined with `--renderer-url`) | off |
 | `--max-file-size <bytes>` | largest upload accepted | `26214400` |
 | `--allow-host <name>` | also answer to this `Host` name (repeatable; an exact DNS name, no port, no wildcard; see *Host names*) | none |
+| `--containers` | also let containers reach the server (see *From containers*) | off |
 | `--json` | print the ready line as one JSON object (see *Output and exit codes*) | off |
 | `--help` | print the options | |
 
 Without a renderer flag, `dev` starts the renderer with Docker (see *The renderer*). The server listens on
-`127.0.0.1` only, and there is no `--host`: it is not meant to be reachable from another machine. A request for a `Host` name the server does not know is refused (see *Host names*).
+`127.0.0.1` only, and there is no `--host`: it takes no address of your choosing, because an address such as `0.0.0.0` would put an unauthenticated server and a printed key on your network. The one flag that listens anywhere else is `--containers` (see *From containers*), and it never listens on a wildcard address. A request for a `Host` name the server does not know is refused (see *Host names*).
+
+### From containers
+
+`--containers` is for an app that runs in a Docker container and calls this server. `dev` runs
+`docker network inspect bridge` once, reads the default bridge's gateway, and listens on:
+
+- `127.0.0.1`, as always; and
+- the gateway too, but only when this machine holds that address. That is Docker Engine on Linux, where the
+  gateway is typically `172.17.0.1`. On Docker Desktop (macOS) no interface holds it, so `dev` listens on
+  `127.0.0.1` alone and a container reaches it as `host.docker.internal`.
+
+Both listeners use one port; with `--port 0` the loopback one takes a free port and the other takes the same.
+`dev` never listens on `0.0.0.0` or `::`, which reach every network the machine is on. Both listeners accept the
+same `Host` names and the same project key as without the flag, the default `dynjandi-local` included. The
+second listener is for this machine and its containers, not for other machines; on Linux, check that your
+firewall does not publish the bridge address.
+
+The origin a container uses is `http://<gateway>:<port>` where `dev` listens on the gateway, and
+`http://host.docker.internal:<port>` otherwise. `dev` reports it in three places, and only with `--containers`: a
+`containers: <origin>` part first in the ready line's parentheses, `containerOrigin` in `--json`, and
+`DYNJANDI_CONTAINER_ORIGIN` in the environment of a command under `--`. It exits `1` with one line on standard
+error when `docker` is missing or its inspect fails, and when the gateway is not an IP address or is `0.0.0.0` or
+`::`. A port already in use on the gateway fails the same way, naming `--port`.
+
 
 ### Host names
 
@@ -301,13 +326,14 @@ dynjandi dev -- pnpm test
 ```
 
 Everything after the first `--` is a command and its arguments. Once the server (and the renderer) is ready,
-`dev` runs the command, without a shell and with its standard input, output and error inherited, and with two
+`dev` runs the command, without a shell and with its standard input, output and error inherited, and with these
 variables added to its environment:
 
 | Variable | Value |
 |---|---|
 | `DYNJANDI_ORIGIN` | the server's origin, `http://127.0.0.1:<port>`; pass it to the SDK as `origin` |
 | `DYNJANDI_PROJECT_KEY` | the key the server accepts: `dynjandi-local`, or your `--project-key` value |
+| `DYNJANDI_CONTAINER_ORIGIN` | only with `--containers`: the origin a container uses to reach the server (see *From containers*) |
 
 When the command exits, `dev` stops the server and the container and exits with the command's code, or with
 `128 + n` if signal `n` ended it (`137` for `SIGKILL`, `143` for `SIGTERM`). `SIGTERM` sent to `dev` is
@@ -361,7 +387,8 @@ Run under `dynjandi dev -- <command>`, the two variables are set. Started on its
 ### Output and exit codes
 
 Without `--`, standard output holds one line when the server is ready: the origin, the project key (only when
-it is the default; a `--project-key` value is never printed), the data directory and the renderer. Everything
+it is the default; a `--project-key` value is never printed), the data directory and the renderer. With
+`--containers`, `containers: <origin>` comes first in the parentheses. Everything
 else goes to standard error, one line per request with its method, path and status. Under `--`, the ready line
 goes to standard error and the request lines are off (see *Run a command against the server*).
 
@@ -372,7 +399,7 @@ goes to standard error and the request lines are off (see *Run a command against
 ```
 
 `renderer` is `{"kind":"docker","image":"<tag>"}`, `{"kind":"url","url":"<url>"}` or `{"kind":"none"}`.
-`projectKey` is present only when it is the default. Errors stay one line on standard error.
+`projectKey` is present only when it is the default. `containerOrigin` is present only with `--containers`. Errors stay one line on standard error.
 
 | Exit code | When |
 |---|---|

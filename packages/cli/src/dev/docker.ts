@@ -46,7 +46,7 @@ export class RendererStartAborted extends Error {
   }
 }
 
-interface DockerResult {
+export interface DockerResult {
   code: number | null;
   stdout: string;
   stderr: string;
@@ -55,7 +55,7 @@ interface DockerResult {
 // `spawn` with an argument array and no shell, so nothing here is ever parsed by one. Standard output and
 // error are piped into the result, never inherited: whatever `docker` prints must not reach the CLI's stdout (D12).
 // `onLine` receives each complete line of either stream as it arrives, for output a reader should see live.
-function runDocker(
+export function runDocker(
   args: string[],
   signal?: AbortSignal,
   onLine?: (line: string) => void,

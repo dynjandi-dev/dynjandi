@@ -36,10 +36,35 @@ describe("parseDevOptions defaults", () => {
         isDefaultProjectKey: true,
         renderer: { kind: "docker" },
         maxFileSize: 26_214_400,
+        containers: false,
         json: false,
         command: undefined,
       },
     });
+  });
+});
+
+// D1: --containers is the only way the listener grows, and it is a flag with no value; there is no --host.
+describe("parseDevOptions --containers (D1)", () => {
+  it("reads --containers, alone and before --", () => {
+    expect(parse("--containers")).toMatchObject({ options: { containers: true } });
+    expect(parse("--containers", "--", "cmd")).toMatchObject({
+      options: { containers: true, command: ["cmd"] },
+    });
+  });
+
+  it("leaves a --containers after -- to the command", () => {
+    expect(parse("--", "cmd", "--containers")).toMatchObject({
+      options: { containers: false, command: ["cmd", "--containers"] },
+    });
+  });
+
+  it("takes no value: a value is a positional, which dev rejects", () => {
+    expect(() => parse("--containers", "yes")).toThrow();
+  });
+
+  it("has no --host", () => {
+    expect(() => parse("--host", "0.0.0.0")).toThrow();
   });
 });
 
@@ -183,6 +208,15 @@ describe("main usage errors", () => {
     const { out, io } = capture();
     await main(["dev", "--help"], io);
     expect(out.join("")).toContain("--allow-host <name>");
+  });
+
+  it("lists --containers in the help, and says there is no way to choose an address", async () => {
+    const { out, io } = capture();
+    await main(["dev", "--help"], io);
+    const help = out.join("");
+    expect(help).toContain("--containers");
+    expect(help).toContain("DYNJANDI_CONTAINER_ORIGIN");
+    expect(help).not.toContain("--host ");
   });
 
   it("prints dev's help on stdout and exits 0", async () => {
