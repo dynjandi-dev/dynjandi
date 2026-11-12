@@ -14,6 +14,24 @@ import { type StoredFile, type UrlOptions, url } from "./url.js";
 
 export const DEFAULT_ORIGIN = "https://cdn.dynjandi.dev";
 
+/**
+ * The origin of an `http:` or `https:` URL; anything else throws `DynjandiError` (status 0) with `message`.
+ * Parsing alone is not enough: `host.docker.internal:4600`, with no scheme, parses as the scheme
+ * `host.docker.internal:` and has the origin `"null"`, which would only fail at the first request.
+ */
+export function httpOrigin(value: string, message: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch (cause) {
+    throw new DynjandiError(message, 0, { cause });
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new DynjandiError(message, 0);
+  }
+  return parsed.origin;
+}
+
 /** The project key, given as `projectKey` or as the deprecated `publicKey`, never both. */
 type KeyOption =
   | {
@@ -28,8 +46,18 @@ type KeyOption =
     };
 
 export type ClientOptions = KeyOption & {
-  /** The service origin. Defaults to `https://cdn.dynjandi.dev`. */
-  origin?: string;
+  /**
+   * The service origin that every URL the SDK hands out is on: `upload`'s `url`, `url()`, `srcset`,
+   * `pictureSources` and `placeholder`. Defaults to `https://cdn.dynjandi.dev`. Use the origin your
+   * users' browsers reach.
+   */
+  origin?: string | undefined;
+  /**
+   * The origin that `upload` and `getFile` send their requests, and the project key, to. Defaults to
+   * `origin`. Set it when your server reaches the service under another name than browsers do, such as
+   * an app in a container calling `dynjandi dev` on the host. The key goes here and nowhere else.
+   */
+  apiOrigin?: string | undefined;
   /** The `fetch` to use. Defaults to `globalThis.fetch`; tests inject their own. */
   fetch?: typeof fetch;
 };
@@ -84,16 +112,22 @@ export function createClient(options: ClientOptions): Client {
     throw new DynjandiError("createClient needs a non-empty projectKey.", 0);
   }
 
-  let origin: string;
-  try {
-    origin = new URL(options.origin ?? DEFAULT_ORIGIN).origin;
-  } catch (cause) {
-    throw new DynjandiError("createClient needs an absolute origin URL.", 0, { cause });
-  }
+  const origin = httpOrigin(
+    options.origin ?? DEFAULT_ORIGIN,
+    "createClient needs an absolute origin URL, starting http:// or https://.",
+  );
+  const apiOrigin =
+    options.apiOrigin === undefined
+      ? origin
+      : httpOrigin(
+          options.apiOrigin,
+          "createClient needs an absolute apiOrigin URL, starting http:// or https://.",
+        );
 
   const config = {
     projectKey,
     origin,
+    apiOrigin,
     fetch: options.fetch ?? globalThis.fetch,
   };
 

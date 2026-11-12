@@ -32,7 +32,7 @@
     "prepack": "pnpm run build && cp ../../LICENSE LICENSE",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --exclude \"tests/live/**\" --exclude \"tests/e2e/**\"",
-    "test:e2e": "vitest run tests/e2e",
+    "test:e2e": "vitest run tests/e2e --no-file-parallelism",
     "test:live": "vitest run tests/live"
   },
   "devDependencies": {

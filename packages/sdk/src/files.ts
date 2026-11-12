@@ -65,7 +65,7 @@ export async function getFile(config: UploadConfig, fileId: string): Promise<Fil
   let response: Response;
   try {
     const { fetch } = config;
-    response = await fetch(new URL(`/files/${encodeURIComponent(fileId)}`, config.origin).href, {
+    response = await fetch(new URL(`/files/${encodeURIComponent(fileId)}`, config.apiOrigin).href, {
       method: "GET",
       headers: { "X-Project-Key": config.projectKey },
     });

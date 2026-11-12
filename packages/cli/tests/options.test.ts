@@ -13,6 +13,18 @@ function parse(...args: string[]) {
   return parseDevOptions(args, CWD);
 }
 
+describe("parseDevOptions --allow-host (D5)", () => {
+  it("collects repeated names, lower-cased, and leaves allowHosts out without the flag", () => {
+    const command = parse("--allow-host", "dev.test", "--allow-host", "App.Example");
+    expect(command.kind === "run" && command.options.allowHosts).toEqual([
+      "dev.test",
+      "app.example",
+    ]);
+    const none = parse();
+    expect(none.kind === "run" && "allowHosts" in none.options).toBe(false);
+  });
+});
+
 describe("parseDevOptions defaults", () => {
   it("uses the decided defaults when no option is given", () => {
     expect(parse()).toEqual({
@@ -24,10 +36,35 @@ describe("parseDevOptions defaults", () => {
         isDefaultProjectKey: true,
         renderer: { kind: "docker" },
         maxFileSize: 26_214_400,
+        containers: false,
         json: false,
         command: undefined,
       },
     });
+  });
+});
+
+// D1: --containers is the only way the listener grows, and it is a flag with no value; there is no --host.
+describe("parseDevOptions --containers (D1)", () => {
+  it("reads --containers, alone and before --", () => {
+    expect(parse("--containers")).toMatchObject({ options: { containers: true } });
+    expect(parse("--containers", "--", "cmd")).toMatchObject({
+      options: { containers: true, command: ["cmd"] },
+    });
+  });
+
+  it("leaves a --containers after -- to the command", () => {
+    expect(parse("--", "cmd", "--containers")).toMatchObject({
+      options: { containers: false, command: ["cmd", "--containers"] },
+    });
+  });
+
+  it("takes no value: a value is a positional, which dev rejects", () => {
+    expect(() => parse("--containers", "yes")).toThrow();
+  });
+
+  it("has no --host", () => {
+    expect(() => parse("--host", "0.0.0.0")).toThrow();
   });
 });
 
@@ -144,6 +181,12 @@ describe("main usage errors", () => {
     // D18: `--` with nothing after it has no command to run.
     [["dev", "--"]],
     [["dev", "--no-renderer", "--"]],
+    // D5: --allow-host takes an exact DNS name.
+    [["dev", "--allow-host", ""]],
+    [["dev", "--allow-host", "10.0.0.1"]],
+    [["dev", "--allow-host", "a:1"]],
+    [["dev", "--allow-host", "*.test"]],
+    [["dev", "--allow-host"]],
     [["nonsense"]],
     [[]],
   ])("exits 2 with stderr and empty stdout for %j", async (argv) => {
@@ -151,6 +194,29 @@ describe("main usage errors", () => {
     expect(await main(argv, io)).toBe(2);
     expect(out).toEqual([]);
     expect(err.join("")).not.toBe("");
+  });
+
+  it("names the offending --allow-host value on stderr", async () => {
+    const { err, io } = capture();
+    await main(["dev", "--allow-host", "*.test"], io);
+    expect(err.join("")).toContain(
+      '--allow-host takes an exact name, not a wildcard, got "*.test"',
+    );
+  });
+
+  it("lists --allow-host in the help", async () => {
+    const { out, io } = capture();
+    await main(["dev", "--help"], io);
+    expect(out.join("")).toContain("--allow-host <name>");
+  });
+
+  it("lists --containers in the help, and says there is no way to choose an address", async () => {
+    const { out, io } = capture();
+    await main(["dev", "--help"], io);
+    const help = out.join("");
+    expect(help).toContain("--containers");
+    expect(help).toContain("DYNJANDI_CONTAINER_ORIGIN");
+    expect(help).not.toContain("--host ");
   });
 
   it("prints dev's help on stdout and exits 0", async () => {

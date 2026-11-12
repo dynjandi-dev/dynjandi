@@ -58,6 +58,23 @@ describe("getFile", () => {
     expect(firstGetRequest(fetchMock).url).toBe(`https://images.example.com/files/${FILE_ID}`);
   });
 
+  test("reads from apiOrigin with the key, and makes no request to origin", async () => {
+    const fetchMock = fakeFetch(() => jsonResponse(FILE_BODY, 200));
+    const client = createClient({
+      projectKey: PROJECT_KEY,
+      origin: "http://127.0.0.1:4600",
+      apiOrigin: "http://host.docker.internal:4600/ignored",
+      fetch: fetchMock,
+    });
+
+    await client.getFile(FILE_ID);
+
+    const request = firstGetRequest(fetchMock);
+    expect(request.url).toBe(`http://host.docker.internal:4600/files/${FILE_ID}`);
+    expect(request.headers.get("X-Project-Key")).toBe(PROJECT_KEY);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   test("accepts a record with no stored point and no original filename", async () => {
     const body = { ...FILE_BODY, focalX: null, focalY: null, originalFilename: null };
     const { client } = clientAnswering(() => jsonResponse(body, 200));

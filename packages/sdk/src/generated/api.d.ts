@@ -94,7 +94,8 @@ export interface components {
             id: string;
             /**
              * @description The image's path, `/<id>`, relative to the service origin. Resolve it against the origin
-             *     the request was sent to.
+             *     the request was sent to, or, when the service is called under a different name than browsers
+             *     use for it, against the origin browsers use.
              */
             url: string;
             /** @description The stored horizontal focal point, or `null` when none was given. */

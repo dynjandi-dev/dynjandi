@@ -8,6 +8,10 @@
 //   slow-pull     like ok, but `pull` prints its first line at once, then takes 1500 ms to print the rest and
 //                 to leave the `${log}.pulled` marker (so a test can tell a line arrived before the pull ended)
 //   crashes       `run` prints a line and exits 1
+//   network-fails `network inspect` fails the way a stopped daemon does
+// FAKE_DOCKER_NETWORK is what `network inspect bridge` prints on stdout (the default is Docker 29.9.2's own
+// `--format '{{json .IPAM.Config}}'` output for the default bridge); it is checked that the call asks for
+// exactly that format.
 // FAKE_DOCKER_PORT is the host port `docker port` reports.
 // FAKE_DOCKER_IMAGE is `present` or `absent` (the default): `image inspect` exits 0 or 1, as Docker 29.9.2
 // does for a `tag@digest` reference (plan section 8).
@@ -54,6 +58,27 @@ switch (args[0]) {
       process.stderr.write(`Error response from daemon: no such image: ${args[2]}\n`);
       process.exit(1);
     }
+    break;
+  case "network":
+    if (
+      args.length !== 5 ||
+      args[1] !== "inspect" ||
+      args[2] !== "bridge" ||
+      args[3] !== "--format" ||
+      args[4] !== "{{json .IPAM.Config}}"
+    ) {
+      process.stderr.write(`fake docker: unexpected command ${args.join(" ")}\n`);
+      process.exit(2);
+    }
+    if (scenario === "network-fails") {
+      process.stderr.write(
+        "Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?\n",
+      );
+      process.exit(1);
+    }
+    process.stdout.write(
+      `${process.env.FAKE_DOCKER_NETWORK ?? '[{"Subnet":"172.17.0.0/16","Gateway":"172.17.0.1"}]'}\n`,
+    );
     break;
   case "ps":
     for (const entry of JSON.parse(process.env.FAKE_DOCKER_PS ?? "[]")) {

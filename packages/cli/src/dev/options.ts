@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { parseAllowHost } from "./host-check.js";
 
 export const DEFAULT_PORT = 4600;
 export const DEFAULT_PROJECT_KEY = "dynjandi-local";
@@ -19,6 +20,10 @@ export interface DevOptions {
   isDefaultProjectKey: boolean;
   renderer: RendererChoice;
   maxFileSize: number;
+  /** `--allow-host` names, lower-cased; absent when none was given (D5). */
+  allowHosts?: string[];
+  /** `--containers`: also listen where containers reach this host, and report their origin (D1, D2, D3). */
+  containers: boolean;
   /** `--json`: the ready line is one JSON object (D19). */
   json: boolean;
   /** What follows `--`: the command and its arguments, run against the ready server (D18). */
@@ -33,7 +38,9 @@ export class UsageError extends Error {}
 export const DEV_HELP = `Usage: dynjandi dev [options]
        dynjandi dev [options] -- <command> [args...]
 
-Run a local Dynjandi server on 127.0.0.1. With "-- <command>", run the command against it
+Run a local Dynjandi server on 127.0.0.1. It answers only to IP addresses, localhost, *.localhost and
+host.docker.internal as the Host; any other name gets 421 unless --allow-host adds it. There is no --host:
+--containers is the only way the server listens anywhere else. With "-- <command>", run the command against it
 (DYNJANDI_ORIGIN and DYNJANDI_PROJECT_KEY are set), stop the server when it exits, and exit
 with its code. In that form --port defaults to 0, the ready line goes to standard error and
 requests are not logged.
@@ -45,6 +52,11 @@ Options:
   --renderer-url <url>    use a renderer that is already running (http or https), not Docker
   --no-renderer           run without a renderer; variant URLs answer 502
   --max-file-size <bytes> largest upload accepted (default ${DEFAULT_MAX_FILE_SIZE})
+  --allow-host <name>     also answer to this host name (repeatable; an exact DNS name, no port or wildcard)
+  --containers            also let containers reach the server: it listens on Docker's bridge gateway too when
+                          this machine holds that address (Linux), and reports the origin a container uses
+                          ("containers:" in the ready line, containerOrigin in --json, and
+                          DYNJANDI_CONTAINER_ORIGIN under "--")
   --json                  print the ready line as one JSON object
   --help                  print this help
 
@@ -79,6 +91,16 @@ function parseRendererUrl(text: string): string {
   return text;
 }
 
+function parseAllowHosts(values: string[]): string[] {
+  return values.map((text) => {
+    const parsed = parseAllowHost(text);
+    if ("problem" in parsed) {
+      throw new UsageError(`--allow-host ${parsed.problem}, got ${JSON.stringify(text)}`);
+    }
+    return parsed.name;
+  });
+}
+
 function parseRenderer(url: string | undefined, noRenderer: boolean): RendererChoice {
   if (url !== undefined && noRenderer) {
     throw new UsageError("--no-renderer cannot be used together with --renderer-url");
@@ -101,6 +123,8 @@ function readArgs(args: string[]) {
         "renderer-url": { type: "string" },
         "no-renderer": { type: "boolean" },
         "max-file-size": { type: "string" },
+        "allow-host": { type: "string", multiple: true },
+        containers: { type: "boolean" },
         json: { type: "boolean" },
         help: { type: "boolean" },
       },
@@ -150,6 +174,10 @@ export function parseDevOptions(args: string[], cwd: string): DevCommand {
               1,
               Number.MAX_SAFE_INTEGER,
             ),
+      ...(values["allow-host"] === undefined
+        ? {}
+        : { allowHosts: parseAllowHosts(values["allow-host"]) }),
+      containers: values.containers === true,
       json: values.json === true,
       command,
     },

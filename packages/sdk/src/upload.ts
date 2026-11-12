@@ -18,7 +18,10 @@ export interface UploadOptions {
 /** What `upload` needs from the client, already validated by `createClient`. */
 export interface UploadConfig {
   projectKey: string;
+  /** Where URLs the SDK returns live: `upload` resolves the response's `url` against it. */
   origin: string;
+  /** Where requests, and the project key, go. Equals `origin` unless the client was given `apiOrigin`. */
+  apiOrigin: string;
   fetch: typeof fetch;
 }
 
@@ -88,7 +91,7 @@ export async function upload(
   let response: Response;
   try {
     const { fetch } = config;
-    response = await fetch(new URL("/upload", config.origin).href, {
+    response = await fetch(new URL("/upload", config.apiOrigin).href, {
       method: "POST",
       headers: { "X-Project-Key": config.projectKey },
       body: form,

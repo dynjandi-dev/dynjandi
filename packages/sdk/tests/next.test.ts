@@ -96,6 +96,14 @@ describe("createDynjandiLoader failures", () => {
     expect(failure.message).toContain("origin");
   });
 
+  // It parses (the scheme `localhost:`, the origin "null"), so only the scheme check catches it.
+  test("an origin with no scheme throws when the loader is created", () => {
+    const failure = failureOf(() => createDynjandiLoader({ origin: "localhost:4600" }));
+
+    expect(failure.status).toBe(0);
+    expect(failure.message).toContain("origin");
+  });
+
   test("an empty src is refused", () => {
     const failure = failureOf(() => loader({ src: "", width: 640 }));
 

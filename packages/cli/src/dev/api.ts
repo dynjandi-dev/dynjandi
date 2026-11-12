@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { isIP } from "node:net";
+import {
+  HOST_NOT_ALLOWED_MESSAGE,
+  HOST_NOT_ALLOWED_STATUS,
+  isAllowedHost,
+  refusalLine,
+} from "./host-check.js";
 import { checkProjectKey } from "./project-key.js";
 import type { Renderer } from "./renderer.js";
 import { sendError, sendImage, sendJson } from "./responses.js";
@@ -14,30 +19,6 @@ const FILE_TOO_LARGE = "File exceeds maximum allowed size";
 const MULTIPART = /^multipart\/form-data\s*(?:;|$)/i;
 // A decimal as a form sends it, such as `0.42`: no hexadecimal, no `Infinity`.
 const DECIMAL = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i;
-const HOST_NOT_ALLOWED =
-  "Host not allowed: address the server as 127.0.0.1, localhost or host.docker.internal";
-
-/**
- * Whether a `Host` header names this machine. Binding loopback keeps other machines out, but not a page that
- * DNS rebinding has made same-origin with `http://<its own name>:<port>`, and the default key is printed and
- * documented, so the name it sends is what gives it away (Vite and webpack-dev-server check it for the same
- * reason). Allowed: an IP literal, which no rebinding produces; `localhost` and `*.localhost`; and
- * `*.internal`, the top-level domain ICANN reserves for private use, which covers `host.docker.internal`, the
- * name a container on Docker Desktop reaches the host by (plan section 9 Q6, #43). Anything else is a `403`.
- */
-export function isLocalHost(host: string | undefined): boolean {
-  if (host === undefined) return false;
-  const lower = host.toLowerCase();
-  const name = lower.startsWith("[")
-    ? lower.slice(1, lower.indexOf("]"))
-    : lower.replace(/:\d*$/, "").replace(/\.$/, "");
-  return (
-    isIP(name) !== 0 ||
-    name === "localhost" ||
-    name.endsWith(".localhost") ||
-    name.endsWith(".internal")
-  );
-}
 
 // The CLI's own version for GET /health (D20). `src/dev/` and `dist/dev/` are both two levels below the
 // package root, so one relative path finds package.json from the sources (tests) and from the tarball.
@@ -66,6 +47,8 @@ export interface ApiOptions {
   maxFileSize: number;
   /** What `GET /health` reports as `renderer` (D20). */
   rendererKind: "docker" | "url" | "none";
+  /** Names `--allow-host` added to the ones `Host` is always allowed to be (D5). */
+  allowHosts?: readonly string[];
   /** Receives lines for stderr, without a newline. */
   log: (line: string) => void;
 }
@@ -261,10 +244,6 @@ async function route(
 ): Promise<void> {
   const path = pathOf(request);
 
-  if (!isLocalHost(request.headers.host)) {
-    sendError(response, 403, HOST_NOT_ALLOWED);
-    return;
-  }
   if (request.method === "POST" && path === "/upload") {
     const key = checkProjectKey(request.headers, options.projectKey);
     if (!key.ok) {
@@ -309,6 +288,12 @@ export function createApiHandler(
 ): (request: IncomingMessage, response: ServerResponse) => Promise<void> {
   return async (request, response) => {
     try {
+      // Before any route, `/health` included (D5).
+      if (!isAllowedHost(request.headers.host, options.allowHosts)) {
+        options.log(refusalLine(request.headers.host));
+        sendError(response, HOST_NOT_ALLOWED_STATUS, HOST_NOT_ALLOWED_MESSAGE);
+        return;
+      }
       await route(request, response, options);
     } catch (error) {
       // The detail goes to stderr only; the caller gets the spec's fixed message (security/api-security.md).

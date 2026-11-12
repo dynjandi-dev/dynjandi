@@ -37,7 +37,8 @@ To develop without the live service, `dynjandi dev` (in [`packages/cli`](package
 yet) runs a local server on `127.0.0.1` that stores uploads on disk and renders variants with the Dynjandi
 renderer, started with Docker or taken from `--renderer-url`. `dynjandi dev -- <command>` runs your tests
 against it and stops it when they end, with `DYNJANDI_ORIGIN` and `DYNJANDI_PROJECT_KEY` set for the command;
-point the SDK's `origin` and key at those.
+point the SDK's `origin` and key at those. With `--containers`, `dev` also gives containers a way in, and
+`DYNJANDI_CONTAINER_ORIGIN` names the origin they use.
 
 ## Developing
 

@@ -1,6 +1,8 @@
+import { chmodSync, mkdirSync, writeFileSync as writeFileSyncNow } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { main } from "../src/cli.js";
 import { startStubRenderer } from "./support/stub-renderer.js";
@@ -240,5 +242,74 @@ describe("dev --json", () => {
     expect(await main(dev("--json", "--", NODE, join(dir, "noop.js")), io)).toBe(0);
     expect(out).toEqual([]);
     expect(JSON.parse(err.join("")).renderer).toEqual({ kind: "none" });
+  });
+});
+
+// D3: under --containers the command also gets DYNJANDI_CONTAINER_ORIGIN, and only then. `docker` is the fake:
+// 192.0.2.1 (RFC 5737 TEST-NET-1) is a gateway no host holds, so this is the Docker Desktop case on any machine.
+describe("dev --containers -- <command>", () => {
+  const FAKE_DOCKER = fileURLToPath(new URL("./support/fake-docker.mjs", import.meta.url));
+  const savedEnv = { ...process.env };
+  const savedPath = Object.entries(savedEnv).find(([name]) => name === "PATH")?.[1] ?? "";
+
+  beforeEach(() => {
+    const bin = join(dir, "bin");
+    mkdirSync(bin);
+    const wrapper = join(bin, "docker");
+    writeFileSyncNow(wrapper, `#!/bin/sh\nexec "${NODE}" "${FAKE_DOCKER}" "$@"\n`);
+    chmodSync(wrapper, 0o755);
+    process.env["PATH"] = `${bin}${delimiter}${savedPath}`;
+    process.env["FAKE_DOCKER_LOG"] = join(dir, "docker.log");
+    process.env["FAKE_DOCKER_NETWORK"] = '[{"Gateway":"192.0.2.1"}]';
+  });
+  afterEach(() => {
+    process.env = { ...savedEnv };
+  });
+
+  const ENV_REPORT = `require("node:fs").writeFileSync(process.argv[1], JSON.stringify({
+    origin: process.env.DYNJANDI_ORIGIN, container: process.env.DYNJANDI_CONTAINER_ORIGIN ?? null,
+  }))`;
+
+  it("sets DYNJANDI_CONTAINER_ORIGIN to the origin containers use, on the same port", async () => {
+    const report = join(dir, "report.json");
+    const { io } = capture();
+    expect(await main(dev("--containers", "--", NODE, "-e", ENV_REPORT, report), io)).toBe(0);
+    const seen = JSON.parse(await readFile(report, "utf8")) as {
+      origin: string;
+      container: string;
+    };
+    expect(seen.container).toBe(`http://host.docker.internal:${new URL(seen.origin).port}`);
+  });
+
+  it("leaves DYNJANDI_CONTAINER_ORIGIN unset without the flag", async () => {
+    const report = join(dir, "report.json");
+    const { io } = capture();
+    delete process.env["DYNJANDI_CONTAINER_ORIGIN"];
+    expect(await main(dev("--", NODE, "-e", ENV_REPORT, report), io)).toBe(0);
+    expect(JSON.parse(await readFile(report, "utf8")).container).toBeNull();
+  });
+
+  it("with --json, puts containerOrigin in the ready object on stderr and no key value anywhere", async () => {
+    const report = join(dir, "report.json");
+    const { out, err, io } = capture();
+    expect(
+      await main(
+        dev(
+          "--containers",
+          "--json",
+          "--project-key",
+          "very-secret",
+          "--",
+          NODE,
+          "-e",
+          ENV_REPORT,
+          report,
+        ),
+        io,
+      ),
+    ).toBe(0);
+    const ready = JSON.parse(err.join("")) as { origin: string; containerOrigin: string };
+    expect(ready.containerOrigin).toBe(`http://host.docker.internal:${new URL(ready.origin).port}`);
+    expect(out.join("") + err.join("")).not.toContain("very-secret");
   });
 });

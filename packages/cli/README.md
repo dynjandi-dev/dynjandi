@@ -63,15 +63,52 @@ dynjandi dev [options] -- <command> [args...]
 | `--renderer-url <url>` | a renderer that is already running (`http:` or `https:`), instead of starting one with Docker | starts one with Docker |
 | `--no-renderer` | run without a renderer; variant URLs answer `502` (cannot be combined with `--renderer-url`) | off |
 | `--max-file-size <bytes>` | largest upload accepted | `26214400` |
+| `--allow-host <name>` | also answer to this `Host` name (repeatable; an exact DNS name, no port, no wildcard; see *Host names*) | none |
+| `--containers` | also let containers reach the server (see *From containers*) | off |
 | `--json` | print the ready line as one JSON object (see *Output and exit codes*) | off |
 | `--help` | print the options | |
 
 Without a renderer flag, `dev` starts the renderer with Docker (see *The renderer*). The server listens on
-`127.0.0.1` only, and there is no `--host`: it is not meant to be reachable from another machine. It also
-answers `403 {"error":"Host not allowed: …"}` to a request whose `Host` is a name other than `localhost`,
-`*.localhost` or `*.internal` (such as `host.docker.internal`, the name a container on Docker Desktop reaches
-your machine by); an IP address is always accepted. That stops a web page that has used DNS rebinding to look
-same-origin with the server from uploading or reading files with the default key.
+`127.0.0.1` only, and there is no `--host`: it takes no address of your choosing, because an address such as `0.0.0.0` would put an unauthenticated server and a printed key on your network. The one flag that listens anywhere else is `--containers` (see *From containers*), and it never listens on a wildcard address. A request for a `Host` name the server does not know is refused (see *Host names*).
+
+### From containers
+
+`--containers` is for an app that runs in a Docker container and calls this server. `dev` runs
+`docker network inspect bridge` once, reads the default bridge's gateway, and listens on:
+
+- `127.0.0.1`, as always; and
+- the gateway too, but only when this machine holds that address. That is Docker Engine on Linux, where the
+  gateway is typically `172.17.0.1`. On Docker Desktop (macOS) no interface holds it, so `dev` listens on
+  `127.0.0.1` alone and a container reaches it as `host.docker.internal`.
+
+Both listeners use one port; with `--port 0` the loopback one takes a free port and the other takes the same,
+and when that port is taken on the gateway `dev` tries another, up to five ports in all. `dev` never
+listens on `0.0.0.0` or `::`, which reach every network the machine is on. Both listeners accept the same `Host`
+names and the same project key as without the flag, the default `dynjandi-local` included. The second listener
+is for this machine and its containers, not for other machines; on Linux, check that your firewall does not
+publish the bridge address.
+
+The origin a container uses is `http://<gateway>:<port>` where `dev` listens on the gateway, and
+`http://host.docker.internal:<port>` otherwise. `dev` reports it in three places, and only with `--containers`: a
+`containers: <origin>` part first in the ready line's parentheses, `containerOrigin` in `--json`, and
+`DYNJANDI_CONTAINER_ORIGIN` in the environment of a command under `--`. It exits `1` with one line on standard
+error when `docker` is missing or its inspect fails, and when the gateway is not an IP address or is `0.0.0.0` or
+`::`. A port already in use on the gateway fails the same way, naming `--port` (with `--port 0`, after the five
+ports). A compose file that uses it is in *From an app in a container*.
+
+
+### Host names
+
+The server answers only when the request's `Host` is an IP address, `localhost` or a name under `.localhost`,
+`host.docker.internal` (the name a container on Docker Desktop reaches your machine by), or a name you add with
+`--allow-host <name>`. The port is ignored and case does not matter. Any other name gets
+`421 {"error":"Host not allowed"}`, and one line on standard error quotes the refused host and names
+`--allow-host`. The check runs before every route, `/health` included.
+
+It exists because the default key is printed and documented. A web page that has used DNS rebinding to point its
+own domain at `127.0.0.1` looks same-origin with the server, and without the check it could upload with that key
+and read the answers. Such a page sends its own name in `Host`, which is not on the list. If you reach the server
+by a name of your own, such as an `/etc/hosts` alias, add it: `dynjandi dev --allow-host dev.test`.
 
 ### The renderer
 
@@ -146,6 +183,7 @@ API description (`packages/spec/openapi.yaml`).
 | `GET /<id>` | `200` with the original bytes under the type they were uploaded with. Needs no key. |
 | `GET /<id>/-/<operations>` | A variant: the original, transformed by the renderer. See *Variant URLs*. |
 | `GET /health` | `200 {"ok":true,"service":"dynjandi-dev","version":"<this CLI's version>","renderer":"docker"\|"url"\|"none"}`. No key. It tells a `dev` server from anything else on the port, and whether variants can render. |
+| any request with a `Host` the server does not know | `421 {"error":"Host not allowed"}`, before any route; see *Host names* |
 | any other `GET` | `404` |
 | any other method | `405 {"error":"Method not allowed"}` |
 
@@ -278,10 +316,114 @@ docker compose up -d renderer
 dynjandi dev --renderer-url http://127.0.0.1:8080 -- pnpm test
 ```
 
+### From an app in a container
+
+This is the recipe for an app that runs in a container (in your own compose file) and uses `dynjandi dev` on
+your machine. The app needs two origins, because the container and your browser reach `dev` by different names:
+`createClient`'s `origin` and `apiOrigin` (see the SDK README).
+
+| | What it is | Who uses it | Set by `dev` as |
+|---|---|---|---|
+| `origin` | `http://127.0.0.1:<port>` | your browser, which loads the image URLs the SDK hands out | `DYNJANDI_ORIGIN` |
+| `apiOrigin` | `http://host.docker.internal:<port>`, or `http://<gateway>:<port>` on Linux Engine | the container, for `upload` and `getFile` | `DYNJANDI_CONTAINER_ORIGIN` |
+
+`dev` runs on the host, not as a compose service: there is no published CLI image, and `dev` starts the
+renderer with the Docker CLI. Start it with `--containers` and run compose under it (`--`), so compose reads
+the origins and the key from the environment `dev` gives it, and nobody copies a port or a key:
+
+```sh
+dynjandi dev --containers -- docker compose up --no-log-prefix
+```
+
+Three files in a fresh directory, plus any image named `photo.png`. The released SDK does not have
+`apiOrigin` yet, so the app installs the SDK from a tarball packed in a checkout of this repository
+(`pnpm --filter @dynjandi/sdk pack --pack-destination <your directory>`, then rename the file to
+`dynjandi-sdk.tgz`). Your own app installs `@dynjandi/sdk` in its image as usual, and its service only needs the
+`environment:` block.
+
+`compose.yaml`:
+
+```yaml
+services:
+  app:
+    image: node:24.22.3-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5
+    init: true
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: sh -c "npm install --no-audit --no-fund ./dynjandi-sdk.tgz && exec node app.mjs"
+    environment:
+      DYNJANDI_PROJECT_KEY: ${DYNJANDI_PROJECT_KEY:?run this under dynjandi dev --containers}
+      DYNJANDI_ORIGIN: ${DYNJANDI_ORIGIN:?run this under dynjandi dev --containers}
+      DYNJANDI_API_ORIGIN: ${DYNJANDI_CONTAINER_ORIGIN:?run this under dynjandi dev --containers}
+```
+
+`app.mjs`:
+
+```js
+import { readFile } from "node:fs/promises";
+import { createClient } from "@dynjandi/sdk";
+
+const client = createClient({
+  projectKey: process.env.DYNJANDI_PROJECT_KEY,
+  origin: process.env.DYNJANDI_ORIGIN, // what a browser loads
+  apiOrigin: process.env.DYNJANDI_API_ORIGIN, // what this container calls
+});
+
+const photo = new File([await readFile("photo.png")], "photo.png", { type: "image/png" });
+const { id } = await client.upload(photo);
+console.log(client.url(id, { width: 200, format: "png" })); // open this in a browser on your machine
+setInterval(() => {}, 1 << 30); // keep the server up while you look; Ctrl-C stops everything
+```
+
+Run the `dev` command above. The URL it prints starts with `http://127.0.0.1:` and loads in your browser.
+Ctrl-C stops the app, the server and the renderer; `docker compose down` then removes the stopped container
+and the network (it needs the same variables, so run it under `dev` too, or give it any value for each).
+`init: true` and `exec` let the stop signal reach Node. Compose
+interpolates `${...}` from the shell first, then from `--env-file`, then from `.env` (Docker, *Interpolation*),
+and `${VAR:?message}` stops with the message when the variable is unset. So running `docker compose` without
+`dev` fails at once, and an `.env` file holding another key cannot replace the one `dev` gives it.
+
+**Alternatives.**
+
+- Write the origin yourself: `http://host.docker.internal:<port>` for `apiOrigin`, with `dev --containers --port
+  4600` so the port is fixed. Use this when compose is not run under `dev`.
+- On Linux Engine, a container does not have the name `host.docker.internal` unless you add it:
+  `extra_hosts: ["host.docker.internal:host-gateway"]`. The recipe above does not need it, because on Linux
+  `DYNJANDI_CONTAINER_ORIGIN` is the bridge gateway's address. On Docker Desktop for Mac the same line is
+  harmless (see *Where it was run*), so one compose file can serve both systems.
+- `network_mode: host` on the service lets one origin, `http://127.0.0.1:<port>`, serve both halves, and
+  `apiOrigin` is not needed. Compose refuses `network_mode: host` together with `ports` or `networks`, and Docker
+  Desktop needs version 4.34 or newer, a sign-in and a setting for it (Docker, *Host network driver*).
+
+**Linux.** `--containers` makes `dev` listen on the bridge gateway too (see *From containers*), and a host
+firewall that drops traffic from containers to the host shows as a timeout in the container. With ufw, this
+allows the default bridge's subnet to reach the port (use a fixed `--port`; a compose network has its own subnet,
+which `docker network inspect <name>` prints):
+
+```sh
+sudo ufw allow from 172.17.0.0/16 to any port 4600 proto tcp
+```
+
+That rule has not been run: nothing here was run on Linux.
+
+**Next.js and other server-side image fetches.** Next.js's default image optimiser fetches `src` from the
+server, and `src` is on `origin`, which from inside the container is the container itself. Either use the SDK's
+`createDynjandiLoader` (it builds URLs and makes no server request), or make `origin` resolve in the container too.
+`apiOrigin` is only used by `upload` and `getFile`.
+
+**Where it was run.** The recipe above and the end-to-end test (`test:e2e`, `tests/e2e/containers.e2e.test.ts`)
+were run on macOS with Docker Desktop (engine 29.9.2, Compose v5.6.1). On that system `extra_hosts:
+["host.docker.internal:host-gateway"]` changed nothing a container could notice: `host.docker.internal` stayed
+reachable, and `/etc/hosts` in the container listed the name once with Desktop's IPv4 address and once with an
+IPv6 one. No other system was run: Linux Engine,
+Docker Desktop on Windows, OrbStack, Colima, Rancher Desktop, Podman, rootless Docker and a remote `DOCKER_HOST`
+are untried, and on those `host.docker.internal` may not resolve in the container.
+
 ### The end-to-end test
 
 `pnpm --filter @dynjandi/cli run test:e2e` starts the built `dynjandi dev` with the real renderer image and
-drives it with the real SDK. It is not part of `pnpm test`; `context/verify.md` lists its preconditions.
+drives it with the real SDK, and a second case does the same from a Node container with `--containers`. It is not part of `pnpm test`; `context/verify.md` lists its preconditions.
 
 ### Run a command against the server
 
@@ -290,13 +432,14 @@ dynjandi dev -- pnpm test
 ```
 
 Everything after the first `--` is a command and its arguments. Once the server (and the renderer) is ready,
-`dev` runs the command, without a shell and with its standard input, output and error inherited, and with two
+`dev` runs the command, without a shell and with its standard input, output and error inherited, and with these
 variables added to its environment:
 
 | Variable | Value |
 |---|---|
 | `DYNJANDI_ORIGIN` | the server's origin, `http://127.0.0.1:<port>`; pass it to the SDK as `origin` |
 | `DYNJANDI_PROJECT_KEY` | the key the server accepts: `dynjandi-local`, or your `--project-key` value |
+| `DYNJANDI_CONTAINER_ORIGIN` | only with `--containers`: the origin a container uses to reach the server (see *From containers*) |
 
 When the command exits, `dev` stops the server and the container and exits with the command's code, or with
 `128 + n` if signal `n` ended it (`137` for `SIGKILL`, `143` for `SIGTERM`). `SIGTERM` sent to `dev` is
@@ -350,7 +493,8 @@ Run under `dynjandi dev -- <command>`, the two variables are set. Started on its
 ### Output and exit codes
 
 Without `--`, standard output holds one line when the server is ready: the origin, the project key (only when
-it is the default; a `--project-key` value is never printed), the data directory and the renderer. Everything
+it is the default; a `--project-key` value is never printed), the data directory and the renderer. With
+`--containers`, `containers: <origin>` comes first in the parentheses. Everything
 else goes to standard error, one line per request with its method, path and status. Under `--`, the ready line
 goes to standard error and the request lines are off (see *Run a command against the server*).
 
@@ -361,7 +505,7 @@ goes to standard error and the request lines are off (see *Run a command against
 ```
 
 `renderer` is `{"kind":"docker","image":"<tag>"}`, `{"kind":"url","url":"<url>"}` or `{"kind":"none"}`.
-`projectKey` is present only when it is the default. Errors stay one line on standard error.
+`projectKey` is present only when it is the default. `containerOrigin` is present only with `--containers`. Errors stay one line on standard error.
 
 | Exit code | When |
 |---|---|

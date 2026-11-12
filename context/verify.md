@@ -82,6 +82,8 @@ Failure screenshots land in `packages/focal-picker/.vitest/`, which `.gitignore`
 
 The CLI's run includes the offline contract suite (`packages/cli/tests/contract/local.test.ts`): the **api** cases of `packages/cli/tests/contract/cases.ts` against `dynjandi dev` started in process on a free port of `127.0.0.1`, with a `fetch` that refuses any URL outside `127.0.0.1`, so no request leaves the machine.
 
+The CLI's `--containers` tests (`packages/cli/tests/containers.test.ts`) run `docker` as a fake on `PATH`, but open a real second listener on an address this machine lists in `os.networkInterfaces()` besides `127.0.0.1`: `::1`, or where IPv6 is off, the first non-internal IPv4 address. A machine with neither, such as a container with IPv6 off and `--network none`, fails them rather than skipping them.
+
 This excludes `packages/sdk/tests/live/` and `packages/cli/tests/live/`, which need a secret and the network: see *Not run by Gate 1*.
 
 ## Generated types
@@ -167,9 +169,23 @@ real renderer: the script reads `DYNJANDI_ORIGIN` and `DYNJANDI_PROJECT_KEY`, dr
 `3` (the script's code, not `dev`'s own `0` or `1`), that standard output holds only the script's line, that the
 ready line went to standard error, and that no `dynjandi-renderer-*` container is left.
 
+A second case, `tests/e2e/containers.e2e.test.ts`, starts `dynjandi dev --containers --json --port 0` with a
+temporary `--data-dir` and takes `origin` and `containerOrigin` from the JSON line. It runs
+`tests/support/container-app.mjs` in a Node container, pinned by version tag and digest
+(`node:24.22.3-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5`, the digest of the
+tag's multi-arch index from `docker buildx imagetools inspect`; `NODE_IMAGE` in the test). In the container the
+script drives the built SDK (`packages/sdk/dist`) with `origin` and `apiOrigin`: `GET /health` (`service` is
+`dynjandi-dev`), an upload with a focal point, `getFile` and `client.url()`. The test then fetches the `url` and the
+variant on the host: `200`, the uploaded bytes, a PNG of the asked size; a `Host: evil.example` request gets `421`;
+`SIGTERM` exits `0` and leaves no `dynjandi-renderer-*` container. The container resolves the SDK by mounting the
+whole repository, read-only, at the same path as on the host, because `node_modules` holds pnpm symlinks (the SDK's
+`@dynjandi/transform-grammar`) that a mount of `packages/sdk` alone would leave dangling. The two files share one
+container namespace and each asserts no `dynjandi-renderer-*` is left, so `test:e2e` runs them one after the other
+(`--no-file-parallelism`).
+
 Preconditions: `pnpm build` has been run (it uses the built bin, not the source); Docker is installed and its
-daemon is running; the pinned image (`ghcr.io/dynjandi-dev/renderer:0.2.0@sha256:...`, in
-`packages/cli/src/dev/renderer-image.ts`) is pulled or pullable, and while the package is private that needs a
+daemon is running; the pinned renderer image (`ghcr.io/dynjandi-dev/renderer:0.2.0@sha256:...`, in
+`packages/cli/src/dev/renderer-image.ts`) and the pinned Node image above are pulled or pullable, and while the package is private that needs a
 `docker login ghcr.io` with an account that can read it. A first pull is about 100 MB; the test allows 180
 seconds to start. `pnpm test` excludes `tests/e2e/`. It is not in the gate because it needs Docker and the
 registry and can go red with nothing in the diff; whether CI runs it is open (issue #37, section 9 Q2).

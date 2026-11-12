@@ -89,6 +89,27 @@ describe("client.url", () => {
       `https://img.example.com/${ID}/-/resize/800x600/`,
     );
   });
+
+  test("builds on origin, not apiOrigin", () => {
+    const split = createClient({
+      projectKey: PROJECT_KEY,
+      origin: "http://127.0.0.1:4600",
+      apiOrigin: "http://host.docker.internal:4600",
+    });
+
+    expect(split.url(ID, { width: 800, height: 600 })).toBe(
+      `http://127.0.0.1:4600/${ID}/-/resize/800x600/`,
+    );
+  });
+
+  // Source: README usage passes `process.env.DYNJANDI_ORIGIN` / `DYNJANDI_API_ORIGIN`, which are `string | undefined`.
+  test("accepts origin and apiOrigin typed string | undefined, and falls back to the default", () => {
+    const origin: string | undefined = undefined;
+    const apiOrigin: string | undefined = undefined;
+    const fromEnv = createClient({ projectKey: PROJECT_KEY, origin, apiOrigin });
+
+    expect(fromEnv.url(ID, { width: 800, height: 600 })).toBe(`${CDN}/${ID}/-/resize/800x600/`);
+  });
 });
 
 const CROP = { width: 1280, height: 400 };
