@@ -123,10 +123,18 @@ export async function readContainerPlan(signal?: AbortSignal): Promise<Container
     const cause = error instanceof Error ? error.cause : undefined;
     const missing =
       typeof cause === "object" && cause !== null && "code" in cause && cause.code === "ENOENT";
+    // The spawn error itself, not `runDocker`'s message: that one names the renderer's ways round
+    // (--renderer-url, --no-renderer), and neither helps --containers, which needs docker in every mode.
+    const reason =
+      cause instanceof Error
+        ? cause.message
+        : error instanceof Error
+          ? error.message
+          : String(error);
     fail(
       missing
         ? "needs docker on PATH to find the bridge gateway (docker was not found on PATH); install Docker and start it"
-        : `could not run docker to read the bridge network (${error instanceof Error ? error.message : String(error)})`,
+        : `could not run docker to read the bridge network (${reason})`,
     );
   }
   if (result.code !== 0) {

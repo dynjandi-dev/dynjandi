@@ -67,7 +67,9 @@ key, while every URL the SDK hands out (`upload`'s `url`, `url()`, `srcset`, `pi
 your users' browsers do, as an app in a container does with `dynjandi dev` on the host: `origin` is what
 browsers load images from, `apiOrigin` is what the container calls. A server-side fetch of an image URL
 (Next.js's default image optimiser, say) uses `origin`, so from inside the container it needs `origin` to
-resolve there too. Setting `apiOrigin` without `origin` leaves the URLs on `https://cdn.dynjandi.dev`.
+resolve there too. Setting `apiOrigin` without `origin` leaves the URLs on `https://cdn.dynjandi.dev`. Both
+must be absolute `http://` or `https://` URLs: anything else, `host.docker.internal:4600` without its scheme
+included, throws a `DynjandiError` (status `0`) from `createClient`.
 
 ```ts
 const client = createClient({

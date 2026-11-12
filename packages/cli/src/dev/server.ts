@@ -106,41 +106,65 @@ async function listen(
     });
 
   // Loopback first, so `--port 0` takes its port there; the others then take the same one (D2).
-  const servers: Server[] = [];
-  const closeAll = async () => {
+  const addresses = plan?.addresses ?? [LOOPBACK];
+  for (let attempt = 1; ; attempt += 1) {
+    const servers: Server[] = [];
     try {
-      await Promise.all(
-        servers.map(
-          (server) =>
-            new Promise<void>((done, fail) => {
-              server.close((error) => (error ? fail(error) : done()));
-              server.closeAllConnections();
-            }),
-        ),
+      let port = options.port;
+      for (const address of addresses) {
+        const server = newServer();
+        await listenOn(server, port, address);
+        servers.push(server);
+        port = boundPort(server);
+      }
+      return {
+        url: `http://${LOOPBACK}:${port}`,
+        ...(plan === undefined ? {} : { containerOrigin: containerOrigin(plan, port) }),
+        close: () => closeAll(servers, container),
+      };
+    } catch (error) {
+      // A listener that could not open must not leave the ones before it serving.
+      await Promise.allSettled(
+        servers.map((server) => new Promise<void>((done) => server.close(() => done()))),
       );
-    } finally {
-      await container?.stop();
+      // Under `--port 0` the port is loopback's pick: free there, but perhaps taken on the gateway. Pick again,
+      // and never answer with "or --port 0", which is what was asked.
+      if (!(error instanceof PortInUse) || options.port !== 0) throw error;
+      if (attempt === PORT_ZERO_ATTEMPTS) {
+        throw new Error(
+          `no port was free on both ${addresses.join(" and ")} in ${PORT_ZERO_ATTEMPTS} tries of --port 0; choose one with --port <n>`,
+        );
+      }
     }
-  };
+  }
+}
+
+// How many ports `--port 0` tries before giving up on one that is free on every address.
+const PORT_ZERO_ATTEMPTS = 5;
+
+async function closeAll(servers: Server[], container: DockerRenderer | undefined): Promise<void> {
   try {
-    let port = options.port;
-    for (const address of plan?.addresses ?? [LOOPBACK]) {
-      const server = newServer();
-      await listenOn(server, port, address);
-      servers.push(server);
-      port = boundPort(server);
-    }
-    return {
-      url: `http://${LOOPBACK}:${port}`,
-      ...(plan === undefined ? {} : { containerOrigin: containerOrigin(plan, port) }),
-      close: closeAll,
-    };
-  } catch (error) {
-    // A listener that could not open must not leave the ones before it serving.
-    await Promise.allSettled(
-      servers.map((server) => new Promise<void>((done) => server.close(() => done()))),
+    await Promise.all(
+      servers.map(
+        (server) =>
+          new Promise<void>((done, fail) => {
+            server.close((error) => (error ? fail(error) : done()));
+            server.closeAllConnections();
+          }),
+      ),
     );
-    throw error;
+  } finally {
+    await container?.stop();
+  }
+}
+
+/** The address was taken: `EADDRINUSE` on `listen`. */
+class PortInUse extends Error {
+  constructor(port: number, address: string) {
+    super(
+      `port ${port} is already in use on ${address}; choose another with --port <n>, or --port 0 for a free one`,
+    );
+    this.name = "PortInUse";
   }
 }
 
@@ -155,13 +179,7 @@ function boundPort(server: Server): number {
 function listenOn(server: Server, port: number, address: string): Promise<void> {
   return new Promise((resolve, reject) => {
     server.once("error", (error: NodeJS.ErrnoException) => {
-      reject(
-        error.code === "EADDRINUSE"
-          ? new Error(
-              `port ${port} is already in use on ${address}; choose another with --port <n>, or --port 0 for a free one`,
-            )
-          : error,
-      );
+      reject(error.code === "EADDRINUSE" ? new PortInUse(port, address) : error);
     });
     server.listen(port, address, resolve);
   });

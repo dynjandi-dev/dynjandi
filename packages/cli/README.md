@@ -81,19 +81,20 @@ Without a renderer flag, `dev` starts the renderer with Docker (see *The rendere
   gateway is typically `172.17.0.1`. On Docker Desktop (macOS) no interface holds it, so `dev` listens on
   `127.0.0.1` alone and a container reaches it as `host.docker.internal`.
 
-Both listeners use one port; with `--port 0` the loopback one takes a free port and the other takes the same.
-`dev` never listens on `0.0.0.0` or `::`, which reach every network the machine is on. Both listeners accept the
-same `Host` names and the same project key as without the flag, the default `dynjandi-local` included. The
-second listener is for this machine and its containers, not for other machines; on Linux, check that your
-firewall does not publish the bridge address.
+Both listeners use one port; with `--port 0` the loopback one takes a free port and the other takes the same,
+and when that port is taken on the gateway `dev` tries another, up to five ports in all. `dev` never
+listens on `0.0.0.0` or `::`, which reach every network the machine is on. Both listeners accept the same `Host`
+names and the same project key as without the flag, the default `dynjandi-local` included. The second listener
+is for this machine and its containers, not for other machines; on Linux, check that your firewall does not
+publish the bridge address.
 
 The origin a container uses is `http://<gateway>:<port>` where `dev` listens on the gateway, and
 `http://host.docker.internal:<port>` otherwise. `dev` reports it in three places, and only with `--containers`: a
 `containers: <origin>` part first in the ready line's parentheses, `containerOrigin` in `--json`, and
 `DYNJANDI_CONTAINER_ORIGIN` in the environment of a command under `--`. It exits `1` with one line on standard
 error when `docker` is missing or its inspect fails, and when the gateway is not an IP address or is `0.0.0.0` or
-`::`. A port already in use on the gateway fails the same way, naming `--port`. A compose file that uses it is in
-*From an app in a container*.
+`::`. A port already in use on the gateway fails the same way, naming `--port` (with `--port 0`, after the five
+ports). A compose file that uses it is in *From an app in a container*.
 
 
 ### Host names

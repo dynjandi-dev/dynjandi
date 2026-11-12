@@ -7,7 +7,8 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { createServer, request } from "node:http";
+import { createServer, request, Server } from "node:http";
+import { isIPv6 } from "node:net";
 import { networkInterfaces, tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,12 +27,20 @@ import { startServer } from "../src/dev/server.js";
 // - D2: one port on both listeners; `--port 0` takes the loopback one first.
 // - D5: every listener answers through the same Host check (421 for an unknown name).
 // - 192.0.2.1 is TEST-NET-1 (RFC 5737): no host holds it, so the Desktop case is the same on every machine.
-//   `::1` is an address this machine lists in os.networkInterfaces() (macOS, checked 2026-11-12), the
-//   "second local address" the second-listener test binds for real; Linux CI hosts list it too.
+// - SECOND is the "second local address" the second-listener tests bind for real, so it must be one
+//   os.networkInterfaces() lists: `::1` where IPv6 is on (macOS and GitHub's Ubuntu runners, checked
+//   2026-11-12), otherwise this machine's first non-internal IPv4 address. A machine with neither fails the
+//   Linux Engine tests on their first assertion rather than skipping them (context/verify.md).
 const BRIDGE = '[{"Subnet":"172.17.0.0/16","Gateway":"172.17.0.1"}]';
 const LOOPBACK = "127.0.0.1";
-const SECOND = "::1";
 const NOT_LOCAL = "192.0.2.1";
+const LISTED = Object.values(networkInterfaces()).flatMap((entries) => entries ?? []);
+const SECOND =
+  LISTED.find((entry) => entry.address === "::1")?.address ??
+  LISTED.find((entry) => entry.family === "IPv4" && !entry.internal)?.address ??
+  "::1";
+// SECOND as a URL's host: an IPv6 address is bracketed (RFC 3986 section 3.2.2).
+const SECOND_HOST = isIPv6(SECOND) ? `[${SECOND}]` : SECOND;
 
 function gatewayOutput(gateway: string): string {
   return JSON.stringify([{ Subnet: "x", Gateway: gateway }]);
@@ -207,7 +216,7 @@ describe("dynjandi dev without --containers", () => {
     expect(run.ready.origin).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
     expect("containerOrigin" in run.ready).toBe(false);
     const port = Number(new URL(run.ready.origin).port);
-    await expect(fetch(`http://[${SECOND}]:${port}/health`)).rejects.toThrow();
+    await expect(fetch(`http://${SECOND_HOST}:${port}/health`)).rejects.toThrow();
     await run.stop();
 
     const text = dev([]);
@@ -233,7 +242,7 @@ describe("dynjandi dev --containers on Docker Desktop (the gateway is not a host
     const run = await runUntilReady(["--containers"]);
     const port = new URL(run.ready.origin).port;
     expect(run.ready.containerOrigin).toBe(`http://host.docker.internal:${port}`);
-    await expect(fetch(`http://[${SECOND}]:${port}/health`)).rejects.toThrow();
+    await expect(fetch(`http://${SECOND_HOST}:${port}/health`)).rejects.toThrow();
     await run.stop();
   });
 
@@ -263,14 +272,13 @@ describe("dynjandi dev --containers on Linux Engine (this host holds the gateway
   // The gateway is an address this machine really lists, so the second listener is a real bind.
   it("serves the same port on loopback and on the gateway, and names the gateway as the origin", async () => {
     expect(
-      Object.values(networkInterfaces())
-        .flat()
-        .some((entry) => entry?.address === SECOND),
-    ).toBe(true);
+      LISTED.map((entry) => entry.address),
+      "this machine lists neither ::1 nor a non-internal IPv4 address; see context/verify.md",
+    ).toContain(SECOND);
     setEnv("FAKE_DOCKER_NETWORK", gatewayOutput(SECOND));
     const run = await runUntilReady(["--containers"]);
     const port = Number(new URL(run.ready.origin).port);
-    expect(run.ready.containerOrigin).toBe(`http://[${SECOND}]:${port}`);
+    expect(run.ready.containerOrigin).toBe(`http://${SECOND_HOST}:${port}`);
 
     for (const base of [run.ready.origin, run.ready.containerOrigin ?? ""]) {
       const response = await fetch(`${base}/health`);
@@ -282,7 +290,7 @@ describe("dynjandi dev --containers on Linux Engine (this host holds the gateway
 
     await run.stop();
     await expect(fetch(`${run.ready.origin}/health`)).rejects.toThrow();
-    await expect(fetch(`http://[${SECOND}]:${port}/health`)).rejects.toThrow();
+    await expect(fetch(`http://${SECOND_HOST}:${port}/health`)).rejects.toThrow();
   });
 
   it("stops both listeners when startServer's close is called", async () => {
@@ -296,10 +304,10 @@ describe("dynjandi dev --containers on Linux Engine (this host holds the gateway
       containers: true,
     });
     const port = new URL(running.url).port;
-    expect(running.containerOrigin).toBe(`http://[${SECOND}]:${port}`);
+    expect(running.containerOrigin).toBe(`http://${SECOND_HOST}:${port}`);
     await running.close();
     await expect(fetch(`http://${LOOPBACK}:${port}/health`)).rejects.toThrow();
-    await expect(fetch(`http://[${SECOND}]:${port}/health`)).rejects.toThrow();
+    await expect(fetch(`http://${SECOND_HOST}:${port}/health`)).rejects.toThrow();
   });
 
   it("fails naming the port, and leaves nothing listening, when the gateway's port is taken", async () => {
@@ -323,6 +331,81 @@ describe("dynjandi dev --containers on Linux Engine (this host holds the gateway
     } finally {
       await new Promise((done) => blocker.close(done));
     }
+  });
+
+  // Under `--port 0` the port is loopback's pick, free there and perhaps taken on the gateway; which one the OS
+  // picks cannot be arranged, so the gateway's `listen` is made to refuse (EADDRINUSE) the first `refusals`
+  // ports it is offered, and passes the rest through to the real one.
+  async function withGatewayRefusing<T>(
+    refusals: number,
+    run: (offered: number[]) => Promise<T>,
+  ): Promise<T> {
+    const offered: number[] = [];
+    const real = Server.prototype.listen;
+    Server.prototype.listen = function (this: Server, ...args: unknown[]) {
+      if (args[1] === SECOND && offered.length < refusals) {
+        offered.push(args[0] as number);
+        const error = Object.assign(new Error(`listen EADDRINUSE ${SECOND}`), {
+          code: "EADDRINUSE",
+        });
+        process.nextTick(() => this.emit("error", error));
+        return this;
+      }
+      return real.apply(this, args as Parameters<typeof real>);
+    } as typeof real;
+    try {
+      return await run(offered);
+    } finally {
+      Server.prototype.listen = real;
+    }
+  }
+
+  function startOnPortZero() {
+    return startServer({
+      port: 0,
+      dataDir: join(work, "data"),
+      projectKey: "dynjandi-local",
+      maxFileSize: 1000,
+      renderer: { kind: "none" },
+      containers: true,
+    });
+  }
+
+  it("under --port 0, picks another port when the gateway's is taken", async () => {
+    setEnv("FAKE_DOCKER_NETWORK", gatewayOutput(SECOND));
+    await withGatewayRefusing(1, async (offered) => {
+      const running = await startOnPortZero();
+      const port = Number(new URL(running.url).port);
+      expect(offered).toHaveLength(1);
+      expect(running.containerOrigin).toBe(`http://${SECOND_HOST}:${port}`);
+      for (const base of [running.url, running.containerOrigin ?? ""]) {
+        expect((await fetch(`${base}/health`)).status).toBe(200);
+      }
+      // The refused try's loopback listener is closed, unless the OS handed the same port out again.
+      if (offered[0] !== port) {
+        await expect(fetch(`http://${LOOPBACK}:${offered[0]}/health`)).rejects.toThrow();
+      }
+      await running.close();
+    });
+  });
+
+  it("under --port 0, gives up after five tries without suggesting --port 0, and leaves nothing listening", async () => {
+    setEnv("FAKE_DOCKER_NETWORK", gatewayOutput(SECOND));
+    await withGatewayRefusing(Number.POSITIVE_INFINITY, async (offered) => {
+      let message = "";
+      try {
+        await startOnPortZero();
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message).toBe(
+        `no port was free on both ${LOOPBACK} and ${SECOND} in 5 tries of --port 0; choose one with --port <n>`,
+      );
+      expect(offered).toHaveLength(5);
+      for (const port of offered) {
+        await expect(fetch(`http://${LOOPBACK}:${port}/health`)).rejects.toThrow();
+      }
+    });
   });
 });
 
@@ -361,6 +444,21 @@ describe("dynjandi dev --containers failures", () => {
     const line = await failure([]);
     expect(line).toContain("docker was not found on PATH");
     expect(line).toContain("--containers");
+  });
+
+  // A `docker` that is found but cannot be run: spawn fails with EACCES, not ENOENT. The renderer's ways round
+  // (--renderer-url, --no-renderer) do not help --containers, so the line must not offer them.
+  it("exits 1 when docker cannot be run, quoting the spawn error and no renderer flag", async () => {
+    const unrunnable = join(work, "unrunnable");
+    mkdirSync(unrunnable);
+    writeFileSync(join(unrunnable, "docker"), "#!/bin/sh\n");
+    chmodSync(join(unrunnable, "docker"), 0o644);
+    setEnv("PATH", unrunnable);
+    const line = await failure([]);
+    expect(line).toContain("EACCES");
+    expect(line).toContain("--containers");
+    expect(line).not.toContain("--renderer-url");
+    expect(line).not.toContain("--no-renderer");
   });
 
   it("exits 1 and runs no renderer when the plan fails", async () => {

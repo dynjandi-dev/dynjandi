@@ -1,6 +1,5 @@
 import type { OutputFormat } from "@dynjandi/transform-grammar/builder";
-import { DEFAULT_ORIGIN } from "./client.js";
-import { DynjandiError } from "./errors.js";
+import { DEFAULT_ORIGIN, httpOrigin } from "./client.js";
 import { type UrlOptions, url } from "./url.js";
 
 /**
@@ -35,12 +34,10 @@ export interface DynjandiLoaderOptions {
 export function createDynjandiLoader(
   options: DynjandiLoaderOptions = {},
 ): (props: NextImageLoaderProps) => string {
-  let origin: string;
-  try {
-    origin = new URL(options.origin ?? DEFAULT_ORIGIN).origin;
-  } catch (cause) {
-    throw new DynjandiError("createDynjandiLoader needs an absolute origin URL.", 0, { cause });
-  }
+  const origin = httpOrigin(
+    options.origin ?? DEFAULT_ORIGIN,
+    "createDynjandiLoader needs an absolute origin URL, starting http:// or https://.",
+  );
   const { format } = options;
 
   return ({ src, width, quality }) => {

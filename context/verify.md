@@ -82,6 +82,8 @@ Failure screenshots land in `packages/focal-picker/.vitest/`, which `.gitignore`
 
 The CLI's run includes the offline contract suite (`packages/cli/tests/contract/local.test.ts`): the **api** cases of `packages/cli/tests/contract/cases.ts` against `dynjandi dev` started in process on a free port of `127.0.0.1`, with a `fetch` that refuses any URL outside `127.0.0.1`, so no request leaves the machine.
 
+The CLI's `--containers` tests (`packages/cli/tests/containers.test.ts`) run `docker` as a fake on `PATH`, but open a real second listener on an address this machine lists in `os.networkInterfaces()` besides `127.0.0.1`: `::1`, or where IPv6 is off, the first non-internal IPv4 address. A machine with neither, such as a container with IPv6 off and `--network none`, fails them rather than skipping them.
+
 This excludes `packages/sdk/tests/live/` and `packages/cli/tests/live/`, which need a secret and the network: see *Not run by Gate 1*.
 
 ## Generated types

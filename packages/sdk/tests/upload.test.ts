@@ -194,4 +194,22 @@ describe("createClient", () => {
       expect((error as DynjandiError).status).toBe(0);
     }
   });
+
+  // WHATWG URL reads `host.docker.internal:4600` as the scheme `host.docker.internal:`, with the origin "null":
+  // it parses, so only the scheme check catches it, at createClient and not at the first request.
+  test.each([
+    ["no scheme, which URL reads as a scheme of its own", "host.docker.internal:4600"],
+    ["a scheme fetch cannot use", "ftp://127.0.0.1:4600"],
+  ])("refuses an apiOrigin with %s, naming apiOrigin", (_name, apiOrigin) => {
+    const attempt = () =>
+      createClient({ projectKey: PROJECT_KEY, origin: "http://127.0.0.1:4600", apiOrigin });
+    expect(attempt).toThrow(DynjandiError);
+    expect(attempt).toThrow("apiOrigin");
+  });
+
+  test("refuses an origin with no scheme, which URL reads as a scheme of its own", () => {
+    const attempt = () => createClient({ projectKey: PROJECT_KEY, origin: "localhost:4600" });
+    expect(attempt).toThrow(DynjandiError);
+    expect(attempt).toThrow("origin URL");
+  });
 });
