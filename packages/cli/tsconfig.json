@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "paths": {
+      "@dynjandi/sdk": ["../sdk/src/index.ts"]
+    }
+  },
+  "include": ["src", "tests"]
+}

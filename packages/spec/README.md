@@ -46,6 +46,9 @@ names the SDK's version, not the spec's: read `info.version` in the document for
 The URL grammar for variants (`/<id>/-/resize/800x600/` and so on) is described in the spec's
 `info.description`.
 
+The contract suite in `packages/cli/tests/contract` asserts this document against two servers, the
+local one (`dynjandi dev`) and the live service, so a change to the contract updates the suite too.
+
 ## Versioning
 
 The spec is versioned on its own with semantic versioning, in `info.version` of `openapi.yaml`. That is the

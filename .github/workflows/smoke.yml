@@ -2,16 +2,17 @@ name: Smoke
 
 # Uploads one tiny image to the dedicated test project on the live service, fetches a variant of it, reads
 # its record back and fetches a variant cropped on its stored focal point
-# (packages/sdk/tests/live/smoke.test.ts). It is the drift detector between the spec and the service, so
+# (packages/sdk/tests/live/smoke.test.ts). It then runs the contract suite against the service
+# (packages/cli/tests/live/contract.test.ts: one upload and five variants). It is the drift detector between the spec and the service, so
 # it runs on a schedule as well as before a release.
 #
-# - schedule: daily. Drift is found within a day, and a run costs one ~70-byte upload to a test project.
+# - schedule: daily. Drift is found within a day, and a run costs two small uploads (~70 bytes and a 40x20 PNG) to a test project.
 #   The time is off the hour to stay clear of the top-of-hour rush on GitHub's scheduler.
 # - workflow_dispatch: run it by hand.
 # - workflow_call: the precondition `publish.yml` runs before it publishes, only when there is a version to
 #   publish. The caller must provide the secret, which publish.yml does explicitly (not `secrets: inherit`).
 #
-# The key is read from the secret store only, and only by the test step.
+# The key is read from the secret store only, and only by the two test steps.
 on:
   schedule:
     - cron: "17 6 * * *"
@@ -37,5 +38,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @dynjandi/sdk run test:live
+        env:
+          DYNJANDI_SMOKE_PROJECT_KEY: ${{ secrets.DYNJANDI_SMOKE_PROJECT_KEY }}
+      # The contract suite (packages/cli/tests/contract) against the service: the same cases the local
+      # server passes offline, so spec drift shows as one target failing a case the other passes.
+      - run: pnpm --filter @dynjandi/cli run test:live
         env:
           DYNJANDI_SMOKE_PROJECT_KEY: ${{ secrets.DYNJANDI_SMOKE_PROJECT_KEY }}

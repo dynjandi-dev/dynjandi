@@ -47,7 +47,19 @@ type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K>
 const make = (options: DistributiveOmit<ClientOptions, "fetch">) => createClient({ ...options, fetch });
 ```
 
-`origin` defaults to `https://cdn.dynjandi.dev`. Pass `origin` to use another one.
+`origin` defaults to `https://cdn.dynjandi.dev`. Pass `origin` to use another one, such as the local development
+server of [`@dynjandi/cli`](../cli/README.md) (`dynjandi dev`, not yet on npm). Run as
+`dynjandi dev -- <command>`, it sets `DYNJANDI_ORIGIN` and `DYNJANDI_PROJECT_KEY` for the command:
+
+```ts
+const local = createClient({
+  projectKey: process.env.DYNJANDI_PROJECT_KEY ?? "dynjandi-local",
+  origin: process.env.DYNJANDI_ORIGIN ?? "http://127.0.0.1:4600",
+});
+```
+
+Started on its own, `dynjandi dev` listens on port 4600 and accepts the key `dynjandi-local`, which the
+fallbacks above match.
 
 ### `upload(file, { focal? })`
 

@@ -51,12 +51,12 @@ pnpm build
 pnpm check:package
 ```
 
-`pnpm build` compiles `@dynjandi/sdk` into `packages/sdk/dist/` and `@dynjandi/focal-picker` into
-`packages/focal-picker/dist/` (ESM JavaScript and `.d.ts`; the SDK's build also copies the generated types
+`pnpm build` compiles `@dynjandi/sdk` into `packages/sdk/dist/`, `@dynjandi/focal-picker` into
+`packages/focal-picker/dist/` and `@dynjandi/cli` into `packages/cli/dist/` (ESM JavaScript and `.d.ts`; the SDK's build also copies the generated types
 in, which `tsc` does not emit) under `NodeNext` resolution, so a relative import
 missing its `.js` extension fails here and not in a consumer's build.
 
-`pnpm check:package` runs for the SDK and for `@dynjandi/focal-picker`. It packs the SDK exactly as `publish.yml` does (`pnpm pack`, whose `prepack` builds and
+`pnpm check:package` runs for the SDK, for `@dynjandi/focal-picker` and for `@dynjandi/cli`. It packs the SDK exactly as `publish.yml` does (`pnpm pack`, whose `prepack` builds and
 copies the root `LICENSE` in) and asserts the tarball holds `dist/`, `README.md`, `LICENSE` and
 `package.json` and **nothing else** (so no `src/`, `tests/`, `scripts/` or `node_modules`), that its
 `package.json` is not private and has no `workspace:`, `file:` or `link:` specifier, and then runs
@@ -65,7 +65,7 @@ holds, which is the state between releases, so the dry run is skipped (with a me
 `npm view @dynjandi/sdk@<version>` returns that version; the assertions always run. The real dry run is
 therefore seen on the change that bumps the version. The picker is not on npm at all, so `npm view` finds
 nothing and its dry run always runs. Its tarball allowlist is the same four entries, and it requires
-`dist/index.js`, `dist/index.d.ts`, `dist/element.js`, `dist/element.d.ts`, `dist/react.js` and `dist/react.d.ts`. It also fails when the packed `package.json` has `dependencies`, or when React and `react-dom` are not both optional peers (`peerDependenciesMeta`) or any other peer is present.
+`dist/index.js`, `dist/index.d.ts`, `dist/element.js`, `dist/element.d.ts`, `dist/react.js` and `dist/react.d.ts`. It also fails when the packed `package.json` has `dependencies`, or when React and `react-dom` are not both optional peers (`peerDependenciesMeta`) or any other peer is present. The CLI's tarball allowlist is the same four entries, and it requires `dist/cli.js`, `dist/dev/options.js` and `dist/dev/server.js`; its `bin.dynjandi` must exist in the tarball and start with a `#!/usr/bin/env node` line. It is not on npm either, so its dry run always runs.
 
 ## Test
 
@@ -80,7 +80,9 @@ browser installed (see *Prepare a fresh tree*); without it the browser project f
 uses the `verbose` reporter so the output names the project of every test (`|node|`, `|browser (chromium)|`).
 Failure screenshots land in `packages/focal-picker/.vitest/`, which `.gitignore` lists.
 
-This excludes `packages/sdk/tests/live/`, which needs a secret and the network: see *Not run by Gate 1*.
+The CLI's run includes the offline contract suite (`packages/cli/tests/contract/local.test.ts`): the **api** cases of `packages/cli/tests/contract/cases.ts` against `dynjandi dev` started in process on a free port of `127.0.0.1`, with a `fetch` that refuses any URL outside `127.0.0.1`, so no request leaves the machine.
+
+This excludes `packages/sdk/tests/live/` and `packages/cli/tests/live/`, which need a secret and the network: see *Not run by Gate 1*.
 
 ## Generated types
 
@@ -135,6 +137,42 @@ environment, without printing it:
 
 Never `cat` the file or echo the variable. The test and the SDK keep the key out of their output, but a
 shell trace or a pasted log would not.
+
+### Live contract suite
+
+```bash
+(set -a; . ./.env; set +a; pnpm --filter @dynjandi/cli run test:live)
+```
+
+Runs the CLI's contract cases (`packages/cli/tests/contract/cases.ts`) against `https://cdn.dynjandi.dev` with the test project's key in `DYNJANDI_SMOKE_PROJECT_KEY`: both groups, **api** (upload, the file record, every `400`/`401`/`404` message, `no-store`, the original's bytes, `/<id>/-/` and unknown-operation `400`, the `OPTIONS` `405`) and **render** (a 40x20 PNG resized and cropped to four sizes, each read from the PNG header, one `format/webp/` variant, and the immutable `Cache-Control` on the original and the variants). It is one upload and five variants per run, each variant counting against the test project's cap. The offline run of the **api** group is in `pnpm test`; a case one target fails and the other passes is drift. `format/webp/` and the four sizes are not run offline, since a stub renderer cannot decode a picture; the end-to-end run below runs them against the real renderer.
+
+Like the smoke test it needs the key and the network, fails rather than skips when the key is unset, and never prints it; `.github/workflows/smoke.yml` runs it after the SDK smoke test, with the secret given to that step only. Never `cat` `.env` or echo the variable.
+
+### End-to-end run with the real renderer
+
+```bash
+pnpm build
+pnpm --filter @dynjandi/cli run test:e2e
+```
+
+Starts the built `dynjandi dev` (`packages/cli/dist/cli.js`) as a child process with `--port 0` and a temporary
+`--data-dir`, takes the origin from its ready line, and drives it with the real SDK and the real renderer image
+that `dev` starts with Docker: an upload with a focal point, `getFile`, the original, the four sizes and the
+`webp` variant of the contract's **render** cases (built with `client.url()` and read back from the PNG header
+and the WebP signature), then `SIGTERM`: exit code `0` and no `dynjandi-renderer-*` container left.
+
+It then runs the quick start's third command, `dynjandi dev -- node <script>`, with its own data directory and the
+real renderer: the script reads `DYNJANDI_ORIGIN` and `DYNJANDI_PROJECT_KEY`, drives the real SDK (an upload, then a
+`client.url()` variant fetched and its PNG width read), and exits `3` on purpose. The test asserts that `dev` exits
+`3` (the script's code, not `dev`'s own `0` or `1`), that standard output holds only the script's line, that the
+ready line went to standard error, and that no `dynjandi-renderer-*` container is left.
+
+Preconditions: `pnpm build` has been run (it uses the built bin, not the source); Docker is installed and its
+daemon is running; the pinned image (`ghcr.io/dynjandi-dev/renderer:0.2.0@sha256:...`, in
+`packages/cli/src/dev/renderer-image.ts`) is pulled or pullable, and while the package is private that needs a
+`docker login ghcr.io` with an account that can read it. A first pull is about 100 MB; the test allows 180
+seconds to start. `pnpm test` excludes `tests/e2e/`. It is not in the gate because it needs Docker and the
+registry and can go red with nothing in the diff; whether CI runs it is open (issue #37, section 9 Q2).
 
 ### Focal crop capture
 

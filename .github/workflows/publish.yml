@@ -13,8 +13,10 @@ name: Publish SDK
 #
 # Jobs, in order, each only when there is something to publish:
 #   check    reads the version and asks the registry. No OIDC permission.
-#   smoke    the live smoke test (smoke.yml) against the real service. A precondition, not a courtesy: a
-#            published version is permanent, so a spec that has drifted from the service blocks it.
+#   smoke    the live smoke test (smoke.yml) against the real service: the SDK's smoke test, then the CLI's
+#            contract suite, whose cases are the spec's statuses, messages and shapes checked against the
+#            service. A precondition, not a courtesy: a published version is permanent, so a spec that has
+#            drifted from the service blocks it.
 #   build    installs, builds, tests the SDK and packs, and hands the tarball over as an artifact. No OIDC permission.
 #   publish  `id-token: write`, and nothing else: it installs nothing, has no cache and no checkout, and only
 #            runs `npm publish <tarball>`. A compromised dependency can therefore not request an npm OIDC

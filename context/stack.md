@@ -6,7 +6,7 @@ What each section takes is in [`stack.notes.md`](stack.notes.md). `/onboard` rea
 this one.
 
 The public integration surface for Dynjandi, an image CDN at `cdn.dynjandi.dev`: an OpenAPI spec, a
-TypeScript SDK (`@dynjandi/sdk`) and a focal point picker (`@dynjandi/focal-picker`, not yet published). The service itself lives in a separate private repository; this one was
+TypeScript SDK (`@dynjandi/sdk`) and a focal point picker (`@dynjandi/focal-picker`, not yet published) and a command line (`@dynjandi/cli`, not yet published). The service itself lives in a separate private repository; this one was
 split out of it on 2026-09-30 so the spec and SDK can be public and permissively licensed.
 
 **The spec and the SDK's three operations exist, and the SDK is publishable.** `packages/spec/openapi.yaml`
@@ -21,17 +21,19 @@ publishes yet**; so far it holds DOM-free helpers — the point (`FocalPoint`, `
 `stepPoint`) and the crop geometry (`cropWindow`, `pointFromRect`) — plus, at the separate `./element` entry (the only one with a side effect), the `<dynjandi-focal-picker>` custom element: image surface, marker, X/Y inputs and DOM crop previews (`ratios`) — and, at `./react`, the `FocalPicker` component over it (React and `react-dom` are optional peers, `^19.0.0`). No runtime dependencies. Its only tie to the SDK is a type-level test, so `@dynjandi/sdk`
 is a `devDependency`. The design is in issue #4.
 
+`packages/cli` is a public package (`0.0.0`, built to `dist/`, bin `dynjandi`) that is likewise **not on npm and that nothing publishes**. It holds `dynjandi dev`, a local server on `127.0.0.1` that stores uploads on disk and serves file records and originals (`POST /upload`, `GET /files/{id}`, `GET /<id>`, `GET /health`) and variants rendered by a renderer, which `dev` starts with Docker by default (the image pinned by tag and digest, in `src/dev/renderer-image.ts`) or takes from `--renderer-url`. Its runtime dependencies are `@northguild/gmt` and `@dynjandi/transform-grammar` (pinned exactly); `@dynjandi/sdk` is a `devDependency`. Docker (on `PATH`, daemon running) is needed to run the renderer: by `dynjandi dev` by default, and by the end-to-end test; `--renderer-url` and `--no-renderer` need none.
+
 | Concern | Target |
 |---|---|
 | Runtime | Node 22 and 24 (`engines.node >=22`); the SDK targets `fetch`, `FormData` and `Blob` only, with one runtime dependency, `@dynjandi/transform-grammar` (which installs `zod` as a transitive dependency, but the SDK imports its `./builder` entry, so `zod` is not in the browser bundle) |
 | Language | TypeScript 7 (strict, `tsconfig.base.json`), ESM |
 | Package manager | pnpm 10 workspaces, no Nx (`packageManager` in `package.json`) |
 | Lint and format | Biome 2 (`biome.json`), scoped to code: `context/`, `.claude/` and `.agents/` are ignored; the OpenAPI spec is linted by Redocly CLI (`recommended-strict`), called from the root `lint` script |
-| Test | Vitest 5; for the picker it also runs in a real browser (headless Chromium through `@vitest/browser-playwright`, a separate `browser` project beside its `node` one). `pnpm test` runs the offline tests only; `packages/sdk/tests/live/` is a live smoke test against `cdn.dynjandi.dev`, run by `test:live` and never by `pnpm test` |
-| CI | GitHub Actions: `ci.yml` on Node 22 and 24 (its `build` and `check:package` steps cover the SDK and the picker; it installs Playwright's Chromium, cached by the pinned version, before `pnpm test`); `pages.yml` deploys the checker page; `smoke.yml` runs the live smoke test daily, on demand, and as the precondition `publish.yml` calls; `publish.yml` publishes the SDK to npm (trusted publishing, no token); nothing publishes the picker |
+| Test | Vitest 5; for the picker it also runs in a real browser (headless Chromium through `@vitest/browser-playwright`, a separate `browser` project beside its `node` one). `pnpm test` runs the offline tests only, including the CLI's contract suite (the **api** cases against `dynjandi dev` in process); `packages/sdk/tests/live/` is a live smoke test and `packages/cli/tests/live/` the same contract cases (both groups) against `cdn.dynjandi.dev`, each run by its package's `test:live` and never by `pnpm test`; `packages/cli/tests/e2e/` starts the built `dynjandi dev` with the real renderer in Docker (`test:e2e`, by hand, never by `pnpm test`) |
+| CI | GitHub Actions: `ci.yml` on Node 22 and 24 (its `build` and `check:package` steps cover the SDK, the picker and the CLI; it installs Playwright's Chromium, cached by the pinned version, before `pnpm test`); `pages.yml` deploys the checker page; `smoke.yml` runs the live smoke test and the live contract suite daily, on demand, and as the precondition `publish.yml` calls; `publish.yml` publishes the SDK to npm (trusted publishing, no token); nothing publishes the picker |
 | Database | None |
 | Storage | None |
-| Hosting | GitHub Pages serves `packages/checker`'s page at `https://dynjandi-dev.github.io/dynjandi/`, deployed by `pages.yml` once a person sets the repo's Pages source to "GitHub Actions"; nothing else is deployed from here. `@dynjandi/sdk` is the one package this repository publishes to npm: its first version by hand, every later one by `publish.yml`; `@dynjandi/focal-picker` is not published yet |
+| Hosting | GitHub Pages serves `packages/checker`'s page at `https://dynjandi-dev.github.io/dynjandi/`, deployed by `pages.yml` once a person sets the repo's Pages source to "GitHub Actions"; nothing else is deployed from here. `@dynjandi/sdk` is the one package this repository publishes to npm: its first version by hand, every later one by `publish.yml`; `@dynjandi/focal-picker` and `@dynjandi/cli` are not published yet |
 
 ## Layout
 
@@ -43,6 +45,8 @@ packages/sdk/     @dynjandi/sdk: src/ (client, upload, files, http, url, next, e
                   scripts/check-package.mjs, tsconfig.json, tsconfig.build.json (emits dist/, gitignored), README.md
 packages/focal-picker/ @dynjandi/focal-picker (public, unpublished): src/ (point, geometry, index, element, react), tests/ (point.test.ts, readme.test.ts + handoff/ (the README's hand-off snippets as compiled files), browser/react.browser.test.tsx, geometry.test.ts, browser/element.browser.test.ts, browser/previews.browser.test.ts, browser/a11y.browser.test.ts (axe-core), browser/e2e.browser.test.ts (keyboard, forced colours, reflow, reduced motion, drag cost), browser/support.ts (shared helpers), sdk-compat.test-d.ts = the type-level
                   tie to the SDK, browser/ = tests run in Chromium), vitest.config.ts (node and browser projects), scripts/check-package.mjs, tsconfig.json, tsconfig.build.json (emits dist/, gitignored), README.md
+packages/cli/     @dynjandi/cli (public, unpublished): src/ (cli, dev/options, dev/server, dev/variants, dev/renderer), tests/ (contract/ = the cases shared by the offline and live runs, live/ = the live contract test, e2e/ = the end-to-end test with the real renderer), scripts/check-package.mjs, tsconfig.json,
+                  tsconfig.build.json (emits dist/, gitignored), README.md
 packages/checker/ @dynjandi/checker (private): src/ (check, render, main, style.css), index.html, scripts/build.mjs (esbuild into
                   dist/, gitignored), tests/, README.md
 .pnpmfile.cjs     gives openapi-typescript its own TypeScript 5 (it cannot run on TypeScript 7)
@@ -65,7 +69,7 @@ context/   workflow state and project answers (verify, git, tracking, release, e
 - Each package extends `tsconfig.base.json`; generated code goes under a `generated/` directory, which Biome
   ignores. It is committed, never edited by hand: `pnpm --filter @dynjandi/sdk run generate` rewrites
   `packages/sdk/src/generated/api.d.ts` from the spec, and `pnpm check:generated` fails if it is stale.
-- Licence is MIT, copyright "Dynjandi contributors". The root `LICENSE` is copied into `packages/sdk/` and `packages/focal-picker/` by their
+- Licence is MIT, copyright "Dynjandi contributors". The root `LICENSE` is copied into `packages/sdk/`, `packages/focal-picker/` and `packages/cli/` by their
   `prepack` (gitignored there) so the tarball carries it.
 - Relative imports in `packages/sdk/src` end in `.js`: the emitted ESM has to resolve under Node, and the
   build compiles under `NodeNext` to enforce it. `packages/spec`'s `info.version` is the spec's version;
@@ -84,6 +88,8 @@ context/   workflow state and project answers (verify, git, tracking, release, e
   SDK's public API or its dependencies owes it an update.
 
 - `packages/focal-picker/README.md` — what the picker package holds so far (install, the element, `value` and its events, the crop previews and `ratios`, and the point and crop-geometry helpers), the React wrapper and its version range, the hand-off from the picker to `upload`, and that it is not published. It must not claim a feature before a phase has landed it, nor that the package is on npm before it is.
+
+- `packages/cli/README.md` — status (not published), the `dev` options, what the server answers, the exit codes, and the CI and compose recipes for the renderer. It must not claim a feature before a phase has landed it, nor that the package is on npm before it is.
 
 - `packages/checker/README.md` — what the checker page checks, how to build and serve it, the grammar version
   and gzipped bundle size it records (with the command), and how `pages.yml` deploys it. A change to the
