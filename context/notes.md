@@ -44,3 +44,21 @@ Non-blocking review observations for #43, by phase. Read by nobody; `/feature-cl
 - `DockerResult` is exported from `docker.ts` but imported nowhere else; `containers.ts` uses
   `Awaited<ReturnType<typeof runDocker>>`. `const gatewayText = gateway;` in `containers.ts` is a redundant alias.
 - `packages/cli/src/dev/docker.ts` was not on the phase's Files line; the `runDocker` export is what §4.1 needs.
+
+## Phase 4 — An app in a container, end to end, and the compose recipe
+
+- The recipe's SDK tarball step does not say when it goes away; one sentence ("once a released `@dynjandi/sdk`
+  has `apiOrigin`, install it from npm") would, as *In CI* does for its token.
+- `packages/cli/README.md` "so one compose file can serve both systems" leans on the Linux half, which was not run;
+  the "untried" list puts Linux Engine under "`host.docker.internal` may not resolve", though the recipe uses the
+  gateway address there.
+- No standing assertion pins the e2e case's premise — that the container cannot reach `origin`; the one-off
+  mutation (`ECONNREFUSED 127.0.0.1`) proved it once. `container-app.mjs` could probe `DYNJANDI_ORIGIN/health`.
+- `context/verify.md`'s e2e preconditions: the `docker login ghcr.io` line now follows two images but only the
+  renderer is private; "about 100 MB" omits the Node image, whose pull falls inside the 120 s test timeout.
+- Plan §5 said the README would say server-side fetches use `apiOrigin`; the README says `apiOrigin` is only for
+  `upload`/`getFile` and offers the loader instead — closer to D6.
+- `containers.e2e.test.ts` uses `as` on `JSON.parse` results (as `dev.e2e.test.ts` already does) and an
+  in-test `await import("node:http")`.
+- Both e2e files' "no renderer left" assertion fails while another `dev` is running on the machine (predates Phase 4).
+- `packages/cli/package.json` was not on the phase's Files line; `test:e2e` gained `--no-file-parallelism`.
