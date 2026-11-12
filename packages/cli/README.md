@@ -67,7 +67,11 @@ dynjandi dev [options] -- <command> [args...]
 | `--help` | print the options | |
 
 Without a renderer flag, `dev` starts the renderer with Docker (see *The renderer*). The server listens on
-`127.0.0.1` only, and there is no `--host`: it is not meant to be reachable from another machine.
+`127.0.0.1` only, and there is no `--host`: it is not meant to be reachable from another machine. It also
+answers `403 {"error":"Host not allowed: …"}` to a request whose `Host` is a name other than `localhost`,
+`*.localhost` or `*.internal` (such as `host.docker.internal`, the name a container on Docker Desktop reaches
+your machine by); an IP address is always accepted. That stops a web page that has used DNS rebinding to look
+same-origin with the server from uploading or reading files with the default key.
 
 ### The renderer
 
@@ -75,8 +79,10 @@ By default `dev` needs Docker on `PATH` and its daemon running. It uses
 `ghcr.io/dynjandi-dev/renderer:0.2.0`, pinned by digest. It asks Docker whether the image is here
 (`docker image inspect`) and pulls it only if it is not: the first pull is about 100 MB and its progress is
 printed on standard error, and every later start makes no registry request, so it works offline. It runs the
-image with `docker run --rm --read-only --tmpfs /tmp`, its port published
-on `127.0.0.1` only, under the name `dynjandi-renderer-<pid>-<random>`. There is no option to run another image;
+image with `docker run --rm --read-only --tmpfs /tmp --sig-proxy=false`, its port published
+on `127.0.0.1` only, under the name `dynjandi-renderer-<pid>-<random>`. `--sig-proxy=false` keeps a Ctrl-C,
+which reaches `docker run` from the terminal too, from stopping the container under a command that is still
+finishing: only `dev` stops it. There is no option to run another image;
 to use a renderer you built yourself, start it and pass `--renderer-url`.
 
 `dev` waits up to 60 seconds, counted from when the container starts (the pull does not count), for the
@@ -293,8 +299,11 @@ variables added to its environment:
 | `DYNJANDI_PROJECT_KEY` | the key the server accepts: `dynjandi-local`, or your `--project-key` value |
 
 When the command exits, `dev` stops the server and the container and exits with the command's code, or with
-`128 + n` if signal `n` ended it (`137` for `SIGKILL`, `143` for `SIGTERM`). `SIGINT` and `SIGTERM` sent to
-`dev` are forwarded to the command; `dev` then exits with whatever the command exits with. Because the server
+`128 + n` if signal `n` ended it (`137` for `SIGKILL`, `143` for `SIGTERM`). `SIGTERM` sent to `dev` is
+forwarded to the command, and so is `SIGINT` when `dev` is not in a terminal. A Ctrl-C in a terminal already
+reaches the command, as it reaches every process in the job, so `dev` does not send it a second one (many test
+runners read a second `SIGINT` as "force quit" and skip their teardown); it waits for the command instead.
+Either way, `dev` then exits with whatever the command exits with. Because the server
 and the container are stopped on the way out, there is nothing to wait for or tear down, which suits a script,
 a CI step or an agent.
 

@@ -6,10 +6,14 @@ import { RENDERER_IMAGE_TAG } from "./dev/renderer-image.js";
 import { runCommand } from "./dev/run-command.js";
 import { startServer } from "./dev/server.js";
 
-/** Not options: values tests change so the Docker health wait does not take its 60 s. */
+/**
+ * Not options: values tests change, so the Docker health wait does not take its 60 s and the signal tests do
+ * not depend on whether they run in a terminal (`runCommand`'s `terminal`).
+ */
 export interface MainSettings {
   dockerHealthTimeoutMs?: number | undefined;
   dockerPollIntervalMs?: number | undefined;
+  terminal?: boolean | undefined;
 }
 
 /** Where output goes. Each call is one complete chunk, newline included. */
@@ -132,13 +136,14 @@ async function runDev(args: string[], io: Io, settings: MainSettings): Promise<n
     await server.close();
     return 0;
   }
-  // From here the command gets SIGINT and SIGTERM first (D18); runCommand forwards them.
+  // From here the command gets SIGINT and SIGTERM first (D18): from the terminal, or forwarded by runCommand.
   dispose();
   try {
-    return await runCommand(toRun, {
-      DYNJANDI_ORIGIN: server.url,
-      DYNJANDI_PROJECT_KEY: options.projectKey,
-    });
+    return await runCommand(
+      toRun,
+      { DYNJANDI_ORIGIN: server.url, DYNJANDI_PROJECT_KEY: options.projectKey },
+      { terminal: settings.terminal },
+    );
   } finally {
     await server.close();
   }

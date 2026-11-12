@@ -258,11 +258,15 @@ export async function startDockerRenderer(
 
   const name = `dynjandi-renderer-${process.pid}-${randomBytes(4).toString("hex")}`;
   // Attached, not `-d`: --rm deletes a container that crashes, and its logs with it, so this process keeps them.
+  // `--sig-proxy=false`: `docker run` shares this process's terminal, so a Ctrl-C reaches it too, and by default it
+  // would pass that on to the container and stop the renderer while a command under `--` is still using it.
+  // Only `stop()` ends the container.
   const container = spawn(
     "docker",
     [
       "run",
       "--rm",
+      "--sig-proxy=false",
       "--name",
       name,
       "--label",

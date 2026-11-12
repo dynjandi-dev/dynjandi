@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { isIP } from "node:net";
 import { checkProjectKey } from "./project-key.js";
 import type { Renderer } from "./renderer.js";
 import { sendError, sendImage, sendJson } from "./responses.js";
@@ -13,6 +14,30 @@ const FILE_TOO_LARGE = "File exceeds maximum allowed size";
 const MULTIPART = /^multipart\/form-data\s*(?:;|$)/i;
 // A decimal as a form sends it, such as `0.42`: no hexadecimal, no `Infinity`.
 const DECIMAL = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i;
+const HOST_NOT_ALLOWED =
+  "Host not allowed: address the server as 127.0.0.1, localhost or host.docker.internal";
+
+/**
+ * Whether a `Host` header names this machine. Binding loopback keeps other machines out, but not a page that
+ * DNS rebinding has made same-origin with `http://<its own name>:<port>`, and the default key is printed and
+ * documented, so the name it sends is what gives it away (Vite and webpack-dev-server check it for the same
+ * reason). Allowed: an IP literal, which no rebinding produces; `localhost` and `*.localhost`; and
+ * `*.internal`, the top-level domain ICANN reserves for private use, which covers `host.docker.internal`, the
+ * name a container on Docker Desktop reaches the host by (plan section 9 Q6, #43). Anything else is a `403`.
+ */
+export function isLocalHost(host: string | undefined): boolean {
+  if (host === undefined) return false;
+  const lower = host.toLowerCase();
+  const name = lower.startsWith("[")
+    ? lower.slice(1, lower.indexOf("]"))
+    : lower.replace(/:\d*$/, "").replace(/\.$/, "");
+  return (
+    isIP(name) !== 0 ||
+    name === "localhost" ||
+    name.endsWith(".localhost") ||
+    name.endsWith(".internal")
+  );
+}
 
 // The CLI's own version for GET /health (D20). `src/dev/` and `dist/dev/` are both two levels below the
 // package root, so one relative path finds package.json from the sources (tests) and from the tarball.
@@ -50,7 +75,8 @@ export function pathOf(request: IncomingMessage): string {
   return (request.url ?? "/").split("?", 1)[0] ?? "/";
 }
 
-// Reads the body, or returns `null` as soon as it passes `limit`, leaving the rest unread.
+// Reads the body, or returns `null` as soon as it passes `limit`, leaving the rest unread. Rejects when the
+// client goes away before the body ends.
 function readBody(
   request: IncomingMessage,
   limit: number,
@@ -58,11 +84,14 @@ function readBody(
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
-    const done = (result: Uint8Array<ArrayBuffer> | null) => {
+    const cleanup = () => {
       request.off("data", onData);
       request.off("end", onEnd);
       request.off("error", onError);
       request.off("close", onClose);
+    };
+    const done = (result: Uint8Array<ArrayBuffer> | null) => {
+      cleanup();
       resolve(result);
     };
     const onData = (chunk: Buffer) => {
@@ -76,7 +105,7 @@ function readBody(
     };
     const onEnd = () => done(new Uint8Array(Buffer.concat(chunks)));
     const onError = (error: Error) => {
-      done(null);
+      cleanup();
       reject(error);
     };
     const onClose = () =>
@@ -131,7 +160,18 @@ async function upload(
     sendError(response, 413, FILE_TOO_LARGE);
     return;
   }
-  const body = await readBody(request, bodyLimit);
+  let body: Uint8Array<ArrayBuffer> | null;
+  try {
+    body = await readBody(request, bodyLimit);
+  } catch (error) {
+    // The client went away mid-body, so there is nobody to answer: say so on stderr and drop the socket,
+    // rather than log a status that was never received.
+    options.log(
+      `POST /upload abandoned: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    response.destroy();
+    return;
+  }
   if (body === null) {
     request.resume();
     sendError(response, 413, FILE_TOO_LARGE);
@@ -221,6 +261,10 @@ async function route(
 ): Promise<void> {
   const path = pathOf(request);
 
+  if (!isLocalHost(request.headers.host)) {
+    sendError(response, 403, HOST_NOT_ALLOWED);
+    return;
+  }
   if (request.method === "POST" && path === "/upload") {
     const key = checkProjectKey(request.headers, options.projectKey);
     if (!key.ok) {

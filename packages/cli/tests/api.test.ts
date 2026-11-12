@@ -22,6 +22,9 @@ import { FileStore } from "../src/dev/store.js";
 // - the 404 for a malformed id has no filesystem call (D6): the FileStore spies below prove it;
 // - 405 for everything but POST /upload and GET (D8); an unexpected failure is `500 Internal server error`
 //   with detail on stderr only (section 4.2).
+// - review of #48: a `Host` that is not an IP literal, `localhost`, `*.localhost` or `*.internal` is `403`, ahead of
+//   the key and the route (a DNS-rebinding page sends its own name); an upload the client abandons is logged as
+//   abandoned and answered with no status.
 const KEY = "dynjandi-local";
 const CAP = 1000;
 const FRAMING = 65_536;
@@ -83,14 +86,21 @@ function expectError(response: Response, status: number) {
   expect(response.headers.get("cache-control")).toBe(NO_STORE);
 }
 
-// fetch normalizes `..` and `%2e%2e`, so a hostile path needs a raw request.
+// fetch normalizes `..` and `%2e%2e`, and cannot set `Host`, so a hostile path or host needs a raw request.
 function rawGet(
   path: string,
+  headers: Record<string, string> = {},
 ): Promise<{ status: number; body: string; cacheControl: string | undefined }> {
   return new Promise((resolve, reject) => {
     const { port } = new URL(running.url);
     const req = request(
-      { host: "127.0.0.1", port, path, method: "GET", headers: { "X-Project-Key": KEY } },
+      {
+        host: "127.0.0.1",
+        port,
+        path,
+        method: "GET",
+        headers: { "X-Project-Key": KEY, ...headers },
+      },
       (res) => {
         const chunks: Buffer[] = [];
         res.on("data", (chunk: Buffer) => void chunks.push(chunk));
@@ -107,6 +117,39 @@ function rawGet(
     req.end();
   });
 }
+
+describe("the Host header (DNS rebinding)", () => {
+  const FORBIDDEN = JSON.stringify({
+    error: "Host not allowed: address the server as 127.0.0.1, localhost or host.docker.internal",
+  });
+  const port = () => new URL(running.url).port;
+
+  it.each([
+    "127.0.0.1",
+    "localhost",
+    "LOCALHOST",
+    "localhost.",
+    "app.localhost",
+    "host.docker.internal",
+    "[::1]",
+  ])("answers a request addressed to %s", async (name) => {
+    expect((await rawGet("/health", { Host: `${name}:${port()}` })).status).toBe(200);
+  });
+
+  // A rebinding page sends its own name; nip.io-style names resolve to whatever IP they spell.
+  it.each(["evil.example", "localhost.evil.example", "127.0.0.1.nip.io"])(
+    "is 403 for %s, before the key or the route is looked at",
+    async (name) => {
+      for (const path of ["/health", `/files/${UNKNOWN_ID}`, "/no/such/route"]) {
+        expect(await rawGet(path, { Host: `${name}:${port()}` })).toEqual({
+          status: 403,
+          body: FORBIDDEN,
+          cacheControl: NO_STORE,
+        });
+      }
+    },
+  );
+});
 
 describe("project key (D1)", () => {
   describe.each(["POST /upload", "GET /files/{id}"])("%s", (route) => {
@@ -359,6 +402,36 @@ describe("an over-cap upload far larger than the socket buffers", () => {
       expect(JSON.parse(stdout)).toEqual([413, { error: "File exceeds maximum allowed size" }]);
     }
   }, 60_000);
+});
+
+describe("an upload the client abandons mid-body", () => {
+  // Nobody is left to read a status, so none is logged as sent: no `POST /upload 413` for a body that was
+  // never over the cap.
+  it("is logged as abandoned, not answered", async () => {
+    const { port } = new URL(running.url);
+    const req = request({
+      host: "127.0.0.1",
+      port,
+      path: "/upload",
+      method: "POST",
+      headers: {
+        "X-Project-Key": KEY,
+        "Content-Type": "multipart/form-data; boundary=xyz",
+        "Content-Length": String(CAP),
+      },
+    });
+    req.on("error", () => {}); // the socket is destroyed on purpose
+    req.write(Buffer.alloc(100, "a"));
+    await new Promise((done) => setTimeout(done, 200));
+    req.destroy();
+
+    const abandoned = () => logs.some((line) => line.startsWith("POST /upload abandoned: "));
+    for (let attempt = 0; attempt < 300 && !abandoned(); attempt += 1) {
+      await new Promise((done) => setTimeout(done, 10));
+    }
+    expect(abandoned()).toBe(true);
+    expect(logs.join("\n")).not.toContain("413");
+  });
 });
 
 describe("GET /files/{id}", () => {

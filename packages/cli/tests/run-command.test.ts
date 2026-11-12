@@ -121,9 +121,9 @@ describe("dev -- <command>", () => {
     );
   });
 
-  // D18: SIGINT and SIGTERM sent to dev both reach the command.
+  // D18: outside a terminal, SIGINT and SIGTERM sent to dev both reach the command.
   it.each(["SIGINT", "SIGTERM"] as const)(
-    "reaches the command with %s sent to dev, and stops the server",
+    "reaches the command with %s sent to dev outside a terminal, and stops the server",
     async (signal) => {
       const marker = join(dir, "marker");
       const got = join(dir, "got");
@@ -135,7 +135,7 @@ describe("dev -- <command>", () => {
       setInterval(() => {}, 1000);
     `;
       const { io } = capture();
-      const exit = main(dev("--", NODE, "-e", script), io);
+      const exit = main(dev("--", NODE, "-e", script), io, { terminal: false });
       const origin = await waitForFile(marker);
       expect((await fetch(`${origin}/health`)).status).toBe(200);
 
@@ -146,6 +146,36 @@ describe("dev -- <command>", () => {
       await expect(fetch(`${origin}/health`)).rejects.toThrow();
     },
   );
+
+  // In a terminal, a Ctrl-C's SIGINT reaches the command from the terminal itself (POSIX: the terminal signals
+  // its whole foreground process group), so dev sending it again would deliver it twice. dev does not forward
+  // it, and stays up until the command exits; SIGTERM is still forwarded.
+  it("in a terminal, does not send SIGINT on to the command, and still forwards SIGTERM", async () => {
+    const marker = join(dir, "marker");
+    const got = join(dir, "got");
+    // Appends each signal it receives; exits 6 on SIGTERM.
+    const script = `
+      const { appendFileSync, writeFileSync } = require("node:fs");
+      process.on("SIGINT", () => appendFileSync(${JSON.stringify(got)}, "SIGINT "));
+      process.on("SIGTERM", () => { appendFileSync(${JSON.stringify(got)}, "SIGTERM "); process.exit(6); });
+      writeFileSync(${JSON.stringify(marker)}, process.env.DYNJANDI_ORIGIN);
+      setInterval(() => {}, 1000);
+    `;
+    const { io } = capture();
+    const exit = main(dev("--", NODE, "-e", script), io, { terminal: true });
+    const origin = await waitForFile(marker);
+
+    process.emit("SIGINT", "SIGINT");
+    await new Promise((done) => setTimeout(done, 200));
+    // dev is still up, serving the command, and the command was not sent the SIGINT.
+    expect((await fetch(`${origin}/health`)).status).toBe(200);
+
+    process.emit("SIGTERM", "SIGTERM");
+
+    expect(await exit).toBe(6);
+    expect(await readFile(got, "utf8")).toBe("SIGTERM ");
+    await expect(fetch(`${origin}/health`)).rejects.toThrow();
+  });
 
   it("exits 1 when the command cannot be started", async () => {
     const { err, io } = capture();

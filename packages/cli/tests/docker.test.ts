@@ -24,7 +24,8 @@ vi.mock("node:child_process", async (importOriginal) => {
 
 // Expected values and what decided them (plan section 4.5 and 6.2 Phase 5, "Done when"):
 // - the run holds --rm, --read-only, --tmpfs /tmp, a 127.0.0.1 binding of the container's 8080 and the
-//   `tag@sha256:` reference; the reference is written out by hand from section 9 Q1 (index digest 0231fbce...).
+//   `tag@sha256:` reference, and --sig-proxy=false (review of #48: a terminal's Ctrl-C reaches `docker run`, which
+//   by default passes it to the container); the reference is written out by hand from section 9 Q1 (index digest 0231fbce...).
 // - the container is named dynjandi-renderer-<pid>-<random>, and `docker stop` is given that name.
 // - each failure exits 1, stdout stays empty, and stderr holds one line naming the fix and offering both
 //   --renderer-url and --no-renderer: docker not on PATH; daemon down and pull denied, each with Docker's
@@ -155,6 +156,8 @@ describe("dynjandi dev with the default renderer", () => {
     expect(run).toBeDefined();
     expect(run).toContain("--rm");
     expect(run).toContain("--read-only");
+    // A Ctrl-C reaches `docker run` from the terminal too; it must not stop the container (only `stop()` does).
+    expect(run).toContain("--sig-proxy=false");
     expect(run?.[run.indexOf("--tmpfs") + 1]).toBe("/tmp");
     expect(run?.[run.indexOf("-p") + 1]).toBe("127.0.0.1::8080");
     expect(run?.at(-1)).toBe(PINNED);
