@@ -22,7 +22,7 @@ import { FileStore } from "../src/dev/store.js";
 // - the 404 for a malformed id has no filesystem call (D6): the FileStore spies below prove it;
 // - 405 for everything but POST /upload and GET (D8); an unexpected failure is `500 Internal server error`
 //   with detail on stderr only (section 4.2).
-// - review of #48: a `Host` that is not an IP literal, `localhost`, `*.localhost` or `*.internal` is `403`, ahead of
+// - review of #48: a `Host` that plan #43 D5 does not allow is `421` (it was `403` before that plan), ahead of
 //   the key and the route (a DNS-rebinding page sends its own name); an upload the client abandons is logged as
 //   abandoned and answered with no status.
 const KEY = "dynjandi-local";
@@ -90,6 +90,7 @@ function expectError(response: Response, status: number) {
 function rawGet(
   path: string,
   headers: Record<string, string> = {},
+  method = "GET",
 ): Promise<{ status: number; body: string; cacheControl: string | undefined }> {
   return new Promise((resolve, reject) => {
     const { port } = new URL(running.url);
@@ -98,7 +99,7 @@ function rawGet(
         host: "127.0.0.1",
         port,
         path,
-        method: "GET",
+        method,
         headers: { "X-Project-Key": KEY, ...headers },
       },
       (res) => {
@@ -118,14 +119,16 @@ function rawGet(
   });
 }
 
-describe("the Host header (DNS rebinding)", () => {
-  const FORBIDDEN = JSON.stringify({
-    error: "Host not allowed: address the server as 127.0.0.1, localhost or host.docker.internal",
-  });
+// Expected values: plan #43 D5 for which hosts are served; RFC 9110 section 15.5.20 for 421; the body and
+// `no-store` from openapi.yaml, *Errors*; the host is compared case-insensitively with the port removed
+// (RFC 9110 sections 4.2.3 and 7.2).
+describe("the Host header (DNS rebinding, D5)", () => {
+  const REFUSED = JSON.stringify({ error: "Host not allowed" });
   const port = () => new URL(running.url).port;
 
   it.each([
     "127.0.0.1",
+    "172.17.0.1",
     "localhost",
     "LOCALHOST",
     "localhost.",
@@ -136,19 +139,75 @@ describe("the Host header (DNS rebinding)", () => {
     expect((await rawGet("/health", { Host: `${name}:${port()}` })).status).toBe(200);
   });
 
-  // A rebinding page sends its own name; nip.io-style names resolve to whatever IP they spell.
-  it.each(["evil.example", "localhost.evil.example", "127.0.0.1.nip.io"])(
-    "is 403 for %s, before the key or the route is looked at",
+  it("answers a Host with no port", async () => {
+    expect((await rawGet("/health", { Host: "localhost" })).status).toBe(200);
+  });
+
+  // A rebinding page sends its own name; nip.io-style names resolve to whatever IP they spell. `.internal`
+  // names other than host.docker.internal are no longer served: D5 names only the one.
+  it.each(["evil.example", "localhost.evil.example", "127.0.0.1.nip.io", "other.internal"])(
+    "is 421 for %s on every route, with no store call",
     async (name) => {
-      for (const path of ["/health", `/files/${UNKNOWN_ID}`, "/no/such/route"]) {
-        expect(await rawGet(path, { Host: `${name}:${port()}` })).toEqual({
-          status: 403,
-          body: FORBIDDEN,
+      const create = vi.spyOn(FileStore.prototype, "create");
+      const readRecord = vi.spyOn(FileStore.prototype, "readRecord");
+      const read = vi.spyOn(FileStore.prototype, "read");
+      for (const [method, path] of [
+        ["GET", "/health"],
+        ["POST", "/upload"],
+        ["GET", `/${UNKNOWN_ID}`],
+        ["GET", `/files/${UNKNOWN_ID}`],
+      ] as const) {
+        expect(await rawGet(path, { Host: `${name}:${port()}` }, method)).toEqual({
+          status: 421,
+          body: REFUSED,
           cacheControl: NO_STORE,
         });
       }
+      expect(create).not.toHaveBeenCalled();
+      expect(readRecord).not.toHaveBeenCalled();
+      expect(read).not.toHaveBeenCalled();
     },
   );
+
+  it("logs one line that quotes the refused host and names --allow-host", async () => {
+    await rawGet("/health", { Host: `evil.example:${port()}` });
+    const lines = logs.filter((line) => line.includes("evil.example"));
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain(`"evil.example:${port()}"`);
+    expect(lines[0]).toContain("--allow-host");
+  });
+
+  it("serves a name given with allowHosts, case-insensitively, and still refuses others", async () => {
+    const extra = await startServer({
+      port: 0,
+      dataDir,
+      projectKey: KEY,
+      maxFileSize: CAP,
+      renderer: { kind: "none" },
+      allowHosts: ["dev.test"],
+      log: () => {},
+    });
+    try {
+      const { port: extraPort } = new URL(extra.url);
+      const ask = (host: string) =>
+        new Promise<number>((resolve, reject) => {
+          const req = request(
+            { host: "127.0.0.1", port: extraPort, path: "/health", headers: { Host: host } },
+            (res) => {
+              res.resume();
+              resolve(res.statusCode ?? 0);
+            },
+          );
+          req.on("error", reject);
+          req.end();
+        });
+      expect(await ask(`dev.test:${extraPort}`)).toBe(200);
+      expect(await ask(`DEV.test:${extraPort}`)).toBe(200);
+      expect(await ask(`other.test:${extraPort}`)).toBe(421);
+    } finally {
+      await extra.close();
+    }
+  });
 });
 
 describe("project key (D1)", () => {

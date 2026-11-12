@@ -63,15 +63,25 @@ dynjandi dev [options] -- <command> [args...]
 | `--renderer-url <url>` | a renderer that is already running (`http:` or `https:`), instead of starting one with Docker | starts one with Docker |
 | `--no-renderer` | run without a renderer; variant URLs answer `502` (cannot be combined with `--renderer-url`) | off |
 | `--max-file-size <bytes>` | largest upload accepted | `26214400` |
+| `--allow-host <name>` | also answer to this `Host` name (repeatable; an exact DNS name, no port, no wildcard; see *Host names*) | none |
 | `--json` | print the ready line as one JSON object (see *Output and exit codes*) | off |
 | `--help` | print the options | |
 
 Without a renderer flag, `dev` starts the renderer with Docker (see *The renderer*). The server listens on
-`127.0.0.1` only, and there is no `--host`: it is not meant to be reachable from another machine. It also
-answers `403 {"error":"Host not allowed: …"}` to a request whose `Host` is a name other than `localhost`,
-`*.localhost` or `*.internal` (such as `host.docker.internal`, the name a container on Docker Desktop reaches
-your machine by); an IP address is always accepted. That stops a web page that has used DNS rebinding to look
-same-origin with the server from uploading or reading files with the default key.
+`127.0.0.1` only, and there is no `--host`: it is not meant to be reachable from another machine. A request for a `Host` name the server does not know is refused (see *Host names*).
+
+### Host names
+
+The server answers only when the request's `Host` is an IP address, `localhost` or a name under `.localhost`,
+`host.docker.internal` (the name a container on Docker Desktop reaches your machine by), or a name you add with
+`--allow-host <name>`. The port is ignored and case does not matter. Any other name gets
+`421 {"error":"Host not allowed"}`, and one line on standard error quotes the refused host and names
+`--allow-host`. The check runs before every route, `/health` included.
+
+It exists because the default key is printed and documented. A web page that has used DNS rebinding to point its
+own domain at `127.0.0.1` looks same-origin with the server, and without the check it could upload with that key
+and read the answers. Such a page sends its own name in `Host`, which is not on the list. If you reach the server
+by a name of your own, such as an `/etc/hosts` alias, add it: `dynjandi dev --allow-host dev.test`.
 
 ### The renderer
 
@@ -146,6 +156,7 @@ API description (`packages/spec/openapi.yaml`).
 | `GET /<id>` | `200` with the original bytes under the type they were uploaded with. Needs no key. |
 | `GET /<id>/-/<operations>` | A variant: the original, transformed by the renderer. See *Variant URLs*. |
 | `GET /health` | `200 {"ok":true,"service":"dynjandi-dev","version":"<this CLI's version>","renderer":"docker"\|"url"\|"none"}`. No key. It tells a `dev` server from anything else on the port, and whether variants can render. |
+| any request with a `Host` the server does not know | `421 {"error":"Host not allowed"}`, before any route; see *Host names* |
 | any other `GET` | `404` |
 | any other method | `405 {"error":"Method not allowed"}` |
 

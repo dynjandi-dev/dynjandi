@@ -26,6 +26,8 @@ export interface StartServerOptions {
   /** How long the Docker renderer has to become healthy (60 s) and how often it is asked; tests shorten them. */
   dockerHealthTimeoutMs?: number | undefined;
   dockerPollIntervalMs?: number | undefined;
+  /** Host names to answer to besides the always-allowed ones (D5). */
+  allowHosts?: readonly string[] | undefined;
   /** Receives lines for stderr, without a newline. */
   log?: (line: string) => void;
   /** False drops the one line per request (method, path, status); failures and warnings still reach `log` (D18). */
@@ -80,6 +82,7 @@ async function listen(
     projectKey: options.projectKey,
     maxFileSize: options.maxFileSize,
     rendererKind: options.renderer.kind,
+    ...(options.allowHosts === undefined ? {} : { allowHosts: options.allowHosts }),
     log,
   });
   const server = createServer((request, response) => {

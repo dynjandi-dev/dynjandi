@@ -109,6 +109,7 @@ async function runDev(args: string[], io: Io, settings: MainSettings): Promise<n
       projectKey: options.projectKey,
       maxFileSize: options.maxFileSize,
       renderer: options.renderer,
+      allowHosts: options.allowHosts,
       signal: cancel.signal,
       dockerHealthTimeoutMs: settings.dockerHealthTimeoutMs,
       dockerPollIntervalMs: settings.dockerPollIntervalMs,
