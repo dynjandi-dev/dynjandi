@@ -11,7 +11,9 @@ import { isFileId, openStore } from "../src/dev/store.js";
 //   directory's files and itself; a tracked data directory warns on stderr;
 // - D6: ids are lowercase UUIDs (`format: uuid`, crypto.randomUUID()), temporary leftovers are removed at start and
 //   nothing else is deleted, an unparseable record.json is an error that names it;
-// - D13 / section 9 Q7: createdAt is an ISO 8601 UTC instant (`format: date-time`); the precision is not pinned.
+// - D13 / section 9 Q7: createdAt is an ISO 8601 UTC instant (`format: date-time`); dev writes the live service's form, whole seconds and `.000Z`.
+//   Pinning that width is deliberate (it is dev's own output format, not getUtcNow()'s raw precision, so dates.md's
+//   "do not assert a fixed fractional width" does not apply).
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 describe("store", () => {
@@ -123,7 +125,7 @@ describe("store", () => {
         source: "upload",
         focalX: 0.42,
         focalY: 0.18,
-        createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
+        createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.000Z$/),
       });
       expect((await readdir(join(dataDir, "files", record.id))).sort()).toEqual([
         "original",

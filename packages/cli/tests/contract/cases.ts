@@ -61,7 +61,8 @@ const FOCAL_Y = 0.75;
 // openapi.yaml `format: uuid` (section 8, "id a UUID").
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // openapi.yaml `FileRecord.createdAt`: "an ISO 8601 UTC timestamp", `format: date-time`. Fractional seconds
-// are optional because the two servers differ (plan 9 Q7).
+// are optional because the spec does not fix them (only its example shows `.000Z`); the suite also runs against the
+// live service, so it does not depend on that form (dev matches it, pinned in store.test.ts and api.test.ts).
 const UTC_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|\+00:00)$/;
 // Section 8, "public, max-age=31536000, immutable on images": the live CDN's header, asserted on both targets.
 const IMMUTABLE = "public, max-age=31536000, immutable";

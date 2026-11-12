@@ -4,7 +4,7 @@ import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promise
 import { join } from "node:path";
 import { promisify } from "node:util";
 import type { FileRecord } from "@dynjandi/sdk";
-import { getUtcNow } from "@northguild/gmt/utc";
+import { getUtcNow, startOfUtc } from "@northguild/gmt/utc";
 
 const execFileAsync = promisify(execFile);
 
@@ -96,7 +96,9 @@ export class FileStore {
       source: "upload",
       focalX: input.focalX,
       focalY: input.focalY,
-      createdAt: getUtcNow(),
+      // The live service stores whole Unix seconds, so its createdAt is floored to the second and always ends
+      // `.000Z`; dev writes the same form, where getUtcNow() alone would carry nanoseconds.
+      createdAt: startOfUtc(getUtcNow(), "second", { fractionalSecondDigits: 3 }),
     };
     await writeAtomically(join(dir, ORIGINAL), input.bytes);
     await writeAtomically(join(dir, RECORD), JSON.stringify(record));

@@ -14,7 +14,8 @@ import { FileStore } from "../src/dev/store.js";
 //   and its "Errors" section (every error is `{ "error" }` with `Cache-Control: no-store`);
 // - keys: D1 (`X-Project-Key`, the deprecated alias `X-Public-Key`, empty is absent, differing values are 400);
 // - 201 body `{ file, id, url: "/<id>", focalX, focalY }` and the FileRecord shape: the spec's UploadResponse and
-//   FileRecord, with `source: "upload"` (its example) and `createdAt` an ISO 8601 UTC date-time;
+//   FileRecord, with `source: "upload"` (its example) and `createdAt` an ISO 8601 UTC date-time in
+//   the live service's form, whole seconds and `.000Z` (dev's own deliberate format, so pinning its width is intended);
 // - originals: D9's three headers, `GET /<id>` takes no key (section 4.2);
 // - the 413 (D7): a body over the cap is refused before `formData()` runs; the cap on the body adds 64 KiB of
 //   multipart framing to the file cap, so a file of exactly the cap can be uploaded (this phase's reading of D7);
@@ -377,7 +378,7 @@ describe("GET /files/{id}", () => {
       source: "upload",
       focalX: 0.42,
       focalY: 0.18,
-      createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
+      createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.000Z$/),
     });
   });
 
