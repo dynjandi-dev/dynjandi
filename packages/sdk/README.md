@@ -61,10 +61,29 @@ const local = createClient({
 Started on its own, `dynjandi dev` listens on port 4600 and accepts the key `dynjandi-local`, which the
 fallbacks above match.
 
+`apiOrigin` defaults to `origin`. It is where `upload` and `getFile` send their requests, and the project
+key, while every URL the SDK hands out (`upload`'s `url`, `url()`, `srcset`, `pictureSources`,
+`placeholder`) stays on `origin`. Set both when your server reaches the service under another name than
+your users' browsers do, as an app in a container does with `dynjandi dev` on the host: `origin` is what
+browsers load images from, `apiOrigin` is what the container calls. A server-side fetch of an image URL
+(Next.js's default image optimiser, say) uses `origin`, so from inside the container it needs `origin` to
+resolve there too. Setting `apiOrigin` without `origin` leaves the URLs on `https://cdn.dynjandi.dev`.
+
+```ts
+const client = createClient({
+  projectKey: process.env.DYNJANDI_PROJECT_KEY ?? "dynjandi-local",
+  origin: process.env.DYNJANDI_ORIGIN, // browsers: http://127.0.0.1:<port>
+  apiOrigin: process.env.DYNJANDI_API_ORIGIN, // the container: http://host.docker.internal:<port>
+});
+```
+
+How to get the container's origin is in the CLI's
+[From an app in a container](../cli/README.md#from-an-app-in-a-container).
+
 ### `upload(file, { focal? })`
 
 Uploads a `Blob` or `File` and resolves with `{ file, id, url, focalX, focalY }`. `url` is absolute, on the
-client's origin. `focal` is `{ x, y }`, each from 0 to 1, and both are sent together.
+client's `origin` (not `apiOrigin`), the one browsers load images from. `focal` is `{ x, y }`, each from 0 to 1, and both are sent together.
 
 ```ts
 const { id, url } = await client.upload(file, { focal: { x: 0.42, y: 0.18 } });
@@ -307,15 +326,15 @@ part of a message.
 
 ## Bundle size
 
-The browser bundle of `src/index.ts`, with `@dynjandi/transform-grammar` included, is **3,642 bytes gzipped**
-(10,313 bytes minified) as of 2026-11-09, with `@dynjandi/transform-grammar` 0.2.0. Measured from this
+The browser bundle of `src/index.ts`, with `@dynjandi/transform-grammar` included, is **3,674 bytes gzipped**
+(10,479 bytes minified) as of 2026-11-12, with `@dynjandi/transform-grammar` 0.2.0. Measured from this
 directory:
 
 ```bash
 pnpm exec esbuild --bundle --minify --platform=browser --format=esm src/index.ts | gzip -9 -c | wc -c
 ```
 
-The SDK's own code is 2,543 bytes gzipped (6,540 bytes minified); add
+The SDK's own code is 2,575 bytes gzipped (6,706 bytes minified); add
 `--external:@dynjandi/transform-grammar` to the command to see it. The rest is the grammar package's code.
 The SDK imports its zod-free `./builder` entry, so `zod` is not in a browser bundle;
 `tests/bundle.test.ts` bundles `src/index.ts` and `src/next.ts` the same way and fails if it ever is. The byte figure is a

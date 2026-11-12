@@ -17,3 +17,14 @@ Non-blocking review observations for #43, by phase. Read by nobody; `/feature-cl
 - `startServer`'s `allowHosts` is not lower-cased; `parseDevOptions` lower-cases, and only the CLI calls it today.
 - `context/stack.md`'s `packages/cli` `src/` list does not name `dev/host-check` — it already omits `api`,
   `store` and `docker`.
+
+## Phase 3 — The SDK's `apiOrigin` and the spec's `url` wording
+
+- `packages/sdk/README.md` links `../cli/README.md#from-an-app-in-a-container`, which Phase 4 writes; the heading
+  has to be exactly "From an app in a container", and the link goes if the feature closes without Phase 4.
+- The *Usage* container example sets `origin: process.env.DYNJANDI_ORIGIN` with no fallback; unset, URLs fall
+  back to `cdn.dynjandi.dev` (§5). The documented compose path's `${VAR:?}` keeps it set.
+- A new `upload.test.ts` case uses `(error as DynjandiError).status`, against `typescript/rules.md`'s
+  no-assertions rule; `files.test.ts`'s `rejection()` helper narrows with `instanceof` instead.
+- `packages/spec/README.md:32` and the SDK README's *`upload`* line run past the prevailing wrap width.
+- A non-http `apiOrigin` (`file:///x`) passes validation and fails only at request time, as `origin` already does.

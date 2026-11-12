@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Dynjandi API
-  version: 0.3.0
+  version: 0.3.1
   summary: Upload images to Dynjandi, read a stored file back, and address variants by URL.
   license:
     name: MIT
@@ -38,8 +38,9 @@ info:
     ## Relative URLs
 
     The `url` in a successful upload response is relative to the service origin (`/<id>`). Clients
-    resolve it against the origin they sent the request to (the server URL below by default) to get the
-    image's address.
+    resolve it against the service origin. That is the origin they sent the request to (the server URL
+    below by default), unless they call the service under a different name than browsers use for it,
+    in which case it is the origin browsers use.
 
     ## Errors
 
@@ -333,7 +334,8 @@ components:
           pattern: "^/"
           description: |
             The image's path, `/<id>`, relative to the service origin. Resolve it against the origin
-            the request was sent to.
+            the request was sent to, or, when the service is called under a different name than browsers
+            use for it, against the origin browsers use.
         focalX:
           type:
             - number

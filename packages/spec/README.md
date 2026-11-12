@@ -29,7 +29,8 @@ names the SDK's version, not the spec's: read `info.version` in the document for
   `focalX` and `focalY` (both or neither, each from 0 to 1 inclusive). Authenticated by an `X-Project-Key`
   header carrying the project key.
 - **Success.** `201` with `{ file, id, url, focalX, focalY }` and `Cache-Control: no-store`. `file` and
-  `id` are the same UUID. `url` is relative (`/<id>`): resolve it against the origin you called.
+  `id` are the same UUID. `url` is relative (`/<id>`): resolve it against the origin you called, or, when you call the service
+  under another name than browsers use for it, against the origin browsers use.
   `focalX` and `focalY` are `null` when no focal point was sent.
 - **Errors** (upload). Always `{ "error": "<message>" }` with `Cache-Control: no-store`: `400` (not
   multipart, no file, bad focal point), `401` (missing or invalid key), `413` (over the file-size limit
