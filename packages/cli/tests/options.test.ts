@@ -24,8 +24,28 @@ describe("parseDevOptions defaults", () => {
         isDefaultProjectKey: true,
         renderer: { kind: "docker" },
         maxFileSize: 26_214_400,
+        json: false,
+        command: undefined,
       },
     });
+  });
+});
+
+// D18: the first `--` ends the options and the rest is the command, untouched; under `--` the port is 0.
+describe("parseDevOptions after --", () => {
+  it("takes everything after the first -- as the command, even words that look like options", () => {
+    expect(parse("--no-renderer", "--", "pnpm", "test", "--port", "1", "--", "x")).toMatchObject({
+      options: { command: ["pnpm", "test", "--port", "1", "--", "x"], renderer: { kind: "none" } },
+    });
+  });
+
+  it("defaults --port to 0 under -- and still honours an explicit one", () => {
+    expect(parse("--", "cmd")).toMatchObject({ options: { port: 0 } });
+    expect(parse("--port", "4601", "--", "cmd")).toMatchObject({ options: { port: 4601 } });
+  });
+
+  it("reads --json", () => {
+    expect(parse("--json")).toMatchObject({ options: { json: true } });
   });
 });
 
@@ -121,6 +141,9 @@ describe("main usage errors", () => {
     [["dev", "--bogus"]],
     [["dev", "--port", "99999"]],
     [["dev", "--renderer-url", "http://a.test", "--no-renderer"]],
+    // D18: `--` with nothing after it has no command to run.
+    [["dev", "--"]],
+    [["dev", "--no-renderer", "--"]],
     [["nonsense"]],
     [[]],
   ])("exits 2 with stderr and empty stdout for %j", async (argv) => {

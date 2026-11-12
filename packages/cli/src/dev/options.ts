@@ -19,6 +19,10 @@ export interface DevOptions {
   isDefaultProjectKey: boolean;
   renderer: RendererChoice;
   maxFileSize: number;
+  /** `--json`: the ready line is one JSON object (D19). */
+  json: boolean;
+  /** What follows `--`: the command and its arguments, run against the ready server (D18). */
+  command: string[] | undefined;
 }
 
 export type DevCommand = { kind: "help" } | { kind: "run"; options: DevOptions };
@@ -27,16 +31,21 @@ export type DevCommand = { kind: "help" } | { kind: "run"; options: DevOptions }
 export class UsageError extends Error {}
 
 export const DEV_HELP = `Usage: dynjandi dev [options]
+       dynjandi dev [options] -- <command> [args...]
 
-Run a local Dynjandi server on 127.0.0.1.
+Run a local Dynjandi server on 127.0.0.1. With "-- <command>", run the command against it
+(DYNJANDI_ORIGIN and DYNJANDI_PROJECT_KEY are set), stop the server when it exits, and exit
+with its code. In that form --port defaults to 0, the ready line goes to standard error and
+requests are not logged.
 
 Options:
-  --port <n>              port to listen on, 0 for a free one (default ${DEFAULT_PORT})
+  --port <n>              port to listen on, 0 for a free one (default ${DEFAULT_PORT}, 0 after "--")
   --data-dir <path>       where files are kept (default ${DEFAULT_DATA_DIR} in the working directory)
   --project-key <key>     the key the server accepts (default ${DEFAULT_PROJECT_KEY})
   --renderer-url <url>    use a renderer that is already running (http or https), not Docker
   --no-renderer           run without a renderer; variant URLs answer 502
   --max-file-size <bytes> largest upload accepted (default ${DEFAULT_MAX_FILE_SIZE})
+  --json                  print the ready line as one JSON object
   --help                  print this help
 `;
 
@@ -86,6 +95,7 @@ function readArgs(args: string[]) {
         "renderer-url": { type: "string" },
         "no-renderer": { type: "boolean" },
         "max-file-size": { type: "string" },
+        json: { type: "boolean" },
         help: { type: "boolean" },
       },
     }).values;
@@ -97,7 +107,13 @@ function readArgs(args: string[]) {
 
 /** Throws `UsageError` for anything `dynjandi dev` does not accept. `cwd` anchors `--data-dir`. */
 export function parseDevOptions(args: string[], cwd: string): DevCommand {
-  const values = readArgs(args);
+  // The first `--` ends the options; everything after it is the command, untouched (D18).
+  const separator = args.indexOf("--");
+  const command = separator === -1 ? undefined : args.slice(separator + 1);
+  const values = readArgs(separator === -1 ? args : args.slice(0, separator));
+  if (command?.[0] === undefined && command !== undefined && values.help !== true) {
+    throw new UsageError("-- must be followed by the command to run");
+  }
 
   if (values.help === true) return { kind: "help" };
 
@@ -111,7 +127,9 @@ export function parseDevOptions(args: string[], cwd: string): DevCommand {
     options: {
       port:
         values.port === undefined
-          ? DEFAULT_PORT
+          ? command === undefined
+            ? DEFAULT_PORT
+            : 0
           : parseIntegerInRange("--port", values.port, 0, MAX_TCP_PORT),
       dataDir: resolve(cwd, dataDir),
       projectKey,
@@ -126,6 +144,8 @@ export function parseDevOptions(args: string[], cwd: string): DevCommand {
               1,
               Number.MAX_SAFE_INTEGER,
             ),
+      json: values.json === true,
+      command,
     },
   };
 }

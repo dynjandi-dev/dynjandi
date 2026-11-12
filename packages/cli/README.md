@@ -23,16 +23,18 @@ Node 22 or newer.
 
 ```sh
 dynjandi dev [options]
+dynjandi dev [options] -- <command> [args...]
 ```
 
 | Option | Meaning | Default |
 |---|---|---|
-| `--port <n>` | port to listen on; `0` takes a free one and the ready line shows it | `4600` |
+| `--port <n>` | port to listen on; `0` takes a free one and the ready line shows it | `4600`; `0` under `--` |
 | `--data-dir <path>` | where files are kept | `.dynjandi` in the working directory |
 | `--project-key <key>` | the key the server accepts | `dynjandi-local` |
 | `--renderer-url <url>` | a renderer that is already running (`http:` or `https:`), instead of starting one with Docker | starts one with Docker |
 | `--no-renderer` | run without a renderer; variant URLs answer `502` (cannot be combined with `--renderer-url`) | off |
 | `--max-file-size <bytes>` | largest upload accepted | `26214400` |
+| `--json` | print the ready line as one JSON object (see *Output and exit codes*) | off |
 | `--help` | print the options | |
 
 Without a renderer flag, `dev` starts the renderer with Docker (see *The renderer*). The server listens on
@@ -108,7 +110,7 @@ API description (`packages/spec/openapi.yaml`).
 | `GET /files/{id}` | `200` with the file's record: `id`, `contentType`, `bytes`, `originalFilename`, `source` (`"upload"`), `focalX`, `focalY`, `createdAt`. Needs the key. |
 | `GET /<id>` | `200` with the original bytes under the type they were uploaded with. Needs no key. |
 | `GET /<id>/-/<operations>` | A variant: the original, transformed by the renderer. See *Variant URLs*. |
-| `GET /health` | `200 {"ok":true}` |
+| `GET /health` | `200 {"ok":true,"service":"dynjandi-dev","version":"<this CLI's version>","renderer":"docker"\|"url"\|"none"}`. No key. It tells a `dev` server from anything else on the port, and whether variants can render. |
 | any other `GET` | `404` |
 | any other method | `405 {"error":"Method not allowed"}` |
 
@@ -197,7 +199,8 @@ jobs:
 ```
 
 `GHCR_READ_TOKEN` is a secret holding a token that can read the package; it is yours to create, and nothing
-in this repository holds one. If the runner has no Docker at all, use `--no-renderer`: every variant URL
+in this repository holds one. With `--renderer-url`, `dev -- <command>` works here too: it starts the server, runs
+your tests against `DYNJANDI_ORIGIN` and stops, with no background process or wait loop. If the runner has no Docker at all, use `--no-renderer`: every variant URL
 answers `502`, and the rest of the server works.
 
 **Docker Compose.** Run the renderer in your project's compose file and start `dev` on the host against it.
@@ -224,28 +227,91 @@ dynjandi dev --renderer-url http://127.0.0.1:8080
 `pnpm --filter @dynjandi/cli run test:e2e` starts the built `dynjandi dev` with the real renderer image and
 drives it with the real SDK. It is not part of `pnpm test`; `context/verify.md` lists its preconditions.
 
+### Run a command against the server
+
+```sh
+dynjandi dev -- pnpm test
+```
+
+Everything after the first `--` is a command and its arguments. Once the server (and the renderer) is ready,
+`dev` runs the command, without a shell and with its standard input, output and error inherited, and with two
+variables added to its environment:
+
+| Variable | Value |
+|---|---|
+| `DYNJANDI_ORIGIN` | the server's origin, `http://127.0.0.1:<port>`; pass it to the SDK as `origin` |
+| `DYNJANDI_PROJECT_KEY` | the key the server accepts: `dynjandi-local`, or your `--project-key` value |
+
+When the command exits, `dev` stops the server and the container and exits with the command's code, or with
+`128 + n` if signal `n` ended it (`137` for `SIGKILL`, `143` for `SIGTERM`). `SIGINT` and `SIGTERM` sent to
+`dev` are forwarded to the command; `dev` then exits with whatever the command exits with. Because the server
+and the container are stopped on the way out, there is nothing to wait for or tear down, which suits a script,
+a CI step or an agent.
+
+Under `--` three defaults change:
+
+- `--port` defaults to `0`, a free port, so parallel checkouts and agents do not collide. The command learns
+  it from `DYNJANDI_ORIGIN`.
+- The ready line goes to standard error, so standard output carries only the command's output.
+- The per-request lines are off. Failures and warnings still print on standard error.
+
+`--` with no command is a usage error (exit `2`). A `--project-key` value reaches the command in
+`DYNJANDI_PROJECT_KEY` and is printed nowhere.
+
+**Env loaders and the inherited variable.** An app that also loads a `.env` file keeps the value `dev` gives it,
+because these loaders do not override a variable that is already set in the environment:
+
+| Loader | Keeps an inherited `DYNJANDI_PROJECT_KEY`? | Documentation |
+|---|---|---|
+| dotenv | Yes. `override` defaults to `false`: "Override any environment variables that have already been set on your machine with values from your .env file(s)", so without it the existing value stays. | dotenv README, *config* options, `override` |
+| Next.js | Yes. "Environment variables are looked up in the following places, in order, stopping once the variable is found", and `process.env` is first, before every `.env*` file. | Next.js, *Environment Variables*, *Environment Variable Load Order* |
+| Vite | Yes. "Environment variables that already exist when Vite is executed have the highest priority and will not be overwritten by `.env` files." | Vite, *Env Variables and Modes*, *.env Files* |
+
+Vite exposes only variables that start with `VITE_` (the default `envPrefix`) to client code through
+`import.meta.env`, and Next.js only those that start with `NEXT_PUBLIC_`. `DYNJANDI_ORIGIN` and
+`DYNJANDI_PROJECT_KEY` have neither prefix, so they are available to server-side and config code and are not
+put in a browser bundle; to use one in the browser, read it in a config file and pass it on deliberately.
+Checked against the documentation on 2026-11-12.
+
 ### Point the SDK at the server
 
 ```ts
 import { createClient } from "@dynjandi/sdk";
 
 const dynjandi = createClient({
-  projectKey: "dynjandi-local",
-  origin: "http://127.0.0.1:4600",
+  projectKey: process.env.DYNJANDI_PROJECT_KEY ?? "dynjandi-local",
+  origin: process.env.DYNJANDI_ORIGIN ?? "http://127.0.0.1:4600",
 });
 const { id, url } = await dynjandi.upload(file);
 ```
 
-Use the port from the ready line if you passed `--port 0`.
+Run under `dynjandi dev -- <command>`, the two variables are set. Started on its own, the defaults match
+`dev`'s; use the port from the ready line if you passed `--port 0`.
 
 ### Output and exit codes
 
-Standard output holds one line when the server is ready: the origin, the project key (only when it is the
-default; a `--project-key` value is never printed), the data directory and the renderer. Everything else goes
-to standard error, one line per request with its method, path and status.
+Without `--`, standard output holds one line when the server is ready: the origin, the project key (only when
+it is the default; a `--project-key` value is never printed), the data directory and the renderer. Everything
+else goes to standard error, one line per request with its method, path and status. Under `--`, the ready line
+goes to standard error and the request lines are off (see *Run a command against the server*).
+
+`--json` prints that line as one JSON object, for a script or an agent that started `dev` in the background:
+
+```json
+{"origin":"http://127.0.0.1:55415","projectKey":"dynjandi-local","dataDir":"/work/app/.dynjandi","renderer":{"kind":"none"}}
+```
+
+`renderer` is `{"kind":"docker","image":"<tag>"}`, `{"kind":"url","url":"<url>"}` or `{"kind":"none"}`.
+`projectKey` is present only when it is the default. Errors stay one line on standard error.
 
 | Exit code | When |
 |---|---|
-| `0` | stopped by `SIGINT` or `SIGTERM`, or `--help` |
-| `1` | a failure at run time, such as a port already in use or a renderer that Docker cannot start |
-| `2` | a usage error: an unknown option, a value out of range, a bad URL; the message is on standard error and standard output stays empty |
+| `0` | stopped by `SIGINT` or `SIGTERM`, or `--help`; under `--`, the command exited `0` |
+| `1` | a failure at run time, such as a port already in use, a renderer that Docker cannot start, or a command that cannot be started |
+| `2` | a usage error: an unknown option, a value out of range, a bad URL, `--` with no command; the message is on standard error and standard output stays empty |
+| the command's code | under `--`, once the command has run |
+| `128 + n` | under `--`, when signal `n` ended the command |
+
+Under `--`, `0`, `1` and `2` can also be the command's own code. They are `dev`'s own when a failure comes
+before the command starts (`1` or `2`), when a stop signal arrives during start-up (`0`, and the command is not
+run), and when stopping the server after the command fails (`1`, replacing the command's code).

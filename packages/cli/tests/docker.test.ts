@@ -193,6 +193,34 @@ describe("dynjandi dev with the default renderer", () => {
     expect(err.join("")).not.toContain("99.88.77");
   });
 
+  // D19 and section 9 Q1 give the image tag (written out by hand); D20 gives /health's "docker"; D18 stops
+  // the container once the command has exited.
+  it("under -- reports the docker renderer in --json and /health, and stops the container after the command", async () => {
+    const report = join(work, "health.json");
+    const script = `
+      const { writeFileSync } = require("node:fs");
+      fetch(process.env.DYNJANDI_ORIGIN + "/health").then((r) => r.json()).then((body) => {
+        writeFileSync(process.argv[1], JSON.stringify(body));
+      });
+    `;
+    const { out, err, exit } = dev(["--json", "--", process.execPath, "-e", script, report]);
+    expect(await exit).toBe(0);
+
+    expect(out).toEqual([]);
+    // The pull's progress lines share stderr; the JSON object is the line that parses.
+    const json = err
+      .join("")
+      .split("\n")
+      .find((line) => line.startsWith("{"));
+    expect(JSON.parse(json ?? "").renderer).toEqual({
+      kind: "docker",
+      image: "ghcr.io/dynjandi-dev/renderer:0.2.0",
+    });
+    expect(JSON.parse(readFileSync(report, "utf8")).renderer).toBe("docker");
+    const run = callsTo("run")[0] ?? [];
+    expect(callsTo("stop")).toEqual([["stop", run[run.indexOf("--name") + 1]]]);
+  });
+
   it("runs docker without a shell", async () => {
     const { out, exit } = dev([]);
     await waitFor(() => out.length > 0, "the ready line");

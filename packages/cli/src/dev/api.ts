@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { checkProjectKey } from "./project-key.js";
 import type { Renderer } from "./renderer.js";
@@ -13,12 +14,33 @@ const MULTIPART = /^multipart\/form-data\s*(?:;|$)/i;
 // A decimal as a form sends it, such as `0.42`: no hexadecimal, no `Infinity`.
 const DECIMAL = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i;
 
+// The CLI's own version for GET /health (D20). `src/dev/` and `dist/dev/` are both two levels below the
+// package root, so one relative path finds package.json from the sources (tests) and from the tarball.
+const CLI_VERSION = readCliVersion();
+
+function readCliVersion(): string {
+  const pkg: unknown = JSON.parse(
+    readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+  );
+  if (
+    typeof pkg === "object" &&
+    pkg !== null &&
+    "version" in pkg &&
+    typeof pkg.version === "string"
+  ) {
+    return pkg.version;
+  }
+  throw new Error("the CLI's package.json has no version");
+}
+
 export interface ApiOptions {
   store: FileStore;
   renderer: Renderer;
   projectKey: string;
   /** Bytes. */
   maxFileSize: number;
+  /** What `GET /health` reports as `renderer` (D20). */
+  rendererKind: "docker" | "url" | "none";
   /** Receives lines for stderr, without a newline. */
   log: (line: string) => void;
 }
@@ -214,7 +236,12 @@ async function route(
     return;
   }
   if (path === "/health") {
-    sendJson(response, 200, { ok: true });
+    sendJson(response, 200, {
+      ok: true,
+      service: "dynjandi-dev",
+      version: CLI_VERSION,
+      renderer: options.rendererKind,
+    });
     return;
   }
 

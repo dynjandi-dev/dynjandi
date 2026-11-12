@@ -26,8 +26,10 @@ export interface StartServerOptions {
   /** How long the Docker renderer has to become healthy (60 s) and how often it is asked; tests shorten them. */
   dockerHealthTimeoutMs?: number | undefined;
   dockerPollIntervalMs?: number | undefined;
-  /** Receives one line per request (method, path, status), without a newline. */
+  /** Receives lines for stderr, without a newline. */
   log?: (line: string) => void;
+  /** False drops the one line per request (method, path, status); failures and warnings still reach `log` (D18). */
+  logRequests?: boolean;
 }
 
 export interface RunningServer {
@@ -77,12 +79,15 @@ async function listen(
     }),
     projectKey: options.projectKey,
     maxFileSize: options.maxFileSize,
+    rendererKind: options.renderer.kind,
     log,
   });
   const server = createServer((request, response) => {
-    response.on("finish", () => {
-      log(`${request.method} ${pathOf(request)} ${response.statusCode}`);
-    });
+    if (options.logRequests !== false) {
+      response.on("finish", () => {
+        log(`${request.method} ${pathOf(request)} ${response.statusCode}`);
+      });
+    }
     void handle(request, response);
   });
 

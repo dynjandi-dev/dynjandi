@@ -1,16 +1,24 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { main } from "../src/cli.js";
 import { startServer } from "../src/dev/server.js";
+import { startStubRenderer } from "./support/stub-renderer.js";
 
-// Expected values come from the plan: GET /health is 200 {"ok":true} (section 4.2); an unknown path is 404
+// Expected values come from the plan: GET /health is 200 {"ok":true,"service":"dynjandi-dev","version","renderer"}
+// (section 4.2, D20; "version" is the CLI's package.json, read here straight from the file); an unknown path is 404
 // {"error":"Not found"}; OPTIONS and every method but POST /upload and GET are 405 {"error":"Method not allowed"}
 // (D8; POST /upload is not built in this phase, so it is a 405 here too); one stderr line per request holding
 // method, path and status (D12); the server binds 127.0.0.1 only (D7); API answers carry Cache-Control: no-store
 // and a JSON content type (section 4.2).
+
+const PACKAGE_VERSION = (
+  JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
+    version: string;
+  }
+).version;
 
 // Uploads and files are tested in api.test.ts; these tests only need somewhere to keep them.
 const DATA_DIR = mkdtempSync(join(tmpdir(), "dynjandi-server-"));
@@ -39,12 +47,17 @@ describe("startServer", () => {
     expect(new URL(running.url).port).not.toBe("0");
   });
 
-  it("answers GET /health with 200 {ok: true}", async () => {
+  it("answers GET /health with 200 and D20's fields", async () => {
     const response = await fetch(`${running.url}/health`);
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("application/json");
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(await response.json()).toEqual({ ok: true });
+    expect(await response.json()).toEqual({
+      ok: true,
+      service: "dynjandi-dev",
+      version: PACKAGE_VERSION,
+      renderer: "none",
+    });
   });
 
   it("answers an unknown path with 404 Not found", async () => {
@@ -82,6 +95,24 @@ describe("startServer", () => {
     await running.close();
     await expect(fetch(`${running.url}/health`)).rejects.toThrow();
     running = await startServer({ port: 0, ...SERVER });
+  });
+});
+
+describe("GET /health names the renderer (D20)", () => {
+  it("says url when a renderer is configured", async () => {
+    const stub = await startStubRenderer();
+    const running = await startServer({
+      port: 0,
+      ...SERVER,
+      renderer: { kind: "url", url: stub.url },
+    });
+    try {
+      const body = (await (await fetch(`${running.url}/health`)).json()) as { renderer: string };
+      expect(body.renderer).toBe("url");
+    } finally {
+      await running.close();
+      await stub.close();
+    }
   });
 });
 
@@ -143,7 +174,7 @@ describe("main dev", () => {
       expect(ready).toContain("none");
 
       const response = await fetch(`${origin?.[0]}/health`);
-      expect(await response.json()).toEqual({ ok: true });
+      expect(await response.json()).toMatchObject({ ok: true, service: "dynjandi-dev" });
       expect(err.join("")).toContain("GET /health 200");
 
       process.emit(signal, signal);

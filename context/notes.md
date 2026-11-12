@@ -115,3 +115,15 @@ Non-blocking review observations for the active feature (#37, local-dev-server).
 - `isGone` reads `(error as NodeJS.ErrnoException).code`, a type assertion `typescript/rules.md` discourages.
 - A denied pull prints Docker's error twice: once streamed, once quoted in the failure line.
 - The dead-pid fixture assumes a just-exited child's pid is not reused during the test.
+
+## Phase 7 (`dev -- <command>`, `--json`, `/health`), Gate 2 notes
+
+- In a terminal, Ctrl-C reaches the command twice: from the tty's process group and from `dev`'s forward. A
+  tool that reads a second Ctrl-C as "force quit" sees two. A signal that arrives while `server.close()` runs
+  gets Node's default action, and the container is left for D17's cleanup on the next start.
+- `options.ts`: `command?.[0] === undefined && command !== undefined` reads more plainly as
+  `command !== undefined && command.length === 0`.
+- `readCliVersion()` runs at import of `api.ts`, outside `main`'s try/catch; a throw there would be an uncaught
+  crash rather than a one-line exit 1 (theoretical: the package always has a version).
+- The docker test finds the `--json` object as the stderr line starting with `{`.
+- The implementation was written before its tests; the expected values are still sourced (D18–D20, POSIX).
