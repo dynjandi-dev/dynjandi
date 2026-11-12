@@ -35,8 +35,9 @@ For `next/image`, `@dynjandi/sdk/next` is a custom loader; see
 
 To develop without the live service, `dynjandi dev` (in [`packages/cli`](packages/cli/README.md); not on npm
 yet) runs a local server on `127.0.0.1` that stores uploads on disk and renders variants with the Dynjandi
-renderer, started with Docker or taken from `--renderer-url`. Point the SDK's `origin` at it with the key
-`dynjandi-local`.
+renderer, started with Docker or taken from `--renderer-url`. `dynjandi dev -- <command>` runs your tests
+against it and stops it when they end, with `DYNJANDI_ORIGIN` and `DYNJANDI_PROJECT_KEY` set for the command;
+point the SDK's `origin` and key at those.
 
 ## Developing
 

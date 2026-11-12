@@ -160,6 +160,19 @@ describe("main usage errors", () => {
     expect(err).toEqual([]);
   });
 
+  // D21 / the README quick start: the same three steps, written out here rather than read from DEV_HELP.
+  it("prints the examples from the quick start", async () => {
+    const { out, io } = capture();
+    expect(await main(["dev", "--help"], io)).toBe(0);
+    const help = out.join("");
+    expect(help).toContain("Examples:");
+    expect(help).toContain("dynjandi dev  ");
+    expect(help).toContain("dynjandi dev -- pnpm test");
+    expect(help).toContain(
+      "createClient({ projectKey: process.env.DYNJANDI_PROJECT_KEY, origin: process.env.DYNJANDI_ORIGIN })",
+    );
+  });
+
   it("prints the top-level help on stdout and exits 0", async () => {
     const { out, io } = capture();
     expect(await main(["--help"], io)).toBe(0);

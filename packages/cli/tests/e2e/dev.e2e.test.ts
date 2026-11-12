@@ -195,3 +195,80 @@ describe("dynjandi dev with the real renderer", () => {
     STOP_TIMEOUT_MS,
   );
 });
+
+// D18, the quick start's third command: `dev -- node <script>` with the real renderer. The script is the only
+// code that knows the server's address: it reads DYNJANDI_ORIGIN and DYNJANDI_PROJECT_KEY, drives the real SDK
+// (upload, then a variant built by client.url and fetched), and prints what it saw. It exits 3 on purpose, so
+// the test can tell the script's own code from dev's (0 on success, 1 on a failure): 3 can only have come
+// through dev from the script. A failed check throws, which exits 1.
+const SCRIPT = `
+const { createClient } = await import(process.env.SDK_MODULE);
+const client = createClient({
+  projectKey: process.env.DYNJANDI_PROJECT_KEY,
+  origin: process.env.DYNJANDI_ORIGIN,
+});
+const png = Buffer.from(process.env.PNG_BASE64, "base64");
+const uploaded = await client.upload(new File([png], "script.png", { type: "image/png" }));
+const variant = client.url(uploaded.id, { width: 20, format: "png" });
+const response = await fetch(variant);
+const bytes = new Uint8Array(await response.arrayBuffer());
+const width = new DataView(bytes.buffer).getUint32(16);
+console.log(JSON.stringify({ origin: process.env.DYNJANDI_ORIGIN, url: uploaded.url, variant, status: response.status, width }));
+process.exit(3);
+`;
+
+describe("dynjandi dev -- node <script> with the real renderer", () => {
+  test(
+    "the script reaches the server through the two variables and dev exits with its code",
+    async () => {
+      const dir = await mkdtemp(join(tmpdir(), "dynjandi-e2e-run-"));
+      try {
+        const run = spawn(
+          process.execPath,
+          [
+            CLI,
+            "dev",
+            "--data-dir",
+            dir,
+            "--",
+            process.execPath,
+            "--input-type=module",
+            "-e",
+            SCRIPT,
+          ],
+          {
+            env: {
+              ...process.env,
+              SDK_MODULE: import.meta.resolve("@dynjandi/sdk"),
+              PNG_BASE64: Buffer.from(png).toString("base64"),
+            },
+            stdio: ["ignore", "pipe", "pipe"],
+          },
+        );
+        let out = "";
+        let err = "";
+        run.stdout.setEncoding("utf8").on("data", (text: string) => (out += text));
+        run.stderr.setEncoding("utf8").on("data", (text: string) => (err += text));
+        const code = await new Promise<number | null>((resolve) => run.once("close", resolve));
+        expect(code, err).toBe(3);
+        // Under `--` standard output is the command's alone (D18); the ready line went to standard error.
+        const seen = JSON.parse(out) as {
+          origin: string;
+          url: string;
+          status: number;
+          width: number;
+        };
+        expect(seen.origin).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+        expect(seen.url.startsWith(`${seen.origin}/`)).toBe(true);
+        expect(seen.status).toBe(200);
+        // openapi.yaml *Variant URL grammar*: a width of 20 on the 40x20 fixture gives 20 wide (PNG IHDR, offset 16).
+        expect(seen.width).toBe(20);
+        expect(err).toMatch(/Dynjandi dev server ready at /);
+        expect(await renderers()).toBe("");
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    },
+    START_TIMEOUT_MS,
+  );
+});

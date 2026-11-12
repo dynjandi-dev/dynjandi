@@ -47,6 +47,12 @@ Options:
   --max-file-size <bytes> largest upload accepted (default ${DEFAULT_MAX_FILE_SIZE})
   --json                  print the ready line as one JSON object
   --help                  print this help
+
+Examples:
+  dynjandi dev                          start the server
+  dynjandi dev -- pnpm test             run your tests against it; the server stops when they end
+  createClient({ projectKey: process.env.DYNJANDI_PROJECT_KEY, origin: process.env.DYNJANDI_ORIGIN })
+                                        point the SDK at it, inside the command
 `;
 
 function parseIntegerInRange(name: string, text: string, min: number, max: number): number {

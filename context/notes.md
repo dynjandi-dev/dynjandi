@@ -127,3 +127,14 @@ Non-blocking review observations for the active feature (#37, local-dev-server).
   crash rather than a one-line exit 1 (theoretical: the package always has a version).
 - The docker test finds the `--json` object as the stderr line starting with `{`.
 - The implementation was written before its tests; the expected values are still sourced (D18–D20, POSIX).
+
+## Phase 8 (quick start, `--help` examples, CI), Gate 2 notes
+
+- The phase's Done-when says no README copies the digest "outside the `services:` recipe"; the compose recipe
+  copies it too (D2 names compose as a `--renderer-url` path, and the README says both recipes are the only
+  places). The plan's wording, not the README, is what is out of step.
+- `--help`'s `createClient` example drops the README's `??` fallbacks ("inside the command" keeps it true).
+- The help test's `toContain("dynjandi dev  ")` leans on column padding; a whole-line match would be firmer.
+- The e2e `--` case reuses the broad `dynjandi-renderer-` container filter, so run alone with `-t` while the
+  file's `beforeAll` `dev` is up it would fail falsely.
+- The services recipe's heading no longer uses D21's "runners that cannot start containers", which was untrue.

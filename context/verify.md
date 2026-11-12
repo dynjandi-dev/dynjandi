@@ -161,6 +161,12 @@ that `dev` starts with Docker: an upload with a focal point, `getFile`, the orig
 `webp` variant of the contract's **render** cases (built with `client.url()` and read back from the PNG header
 and the WebP signature), then `SIGTERM`: exit code `0` and no `dynjandi-renderer-*` container left.
 
+It then runs the quick start's third command, `dynjandi dev -- node <script>`, with its own data directory and the
+real renderer: the script reads `DYNJANDI_ORIGIN` and `DYNJANDI_PROJECT_KEY`, drives the real SDK (an upload, then a
+`client.url()` variant fetched and its PNG width read), and exits `3` on purpose. The test asserts that `dev` exits
+`3` (the script's code, not `dev`'s own `0` or `1`), that standard output holds only the script's line, that the
+ready line went to standard error, and that no `dynjandi-renderer-*` container is left.
+
 Preconditions: `pnpm build` has been run (it uses the built bin, not the source); Docker is installed and its
 daemon is running; the pinned image (`ghcr.io/dynjandi-dev/renderer:0.2.0@sha256:...`, in
 `packages/cli/src/dev/renderer-image.ts`) is pulled or pullable, and while the package is private that needs a
