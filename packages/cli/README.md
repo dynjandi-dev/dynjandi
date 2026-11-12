@@ -40,9 +40,11 @@ Without a renderer flag, `dev` starts the renderer with Docker (see *The rendere
 
 ### The renderer
 
-By default `dev` needs Docker on `PATH` and its daemon running. It pulls
-`ghcr.io/dynjandi-dev/renderer:0.2.0`, pinned by digest (the first pull is about 100 MB, and a pull is a
-no-op once the image is here), and runs it with `docker run --rm --read-only --tmpfs /tmp`, its port published
+By default `dev` needs Docker on `PATH` and its daemon running. It uses
+`ghcr.io/dynjandi-dev/renderer:0.2.0`, pinned by digest. It asks Docker whether the image is here
+(`docker image inspect`) and pulls it only if it is not: the first pull is about 100 MB and its progress is
+printed on standard error, and every later start makes no registry request, so it works offline. It runs the
+image with `docker run --rm --read-only --tmpfs /tmp`, its port published
 on `127.0.0.1` only, under the name `dynjandi-renderer-<pid>-<random>`. There is no option to run another image;
 to use a renderer you built yourself, start it and pass `--renderer-url`.
 
@@ -50,6 +52,11 @@ to use a renderer you built yourself, start it and pass `--renderer-url`.
 renderer's `GET /health` to answer, and only then prints the ready line, which names the image:
 `renderer: docker (ghcr.io/dynjandi-dev/renderer:0.2.0)`. It stops the container when you press Ctrl-C, on
 `SIGTERM`, and when start-up fails. Whatever `docker` prints stays off standard output.
+
+Every container carries the label `dev.dynjandi.cli.owner=<hostname>:<pid>`. If `dev` is killed hard (`kill -9`),
+its container keeps running; the next `dev` lists the containers with that label and stops each one that
+this machine started and whose process is gone. A container of a `dev` that is still running, or one started on
+another host, is left alone.
 
 Each failure exits `1`, prints one line on standard error that names the fix and offers `--renderer-url <url>`
 (a renderer you already run, such as a CI service container) and `--no-renderer` (run without one; variant URLs
@@ -59,8 +66,21 @@ answer `502`), and leaves standard output empty:
 |---|---|
 | `docker` is not on `PATH` | that `docker` was not found, and to install and start Docker |
 | the daemon is not running | Docker's first line of standard error, and to start Docker |
-| the image cannot be pulled, for example you cannot read it | Docker's first line of standard error, and to run `docker login ghcr.io` |
+| the image cannot be pulled, for example you cannot read it | Docker's first line of standard error, and a link to *If the image cannot be pulled* below |
 | the renderer does not become healthy in 60 seconds, or its container exits | the last lines the container printed |
+
+### If the image cannot be pulled
+
+Today the renderer image can be read by accounts in the `dynjandi-dev` organization only; it becomes public
+with `dynjandi-dev/dynjandi-core#373`. Until then, if you are not in the organization, the pull is denied and
+Docker's first line of standard error says so. Two ways round it need no image:
+
+- `--renderer-url <url>` uses a renderer that is already running (see *In CI, and with Docker Compose*).
+- `--no-renderer` runs without one; variant URLs answer `502`.
+
+If your account can read the image, sign in once with `docker login ghcr.io` (a personal access token with
+`read:packages` as the password) and start `dev` again. Signing in does nothing for an account that cannot read
+it. Once the image is public, no sign-in is needed.
 
 ### The project key
 

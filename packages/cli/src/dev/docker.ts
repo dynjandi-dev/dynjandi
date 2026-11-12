@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { hostname } from "node:os";
 import { setTimeout as delay } from "node:timers/promises";
 import { RENDERER_CONTAINER_PORT, RENDERER_IMAGE, RENDERER_IMAGE_TAG } from "./renderer-image.js";
 
@@ -12,6 +13,13 @@ const LOG_LINES_KEPT = 20;
 // Every failure names the way round it (4.5): a running renderer, or none.
 const WAYS_ROUND =
   "or pass --renderer-url <url> to use a running renderer, or --no-renderer to run without one";
+
+/** D17: names the `dev` process that started a container, as `<hostname>:<pid>`. */
+const OWNER_LABEL = "dev.dynjandi.cli.owner";
+
+// D16: the section a reader who cannot pull the image is sent to. A full URL, so an agent can follow it.
+const PULL_HELP_URL =
+  "https://github.com/dynjandi-dev/dynjandi/blob/main/packages/cli/README.md#if-the-image-cannot-be-pulled";
 
 export interface DockerRendererSettings {
   /** Receives lines for stderr, without a newline. */
@@ -46,7 +54,12 @@ interface DockerResult {
 
 // `spawn` with an argument array and no shell, so nothing here is ever parsed by one. Standard output and
 // error are piped into the result, never inherited: whatever `docker` prints must not reach the CLI's stdout (D12).
-function runDocker(args: string[], signal?: AbortSignal): Promise<DockerResult> {
+// `onLine` receives each complete line of either stream as it arrives, for output a reader should see live.
+function runDocker(
+  args: string[],
+  signal?: AbortSignal,
+  onLine?: (line: string) => void,
+): Promise<DockerResult> {
   return new Promise((resolve, reject) => {
     const child = spawn("docker", args, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -54,11 +67,22 @@ function runDocker(args: string[], signal?: AbortSignal): Promise<DockerResult> 
     });
     let stdout = "";
     let stderr = "";
+    const partial = { stdout: "", stderr: "" };
+    const forward = (stream: "stdout" | "stderr", chunk: string, final = false) => {
+      if (onLine === undefined) return;
+      const pieces = (partial[stream] + chunk).split("\n");
+      partial[stream] = final ? "" : (pieces.pop() ?? "");
+      for (const piece of pieces) {
+        if (piece.trim() !== "") onLine(piece.trim());
+      }
+    };
     child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
       stdout += chunk;
+      forward("stdout", chunk);
     });
     child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
       stderr += chunk;
+      forward("stderr", chunk);
     });
     child.once("error", (error: NodeJS.ErrnoException) => {
       if (signal?.aborted) {
@@ -75,8 +99,59 @@ function runDocker(args: string[], signal?: AbortSignal): Promise<DockerResult> 
         );
       }
     });
-    child.once("close", (code) => resolve({ code, stdout, stderr }));
+    child.once("close", (code) => {
+      forward("stdout", "", true);
+      forward("stderr", "", true);
+      resolve({ code, stdout, stderr });
+    });
   });
+}
+
+// `process.kill(pid, 0)` sends nothing; ESRCH says the pid is gone. Any other outcome (EPERM: it exists but
+// is not ours) counts as alive, because stopping a renderer that may be in use is the worse mistake.
+function isGone(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ESRCH";
+  }
+}
+
+/**
+ * D17: stops each labelled container this host started whose `dev` is gone. A live pid or another host's
+ * container is left alone. Nothing here may stop start-up, so a failure is logged and the start goes on.
+ */
+async function stopOrphans(log: (line: string) => void, signal: AbortSignal | undefined) {
+  const listed = await runDocker(
+    [
+      "ps",
+      "--filter",
+      `label=${OWNER_LABEL}`,
+      "--format",
+      `{{.Names}}\t{{.Label "${OWNER_LABEL}"}}`,
+    ],
+    signal,
+  );
+  if (listed.code !== 0) {
+    log(`could not list earlier renderers: ${firstLine(listed.stderr)}`);
+    return;
+  }
+  const host = hostname();
+  for (const row of listed.stdout.split("\n")) {
+    const [containerName, owner] = row.trim().split("\t");
+    if (containerName === undefined || containerName === "" || owner === undefined) continue;
+    const colon = owner.lastIndexOf(":");
+    const pid = Number(owner.slice(colon + 1));
+    if (colon < 0 || owner.slice(0, colon) !== host || !Number.isInteger(pid) || pid <= 0) continue;
+    if (!isGone(pid)) continue;
+    const stopped = await runDocker(["stop", containerName], signal);
+    log(
+      stopped.code === 0
+        ? `stopped renderer ${containerName} left by a dev that is gone (pid ${pid})`
+        : `could not stop renderer ${containerName}: ${firstLine(stopped.stderr)}`,
+    );
+  }
 }
 
 function firstLine(text: string): string {
@@ -143,7 +218,7 @@ async function pause(ms: number, signal: AbortSignal | undefined): Promise<void>
 }
 
 /**
- * Pulls the pinned image, starts it, and resolves once its `GET /health` answers 2xx. The container is
+ * Pulls the pinned image if it is missing, starts it, and resolves once its `GET /health` answers 2xx. The container is
  * published on 127.0.0.1 only, read-only with a tmpfs for /tmp, removed when it stops, and stopped again by
  * `stop()` and by any failure or abort on the way here (plan section 4.5).
  */
@@ -161,12 +236,24 @@ export async function startDockerRenderer(
     );
   }
 
-  log(`pulling ${RENDERER_IMAGE_TAG} if it is not here yet (about 100 MB the first time)`);
-  const pull = await runDocker(["pull", RENDERER_IMAGE], signal);
-  if (pull.code !== 0) {
-    throw new Error(
-      `Docker could not pull ${RENDERER_IMAGE_TAG} (${firstLine(pull.stderr)}); sign in with "docker login ghcr.io" as an account that can read it, ${WAYS_ROUND}`,
-    );
+  try {
+    await stopOrphans(log, signal);
+  } catch (error) {
+    if (error instanceof RendererStartAborted) throw error;
+    log(`could not clean up earlier renderers: ${error instanceof Error ? error.message : error}`);
+  }
+
+  // D15: a present image means no pull and no registry request, so later starts work offline. Any other
+  // outcome of the inspect falls back to a pull.
+  const inspected = await runDocker(["image", "inspect", RENDERER_IMAGE], signal);
+  if (inspected.code !== 0) {
+    log(`pulling ${RENDERER_IMAGE_TAG} (about 100 MB the first time)`);
+    const pull = await runDocker(["pull", RENDERER_IMAGE], signal, log);
+    if (pull.code !== 0) {
+      throw new Error(
+        `Docker could not pull ${RENDERER_IMAGE_TAG} (${firstLine(pull.stderr)}); ${WAYS_ROUND}, or see ${PULL_HELP_URL}`,
+      );
+    }
   }
 
   const name = `dynjandi-renderer-${process.pid}-${randomBytes(4).toString("hex")}`;
@@ -178,6 +265,8 @@ export async function startDockerRenderer(
       "--rm",
       "--name",
       name,
+      "--label",
+      `${OWNER_LABEL}=${hostname()}:${process.pid}`,
       "-p",
       `127.0.0.1::${RENDERER_CONTAINER_PORT}`,
       "--read-only",

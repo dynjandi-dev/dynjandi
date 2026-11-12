@@ -105,3 +105,13 @@ Non-blocking review observations for the active feature (#37, local-dev-server).
 - Named arrow consts `fixture` and `casesFor` in the e2e test (`typescript/rules.md` prefers `function`).
 - `packages/cli/tests/contract/local.test.ts:9` says "the real one is Phase 6's"; still true, but a phase reference
   that reads oddly once the plan is archived.
+
+## Phase 5 amendment (D15–D17), Gate 2 notes
+
+- The `docker ps --format` template in `docker.ts` (`stopOrphans`) is untested: the fake ignores `--format`, so
+  only the by-hand run on real Docker covers it.
+- The cleanup's failure paths (`could not list earlier renderers`, `could not stop renderer`, and the catch that
+  lets start-up go on) and `isGone` treating `EPERM` as alive have no test.
+- `isGone` reads `(error as NodeJS.ErrnoException).code`, a type assertion `typescript/rules.md` discourages.
+- A denied pull prints Docker's error twice: once streamed, once quoted in the failure line.
+- The dead-pid fixture assumes a just-exited child's pid is not reused during the test.

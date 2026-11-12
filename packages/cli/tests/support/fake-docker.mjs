@@ -5,9 +5,14 @@
 //   no-daemon     `version` fails the way a stopped daemon does
 //   pull-denied   `pull` fails with two stderr lines, the first being Docker's own
 //   never-healthy `run` stays up, but `port` names FAKE_DOCKER_PORT, where nothing answers
-//   slow-pull     like ok, but `pull` takes 1500 ms
+//   slow-pull     like ok, but `pull` prints its first line at once, then takes 1500 ms to print the rest and
+//                 to leave the `${log}.pulled` marker (so a test can tell a line arrived before the pull ended)
 //   crashes       `run` prints a line and exits 1
 // FAKE_DOCKER_PORT is the host port `docker port` reports.
+// FAKE_DOCKER_IMAGE is `present` or `absent` (the default): `image inspect` exits 0 or 1, as Docker 29.9.2
+// does for a `tag@digest` reference (plan section 8).
+// FAKE_DOCKER_PS is a JSON array of {name, owner} for `ps`, which prints `<name>\t<owner label>` per entry,
+// as the CLI's --format asks; it does not apply the --filter, the test reads that from the log.
 // Like the real `docker port`, it fails (exit 1, "No public port" on stderr) until the container is running,
 // that is until `run` has logged its arguments and left the `${log}.running` marker. A refused `port` attempt
 // is not appended to the log, so the log only ever holds the one attempt that answered, and `run` is always
@@ -37,14 +42,34 @@ switch (args[0]) {
     }
     process.stdout.write("99.88.77\n");
     break;
+  case "image":
+    // Only `image inspect` is played.
+    if (args[1] !== "inspect") {
+      process.stderr.write(`fake docker: unexpected command ${args.join(" ")}\n`);
+      process.exit(2);
+    }
+    if ((process.env.FAKE_DOCKER_IMAGE ?? "absent") === "present") {
+      process.stdout.write("[{}]\n");
+    } else {
+      process.stderr.write(`Error response from daemon: no such image: ${args[2]}\n`);
+      process.exit(1);
+    }
+    break;
+  case "ps":
+    for (const entry of JSON.parse(process.env.FAKE_DOCKER_PS ?? "[]")) {
+      process.stdout.write(`${entry.name}\t${entry.owner}\n`);
+    }
+    break;
   case "pull":
     if (scenario === "pull-denied") {
       process.stderr.write("Error response from daemon: error from registry: denied\n");
       process.stderr.write("a second line that must not be quoted\n");
       process.exit(1);
     }
+    process.stdout.write("Pulling from dynjandi-dev/renderer\n");
     if (scenario === "slow-pull") await new Promise((done) => setTimeout(done, 1500));
-    process.stdout.write("Pulling from dynjandi-dev/renderer\nDigest: sha256:fake\n");
+    process.stdout.write("Digest: sha256:fake\n");
+    writeFileSync(`${log}.pulled`, "");
     break;
   case "run":
     process.stdout.write("renderer log one\n");
@@ -70,7 +95,12 @@ switch (args[0]) {
     process.stdout.write(`127.0.0.1:${process.env.FAKE_DOCKER_PORT}\n`);
     break;
   case "stop":
-    writeFileSync(stopMarker, "");
+    // Stopping a container from `ps` is another container, not the one `run` plays.
+    if (
+      !JSON.parse(process.env.FAKE_DOCKER_PS ?? "[]").some((entry) => entry.name === args.at(-1))
+    ) {
+      writeFileSync(stopMarker, "");
+    }
     process.stdout.write(`${args.at(-1)}\n`);
     break;
   default:

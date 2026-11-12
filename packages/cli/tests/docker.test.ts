@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createServer } from "node:http";
-import { tmpdir } from "node:os";
+import { hostname, tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -32,8 +32,23 @@ vi.mock("node:child_process", async (importOriginal) => {
 // - the container is stopped on SIGINT, SIGTERM (exit 0, D12), on a start-up failure and on a signal that
 //   arrives while the health wait is running.
 // - --renderer-url and --no-renderer never call docker.
+// Amendment (plan D15-D17 and 6.2 Phase 5 amendment, "Done when"):
+// - D15: `image inspect <PINNED>` comes first; exit 0 means no `pull` at all; any other outcome pulls, and the
+//   pull's lines reach stderr while it is still running (the fake's marker file is absent when the first line
+//   arrives) and never stdout.
+// - D16: the pull-denied line holds Docker's first line, --renderer-url, --no-renderer and the full GitHub URL
+//   of the README section "If the image cannot be pulled", and does not say "docker login"; the README has
+//   that heading. The URL is written out by hand from D16's section name and the repository's path.
+// - D17: the recorded run holds `--label dev.dynjandi.cli.owner=<hostname>:<pid>` (this host, this process);
+//   `ps` is asked for that label key; a container owned by this host whose pid is gone is stopped before the
+//   new `run`; a live pid (this test process) and another host's container (even with a dead pid) are not.
+//   A pid known to be gone is that of a child that has already exited.
 const PINNED =
   "ghcr.io/dynjandi-dev/renderer:0.2.0@sha256:0231fbce1d35499bfeafb1b238951b164aafd6d3c61a491f0b27ee7d10e5b7d6";
+const README = fileURLToPath(new URL("../README.md", import.meta.url));
+const README_URL =
+  "https://github.com/dynjandi-dev/dynjandi/blob/main/packages/cli/README.md#if-the-image-cannot-be-pulled";
+const OWNER_LABEL = "dev.dynjandi.cli.owner";
 const FAKE_DOCKER = fileURLToPath(new URL("./support/fake-docker.mjs", import.meta.url));
 const SHORT = { dockerHealthTimeoutMs: 500, dockerPollIntervalMs: 20 };
 const LONG = { dockerHealthTimeoutMs: 30_000, dockerPollIntervalMs: 20 };
@@ -143,6 +158,7 @@ describe("dynjandi dev with the default renderer", () => {
     expect(run?.[run.indexOf("--tmpfs") + 1]).toBe("/tmp");
     expect(run?.[run.indexOf("-p") + 1]).toBe("127.0.0.1::8080");
     expect(run?.at(-1)).toBe(PINNED);
+    expect(callsTo("image")).toEqual([["image", "inspect", PINNED]]);
     expect(callsTo("pull")).toEqual([["pull", PINNED]]);
     const name = run?.[run.indexOf("--name") + 1] ?? "";
     expect(name).toMatch(/^dynjandi-renderer-\d+-[0-9a-f]+$/);
@@ -277,9 +293,21 @@ describe("dynjandi dev when the renderer cannot start", () => {
       await result.exit,
       "could not pull ghcr.io/dynjandi-dev/renderer:0.2.0",
       "Error response from daemon: error from registry: denied",
-      "docker login ghcr.io",
+      README_URL,
     );
-    expect(result.err.join("")).not.toContain("a second line");
+    // The pull's own lines are streamed (D15); the failure line quotes only the first.
+    const failure =
+      result.err
+        .join("")
+        .split("\n")
+        .find((line) => line.includes("dynjandi dev:")) ?? "";
+    expect(failure).not.toContain("a second line");
+    // The streamed pull output holds these strings too, so only the failure line itself can show the quote.
+    expect(failure).toContain("Error response from daemon: error from registry: denied");
+    expect(failure).toContain(README_URL);
+    expect(failure).toContain("--renderer-url");
+    expect(failure).toContain("--no-renderer");
+    expect(result.err.join("")).not.toContain("docker login");
     expect(callsTo("run")).toEqual([]);
   });
 
@@ -349,6 +377,82 @@ describe("dynjandi dev when the renderer cannot start", () => {
     expect(await exit).toBe(0);
     expect(out).toEqual([]);
     expect(callsTo("stop")).toHaveLength(1);
+  });
+});
+
+async function exitedPid(): Promise<number> {
+  const child = spawn(process.execPath, ["-e", ""], { stdio: "ignore" });
+  const pid = child.pid ?? 0;
+  await new Promise((done) => child.once("close", done));
+  return pid;
+}
+
+function psHolds(entries: { name: string; owner: string }[]): void {
+  setEnv("FAKE_DOCKER_PS", JSON.stringify(entries));
+}
+
+describe("dynjandi dev and the image", () => {
+  it("runs no pull when the image is already here", async () => {
+    setEnv("FAKE_DOCKER_IMAGE", "present");
+    const { out, exit } = dev([]);
+    await waitFor(() => out.length > 0, "the ready line");
+    process.emit("SIGTERM", "SIGTERM");
+    expect(await exit).toBe(0);
+    expect(callsTo("image")).toEqual([["image", "inspect", PINNED]]);
+    expect(callsTo("pull")).toEqual([]);
+    expect(callsTo("run")).toHaveLength(1);
+  });
+
+  it("shows the pull's lines on stderr while it runs, and none on stdout", async () => {
+    playing("slow-pull", stubPort());
+    const { out, err, exit } = dev([], LONG);
+    await waitFor(() => err.join("").includes("Pulling from dynjandi-dev/renderer"), "a pull line");
+    // The fake leaves its marker only when the pull ends, 1500 ms after that first line.
+    expect(existsSync(`${dockerLog}.pulled`)).toBe(false);
+    await waitFor(() => out.length > 0, "the ready line");
+    expect(existsSync(`${dockerLog}.pulled`)).toBe(true);
+    expect(err.join("")).toContain("Digest: sha256:fake");
+    expect(out.join("")).not.toContain("Pulling from");
+    expect(out.join("")).not.toContain("Digest");
+    process.emit("SIGTERM", "SIGTERM");
+    expect(await exit).toBe(0);
+  });
+
+  it("has the README section the pull-denied line points to", () => {
+    expect(readFileSync(README, "utf8")).toMatch(/^#{2,4} If the image cannot be pulled$/m);
+  });
+});
+
+describe("dynjandi dev and a renderer whose dev died", () => {
+  it("labels its container with this host and this process", async () => {
+    const { out, exit } = dev([]);
+    await waitFor(() => out.length > 0, "the ready line");
+    const run = callsTo("run")[0] ?? [];
+    expect(run[run.indexOf("--label") + 1]).toBe(`${OWNER_LABEL}=${hostname()}:${process.pid}`);
+    process.emit("SIGTERM", "SIGTERM");
+    await exit;
+  });
+
+  it("stops a dead same-host container before it starts its own, and leaves the others", async () => {
+    const dead = await exitedPid();
+    psHolds([
+      { name: "stale-dead", owner: `${hostname()}:${dead}` },
+      { name: "alive-here", owner: `${hostname()}:${process.pid}` },
+      { name: "other-host", owner: `not-${hostname()}:${dead}` },
+    ]);
+    const { out, exit } = dev([]);
+    await waitFor(() => out.length > 0, "the ready line");
+
+    const ps = callsTo("ps")[0] ?? [];
+    expect(ps[ps.indexOf("--filter") + 1]).toBe(`label=${OWNER_LABEL}`);
+    const calls = dockerCalls();
+    const stops = calls.filter((call) => call[0] === "stop");
+    expect(stops).toEqual([["stop", "stale-dead"]]);
+    expect(calls.findIndex((call) => call[0] === "stop")).toBeLessThan(
+      calls.findIndex((call) => call[0] === "run"),
+    );
+    process.emit("SIGTERM", "SIGTERM");
+    await exit;
   });
 });
 
