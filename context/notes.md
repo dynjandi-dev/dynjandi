@@ -18,3 +18,19 @@ Non-blocking review notes for this feature's phases (#35, `cli-project-setup`). 
   credential was used.
 - `redirect: "error"` and treating a `201` without the `{ project }` wrapper as an unknown outcome are additions the
   plan does not name; both are justified at the trust boundary.
+
+## Phase 2 — Env file and Git guard
+
+- An empty `NAME=` is treated as unset and filled without `--force` (`packages/cli/src/setup/env-file.ts`); D8 says
+  only "a different key or id", so the reading has no source in the plan yet.
+- A plan that both replaces one line and appends another reports `append`; the Scope names the four kinds but not
+  this mixed case. Harmless while the caller maps both to a write.
+- The tracked check passes the file name to `git ls-files` as a pathspec, so `*.env` is refused as tracked when
+  `a.env` is; a refusal, never a leak. `:(literal)` would make it exact.
+- `lstat(...).catch(() => undefined)` in `packages/cli/src/setup/git.ts` treats any error as "no file", and a
+  `check-ignore` exit `128` is read like `1`; both fail safe.
+- `spawnGit` is an arrow assigned to a `GitRunner` type, where `context/standards/typescript/rules.md` asks for a
+  `function` declaration.
+- D7's "say once on stderr" sentence for `no-repo` is not in `git.ts`, which only returns `no-repo`; it belongs to
+  `setup`'s runner.
+- The coder reports writing each test file in one pass with its implementation, not red first.
