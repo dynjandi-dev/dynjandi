@@ -114,8 +114,9 @@ Open https://app.dynjandi.dev/device?user_code=ABCD-EFGH and approve code ABCD-E
 or, with `--json`, `{"status":"approval-pending","approval":{"url":"...","code":"ABCD-EFGH","expiresAt":"..."}}`. The
 agent shows the link, the person approves it, and the agent runs the **same command again**. The second run waits up
 to 60 seconds, then continues and finishes; or exits `4` again with the same link if the person has not yet approved;
-or exits `3` if the link was denied or has expired. Between the two runs the one-time code is in
-`.dynjandi/setup-approval.json` (mode `0600` on macOS and Linux). That is the directory `dynjandi dev` keeps out of
+or exits `3` if the link was denied or has expired. A person who runs it again at a terminal instead is waited for
+as on a first run: the link is shown again, and the run waits until the link expires. Between the two runs the
+one-time code is in `.dynjandi/setup-approval.json` (mode `0600` on macOS and Linux). That is the directory `dynjandi dev` keeps out of
 Git with its own `.gitignore`, and `setup` creates it the same way. The file is deleted as soon as its code is used
 or dead. The token is never written to any file. A `--dry-run` asks for the approval too, because its read-only calls
 need a credential, so it can leave that file.
@@ -161,7 +162,8 @@ For a name (2 and 4), names are compared trimmed and ignoring the case of A-Z, t
 unique in a workspace. No project has it: one is created. One has it: that one is used, and the summary shows
 its stored name, which may differ in case. A create that finds the name taken a moment earlier uses the project
 that took it. `setup` never makes a second project with a name the workspace already has. If the create's
-answer is lost, the message says the project may exist; running the same command again finds it by name.
+answer is lost, or is a server error (`5xx`) that may have come after the project was made, the message says the
+project may exist; running the same command again finds it by name.
 
 ### Which file, and Git
 
@@ -182,7 +184,8 @@ another project, so it is refused unless you pass `--force`.
 
 ### The result
 
-One sentence on standard output; everything else (the `.gitignore` entry, notes) is on standard error. With
+One sentence on standard output; everything else (the `.gitignore` entry, notes) is on standard error, and a run
+that fails after writing the `.gitignore` entry still reports it there, before the error. With
 `--json`, one object:
 
 ```json
@@ -203,8 +206,9 @@ line on standard error that names the fix.
 | `4` | waiting for approval in the browser: show the link, then run the same command again |
 
 The order is the guarantee: the env file and Git are checked before the credential is asked for (a person is never
-asked to approve a run that would then fail on a tracked file), and a refusal or a pending approval before the
-`.gitignore` entry is written has changed nothing in your project.
+asked to approve a run that would then fail on a tracked file). A refusal before the `.gitignore` entry is written
+has changed nothing in your project, and a pending approval has changed nothing outside `.dynjandi/`, where it keeps
+the one-time code (above).
 
 ### Platforms and limits
 

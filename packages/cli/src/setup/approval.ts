@@ -9,7 +9,7 @@ import { Secret } from "./secret.js";
 
 const PENDING_DIRECTORY = ".dynjandi";
 const PENDING_FILE = "setup-approval.json";
-/** How long a run that finds the file waits for the person (D18 step 4). */
+/** How long a run that finds the file waits for the person, with nobody at its terminal (D18 step 4). */
 export const RESUME_WAIT_MS = 60_000;
 /** Added to the wait on each `slow_down` (RFC 8628 section 3.5). */
 export const SLOW_DOWN_STEP_MS = 5_000;
@@ -121,18 +121,23 @@ type DevicePollEnd = Exclude<DevicePoll["kind"], "approved" | "pending" | "slow-
 
 // Polls at `intervalSeconds`, 5 s longer after each `slow_down`, until the deadline. `immediate`: the first poll
 // goes at once (a resumed run, where the person has probably approved already), else after one interval.
+// `beforeFirstWait` runs once, just before the first wait, so a run that never waits says nothing.
 async function poll(
   seams: ApprovalSeams,
   deviceCode: Secret,
   intervalSeconds: number,
   deadline: number,
   immediate: boolean,
+  beforeFirstWait: () => void = () => {},
 ): Promise<Outcome> {
   let interval = intervalSeconds * 1000;
   let skipWait = immediate;
+  let waited = false;
   for (;;) {
     if (!skipWait) {
       if (seams.now() + interval > deadline) return { kind: "ended", why: "timeout" };
+      if (!waited) beforeFirstWait();
+      waited = true;
       await seams.sleep(interval);
     }
     skipWait = false;
@@ -184,27 +189,37 @@ export async function approve(seams: ApprovalSeams): Promise<Secret> {
     throw new ApprovalPending(approval, device.expiresInSeconds);
   }
 
-  seams.say(`Approve this setup at ${device.url}. The page shows the code ${device.userCode}.\n`);
-  seams.say("Waiting for approval; press Ctrl-C to stop.\n");
+  sayWaiting(seams, device.url, device.userCode);
   const outcome = await poll(seams, device.deviceCode, device.intervalSeconds, expiresAtMs, false);
   if (outcome.kind === "approved") return outcome.token;
   throw ended(outcome.why);
 }
 
+function sayWaiting(seams: ApprovalSeams, url: string, code: string): void {
+  seams.say(`Approve this setup at ${url}. The page shows the code ${code}.\n`);
+  seams.say("Waiting for approval; press Ctrl-C to stop.\n");
+}
+
+// A run that finds the file. Without a terminal it waits 60 s and hands the link back again (D18 step 4). At a
+// terminal there is a person to wait for, so it waits as a fresh run does (step 3): until the link expires, with the
+// link shown once there is something to wait for.
 async function resume(seams: ApprovalSeams, stored: StoredApproval): Promise<Secret> {
-  const deadline = seams.now() + RESUME_WAIT_MS;
+  const deadline = seams.wait ? Date.parse(stored.expiresAt) : seams.now() + RESUME_WAIT_MS;
   const outcome = await poll(
     seams,
     new Secret(stored.deviceCode),
     stored.intervalSeconds,
     deadline,
     true,
+    () => {
+      if (seams.wait) sayWaiting(seams, stored.url, stored.code);
+    },
   );
   if (outcome.kind === "approved") {
     await deleteStored(seams.cwd);
     return outcome.token;
   }
-  if (outcome.why === "timeout") {
+  if (outcome.why === "timeout" && !seams.wait) {
     const secondsLeft = Math.max(0, (Date.parse(stored.expiresAt) - seams.now()) / 1000);
     throw new ApprovalPending(
       { url: stored.url, code: stored.code, expiresAt: stored.expiresAt },

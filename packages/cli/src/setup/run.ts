@@ -75,13 +75,19 @@ export async function runSetup(
     io.stdout(SETUP_HELP);
     return 0;
   }
-  try {
-    const { summary, notes } = await perform(command.options, settings, io);
+  const notes: string[] = [];
+  const sayNotes = () => {
     for (const note of notes) io.stderr(`${redact(note)}\n`);
+  };
+  try {
+    const summary = await perform(command.options, settings, io, notes);
+    sayNotes();
     // The summary holds no credential by construction; the server's stored name is the one free-form field.
     io.stdout(`${redact(command.options.json ? JSON.stringify(summary) : sentence(summary))}\n`);
     return 0;
   } catch (error) {
+    // A failure after step 6 still says what it changed: the `.gitignore` entry is written before the create.
+    sayNotes();
     if (error instanceof ApprovalPending) {
       // The link is the result (D18): on stdout, where an agent reads it.
       io.stdout(
@@ -99,15 +105,16 @@ export async function runSetup(
   }
 }
 
+// `notes` belong to the caller, which prints them whether the run succeeds or fails.
 async function perform(
   options: SetupOptions,
   settings: SetupSettings,
   io: SetupIo,
-): Promise<{ summary: SetupSummary; notes: string[] }> {
+  notes: string[],
+): Promise<SetupSummary> {
   const cwd = settings.cwd ?? process.cwd();
   const env = settings.env ?? process.env;
   const git = settings.git === undefined ? {} : { run: settings.git };
-  const notes: string[] = [];
 
   // D10 step 2: the env file and what Git needs, read only. A person is never asked to approve a run that fails here.
   const path = await pickEnvFile(cwd, options.envFile);
@@ -158,13 +165,16 @@ async function perform(
       );
     }
   }
-  notes.push(...gitNotes(gitPlan, { shownPath, cwd, dryRun: options.dryRun }));
-
   // Step 5.
-  if (options.dryRun) return { summary, notes };
+  if (options.dryRun) {
+    notes.push(...gitNotes(gitPlan, { shownPath, cwd, dryRun: true }));
+    return summary;
+  }
 
-  // Step 6: the entry that keeps the key out of Git exists before the key does.
+  // Step 6: the entry that keeps the key out of Git exists before the key does. Once `applyGit` returns, the entry
+  // is written, even when it refuses because a rule still wins, so the note is said from here on.
   const applied = await applyGit(gitPlan, path, cwd, git);
+  notes.push(...gitNotes(gitPlan, { shownPath, cwd, dryRun: false }));
   if (applied.kind === "refuse") fail(`${applied.reason}. Next: ${applied.fix}`);
 
   // Step 7.
@@ -190,7 +200,7 @@ async function perform(
     await writeEnvFile(path, plan.content);
     summary.envFile.action = "write";
   }
-  return { summary, notes };
+  return summary;
 }
 
 function fail(message: string): never {

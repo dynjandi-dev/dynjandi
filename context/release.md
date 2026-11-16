@@ -64,8 +64,10 @@ none.
   but never versioned or tagged. **No dependent can be dragged into a release**: the SDK
   depends on no workspace package. `access: "restricted"` only governs `changeset publish`, which nothing
   here runs — `publish.yml` publishes with `npm publish --access public`.
-- **The changelog is generated** into `packages/sdk/CHANGELOG.md` by `changeset:prepare-release`. It is an
-  output, not a documentation surface, so `stack.md` does not index it.
+- **The changelog is generated** by `changeset:prepare-release`, into the `CHANGELOG.md` of each package whose
+  notes it consumes: `packages/sdk/CHANGELOG.md`, and `packages/cli/CHANGELOG.md`, which its first release creates
+  (*The CLI's first publish*, step 1). It is an output, not a documentation surface, so `stack.md` does not index
+  it.
 
 **`packages/focal-picker` is public and unpublished.** Its `package.json` is not private, so changesets
 would version and tag it, but `publish.yml` reads `packages/sdk/package.json` only and publishes the SDK
@@ -79,10 +81,10 @@ publish*), and `publish-cli.yml` publishes every one after. `pnpm check:package`
 tarball, and runs `npm publish --dry-run` over it.
 
 **Nothing asks for a note on a change — a gap.** No CI job runs `changeset:status`, and no pull request is
-asked whether it carries one. If a check is added, it must **exempt a commit where `packages/sdk`'s
-`version` moved** — the commit where the notes were consumed has none pending and owes nothing, and that is
-the same condition `publish.yml` keys on. **Never silence such a check with an empty note** on a release
-commit.
+asked whether it carries one. If a check is added, it must **exempt a commit where `packages/sdk`'s or
+`packages/cli`'s `version` moved** — the commit where the notes were consumed has none pending and owes
+nothing, and those are the conditions `publish.yml` and `publish-cli.yml` key on. **Never silence such a check
+with an empty note** on a release commit.
 
 ## At what granularity
 
@@ -116,11 +118,12 @@ What fires on it is [`publish.yml`](../.github/workflows/publish.yml) for the SD
 does so only when typed, and none tags or publishes. A merge that does not move the version ships nothing,
 and landing a change is still not shipping it.
 
-As of 2026-10-19, one line each:
+As of 2026-10-19, one line each. The bump is shared; the tag, release and publish below are the SDK's, and the
+CLI's are the same wires in `publish-cli.yml` (*How the CLI is published*).
 
-- **Bump** — `changeset:prepare-release`: it consumes the pending notes into `packages/sdk/CHANGELOG.md`
-  and moves `version`, and it cannot be run twice over the same notes. **Run by `/release`**, typed by a
-  person on an up-to-date `main` once notes have accumulated there: it makes `release/<name>` with the
+- **Bump** — `changeset:prepare-release`: it consumes the pending notes into the `CHANGELOG.md` of each
+  package they name and moves that package's `version`, and it cannot be run twice over the same notes.
+  **Run by `/release`**, typed by a person on an up-to-date `main` once notes have accumulated there: it makes `release/<name>` with the
   release form in [`executors.md`](executors.md)'s *Branch and worktree*, runs the script once, and ends at
   a pull request. `/feature-close --release` runs the same script on a feature's branch instead, for a
   release fused into that feature's merge. Nothing in CI runs it. **Run once, on 2026-10-01**, on the
@@ -273,12 +276,15 @@ The first version CI publishes is the one after it, and that run is what shows t
    the feature's merge, where the notes accumulate.
 2. On an up-to-date `main`, type `/release` (or `/release "<name>"`). It runs Gate 1, lists every pending
    note and its level for you to confirm, makes `release/<name>` with the release form in
-   [`executors.md`](executors.md), runs `changeset:prepare-release` once — consuming the notes, writing
-   `packages/sdk/CHANGELOG.md` and moving `version` — commits, pushes, and opens a pull request. Nothing
-   merges it. To release with one feature instead, `/feature-close --release` runs the same script on that
-   feature's branch, committed separately from the work.
-3. A person merges it to `main`. `publish.yml` finds the version absent from npm, runs the smoke test,
-   builds, publishes with provenance, then tags `sdk-v<version>` and cuts the GitHub release.
+   [`executors.md`](executors.md), runs `changeset:prepare-release` once — consuming the notes, writing the
+   `CHANGELOG.md` of each package they name and moving its `version` — commits, pushes, and opens a pull
+   request. Nothing merges it. To release with one feature instead, `/feature-close --release` runs the same
+   script on that feature's branch, committed separately from the work.
+3. A person merges it to `main`. For each package whose version moved, its workflow finds the version absent
+   from npm, runs its preconditions, builds, publishes with provenance, then tags and cuts the GitHub release:
+   `publish.yml` for the SDK (`sdk-v<version>`), and `publish-cli.yml` for the CLI (`cli-v<version>`). The
+   CLI's first version is the exception: it is published by hand before this merge, so the run finds it held
+   and stops green (*The CLI's first publish*).
 4. The spec at that version is
    `https://raw.githubusercontent.com/dynjandi-dev/dynjandi/sdk-v<version>/packages/spec/openapi.yaml`.
 

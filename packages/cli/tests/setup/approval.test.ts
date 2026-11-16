@@ -22,7 +22,8 @@ import {
 // Expected values come from D18 and the document at version 0.6.0 (`POST /api/device/code`, `POST /api/device/token`),
 // worked out by hand, not read off the code under test:
 // - the poll waits `interval` (5 s) first, and 5 s longer after each `slow_down` (RFC 8628 section 3.5);
-// - a run that finds the pending file polls at once and waits up to 60 s (D18 step 4);
+// - a run that finds the pending file polls at once and waits up to 60 s (D18 step 4); at a terminal it waits as a
+//   fresh run does (step 3), until the stored link expires, and shows the link once there is a wait;
 // - the device code lives `expires_in` = 600 s; the file is mode 0600 and holds the only copy of the code;
 // - `access_denied` and `expired_token` end the run with exit 3; `invalid_grant` is a dead code, also 3.
 
@@ -43,9 +44,9 @@ const exists = (path: string) =>
     () => false,
   );
 
-function harness(wait: boolean) {
+function harness(wait: boolean, start?: number) {
   const stub = startStubManagement();
-  const clock = fakeClock();
+  const clock = fakeClock(start);
   const opener = fakeOpener();
   const said: string[] = [];
   const seams: ApprovalSeams = {
@@ -262,6 +263,64 @@ describe("approve with nobody at the terminal (D18 step 4)", () => {
     expect(JSON.parse(await readFile(PENDING(), "utf8"))).toMatchObject({
       deviceCode: DEVICE_CODE,
     });
+  });
+});
+
+describe("approve, resumed at a terminal (D18 step 3 for a run that finds the file)", () => {
+  it("a re-run at a terminal that finds it approved says nothing and returns the token", async () => {
+    const first = harness(false);
+    playApproval(first.stub, []);
+    await failureOf(approve(first.seams));
+
+    const second = harness(true);
+    playPolls(second.stub, ["approved"]);
+    const token = await approve(second.seams);
+
+    expect(token.reveal()).toBe(CLI_TOKEN);
+    expect(second.said).toEqual([]);
+    expect(second.clock.sleeps).toEqual([]);
+    expect(await exists(PENDING())).toBe(false);
+  });
+
+  it("a re-run at a terminal that is still pending shows the link once and waits for the person", async () => {
+    const first = harness(false);
+    playApproval(first.stub, []);
+    await failureOf(approve(first.seams));
+
+    // Past the 60 s a re-run without a terminal would wait.
+    const second = harness(true);
+    for (let i = 0; i < 30; i += 1) playPolls(second.stub, ["authorization_pending"]);
+    playPolls(second.stub, ["approved"]);
+    const token = await approve(second.seams);
+
+    expect(token.reveal()).toBe(CLI_TOKEN);
+    expect(second.said).toEqual([
+      `Approve this setup at ${APPROVAL_URL}. The page shows the code ${USER_CODE}.\n`,
+      "Waiting for approval; press Ctrl-C to stop.\n",
+    ]);
+    // A poll at once, then 30 waits of 5 s: 150 s.
+    expect(second.clock.elapsed()).toBe(150_000);
+    expect(second.opener.calls).toEqual([]);
+    expect(await exists(PENDING())).toBe(false);
+  });
+
+  it("a re-run at a terminal waits until the stored link expires, then exits as expired and deletes the file", async () => {
+    const first = harness(false);
+    playApproval(first.stub, []);
+    await failureOf(approve(first.seams));
+
+    // Two minutes after the link was made: 480 s of its 600 are left.
+    const second = harness(true, first.clock.start + 120_000);
+    for (let i = 0; i < 100; i += 1) playPolls(second.stub, ["authorization_pending"]);
+    const error = await failureOf(approve(second.seams));
+
+    expect(error).not.toBeInstanceOf(ApprovalPending);
+    expect((error as SetupFailure).kind).toBe("auth");
+    expect((error as SetupFailure).message).toMatch(/link expired/);
+    // A poll at once, then 96 waits of 5 s reach 480 s; the next would pass the link's expiry.
+    expect(second.stub.requests).toHaveLength(97);
+    expect(second.clock.elapsed()).toBe(480_000);
+    expect(await exists(PENDING())).toBe(false);
   });
 });
 

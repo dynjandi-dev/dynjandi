@@ -220,23 +220,22 @@ async function send(
     });
   }
   if (status < 200 || status >= 300) {
+    // A 5xx to a create may come from a proxy after the server committed it: the answer is lost, as in D5.
+    const outcomeUnknown = mutating && status >= 500;
     const envelope = parseEnvelope(json);
-    if (envelope === undefined) {
-      throw new ManagementError("failure", `unexpected response (status ${status})`, {
-        status,
-        outcomeUnknown: mutating && status >= 500,
-      });
-    }
+    if (envelope === undefined) throw unexpectedResponse(status, outcomeUnknown);
     const retryAfterSeconds = status === 429 ? parseRetryAfter(retryAfter) : undefined;
     const suffix = retryAfterSeconds === undefined ? "" : ` (retry after ${retryAfterSeconds} s)`;
     const { maxProjects } = envelope.details;
     throw new ManagementError(
       "failure",
-      printable(`${envelope.code}: ${envelope.message}`) + suffix,
+      printable(`${envelope.code}: ${envelope.message}`) +
+        suffix +
+        (outcomeUnknown ? MAY_EXIST : ""),
       {
         status,
         code: printable(envelope.code),
-        outcomeUnknown: mutating && status >= 500,
+        outcomeUnknown,
         retryAfterSeconds,
         maxProjects: typeof maxProjects === "number" ? maxProjects : undefined,
         nameTaken: envelope.code === "NAME_TAKEN" ? parseNameTaken(envelope.details) : undefined,

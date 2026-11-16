@@ -5,6 +5,7 @@ import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { type Io, main } from "../../src/cli.js";
+import type { GitRunner } from "../../src/setup/git.js";
 import { runSetup, type SetupSettings } from "../../src/setup/run.js";
 import { createEmptyGitConfig, removeEmptyGitConfig } from "../support/git-config.js";
 import {
@@ -488,6 +489,31 @@ describe("runSetup: credentials (D3, D13)", () => {
     expect(await h.run()).toBe(1);
     expect(h.err.join("")).toContain("PROJECT_LIMIT_REACHED");
     expect(await exists(".env.local")).toBe(false);
+    // Step 6 ran before the create was refused: the entry it wrote is reported, not left silent.
+    expect(await read(".gitignore")).toBe("/.env.local\n");
+    expect(h.err.join("")).toContain("Added /.env.local to .gitignore.");
+  });
+
+  it("reports the .gitignore entry when Git still does not ignore the file after it", async () => {
+    await named("my-app");
+    // Answers as git would for a rule no appended entry can beat: not tracked, not ignored before or after.
+    const stubborn: GitRunner = async (args) => {
+      if (args[0] === "rev-parse") return { code: 0, stdout: "true\n", stderr: "" };
+      if (args[0] === "check-ignore" && args.includes("-v")) {
+        return { code: 0, stdout: "/elsewhere/.gitignore:1:!.env.local\t.env.local\n", stderr: "" };
+      }
+      return { code: 1, stdout: "", stderr: "" };
+    };
+    const h = setup(undefined, { git: stubborn });
+    answerList(h);
+
+    expect(await h.run()).toBe(1);
+
+    expect(await read(".gitignore")).toBe("/.env.local\n");
+    expect(h.err.join("")).toMatch(
+      /^Added \/\.env\.local to \.gitignore\.\ndynjandi setup: Git still does not ignore \.env\.local/,
+    );
+    expect(requestsOf(h)).not.toContain("POST /api/projects");
   });
 });
 
@@ -579,8 +605,11 @@ describe("runSetup: a lost POST response (D5)", () => {
 
     expect(lost.err.join("")).toMatch(/may exist.*same command again/);
     expect(await exists(".env.local")).toBe(false);
-    // D10 step 6 before step 7: the entry exists although the POST never answered.
+    // D10 step 6 before step 7: the entry exists although the POST never answered, and the run says so, first.
     expect(await read(".gitignore")).toBe("/.env.local\n");
+    expect(lost.err.join("")).toMatch(
+      /^Added \/\.env\.local to \.gitignore\.\ndynjandi setup: .*may exist/,
+    );
     expect(lost.stub.requests.filter((r) => r.method === "POST")).toHaveLength(1);
 
     const again = setup();

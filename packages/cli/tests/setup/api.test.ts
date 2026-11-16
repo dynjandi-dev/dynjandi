@@ -458,6 +458,42 @@ describe("a create that gets no usable answer", () => {
     expect(stub.requests).toHaveLength(1);
   });
 
+  // A 502 or 504 can come from a proxy after the server committed the create: its answer is lost too.
+  it("says the project may exist when a create answers 5xx in the error envelope", async () => {
+    const { stub, client } = setup();
+    stub.answer("POST", "/api/projects", {
+      kind: "response",
+      status: 502,
+      body: documentError("UPSTREAM_ERROR", "The upstream did not answer"),
+    });
+
+    const failure = await failureOf(client.createProject("my-app"));
+
+    expect(failure.outcomeUnknown).toBe(true);
+    expect(failure.code).toBe("UPSTREAM_ERROR");
+    expect(failure.message).toBe(
+      "UPSTREAM_ERROR: The upstream did not answer The project may exist; running the same command again will find it by name.",
+    );
+    expect(stub.requests).toHaveLength(1);
+  });
+
+  it("says the project may exist when a create answers 5xx with a body that is not the envelope", async () => {
+    const { stub, client } = setup();
+    stub.answer("POST", "/api/projects", {
+      kind: "response",
+      status: 504,
+      rawBody: "<html>Gateway Timeout</html>",
+    });
+
+    const failure = await failureOf(client.createProject("my-app"));
+
+    expect(failure.outcomeUnknown).toBe(true);
+    expect(failure.message).toBe(
+      "unexpected response (status 504) The project may exist; running the same command again will find it by name.",
+    );
+    expect(stub.requests).toHaveLength(1);
+  });
+
   it("gives up on a POST that never answers, after the timeout, and does not retry", async () => {
     const { stub, client } = setup({ timeoutMs: 20 });
     stub.answer("POST", "/api/projects", { kind: "hang" });
