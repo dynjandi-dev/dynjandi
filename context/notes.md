@@ -90,3 +90,15 @@ Non-blocking review notes for this feature's phases (#35, `cli-project-setup`). 
   `run.ts`'s `terminal` doc says "Default: they are" where the default is `atTerminal()`; `terminal` now means "any
   stream" to `dev` and "stdin and stderr" to `setup`.
 - The leak sweep does not see writes that go straight to `process.stderr` past the injected `io`.
+
+## Phase 6 — The CLI's release flow
+
+- `packages/cli/scripts/check-package.mjs` (lines 1–2 and 72) still says "nothing publishes this package yet";
+  `publish-cli.yml` now does, once it holds a real version. "Nothing has published it yet" would be true.
+- `smoke.yml`'s header, `context/verify.md` and `context/stack.md`'s CI row call `smoke.yml` "the precondition
+  `publish.yml` calls"; `publish-cli.yml` calls it too.
+- Parts of `context/release.md` still describe the SDK only: the changelog path, the Bump row and *How a release is
+  cut* name `packages/sdk/CHANGELOG.md`, step 2 there names only `publish.yml` and `sdk-v<version>`, and the future
+  note-check exemption keys only on `packages/sdk`'s version.
+- `publish-cli.yml`'s header says a push without a bump finds the version on npm and stops green; a `0.0.0` run
+  now also stops green, at the placeholder check, which the header does not name.

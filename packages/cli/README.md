@@ -32,8 +32,11 @@ dynjandi dev -- pnpm test         # 3. run your tests against it; the server sto
 Step 3 sets `DYNJANDI_ORIGIN` and `DYNJANDI_PROJECT_KEY` for the command, stops the server and the renderer
 container when the command exits, and exits with the command's code.
 
-**Status: not published.** This package is not on npm and nothing publishes it, so `npx @dynjandi/cli` and
-`npm i -g @dynjandi/cli` do not work yet. Until it is published, run the commands above from a checkout of this
+**Status: not published yet.** This package is not on npm, so `npx @dynjandi/cli` and
+`npm i -g @dynjandi/cli` do not work yet. Its first version is published by hand, because npm can only trust a
+workflow for a package that exists. Every version after it is published by
+[`publish-cli.yml`](../../.github/workflows/publish-cli.yml) when a release changes `version` here, through npm
+trusted publishing with provenance and no token. Until the first version is out, run the commands above from a checkout of this
 repository (see *Run it from a checkout*: put `node packages/cli/dist/cli.js` where `dynjandi` is written) or
 from a tarball: `pnpm --filter @dynjandi/cli pack` in the checkout writes `dynjandi-cli-0.0.0.tgz` to the
 directory you ran it in; in your project, `npm i -D <path to that file>`, then put `npx dynjandi` where
