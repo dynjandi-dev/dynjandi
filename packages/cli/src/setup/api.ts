@@ -95,7 +95,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 // A server's words reach a terminal: control characters (escape sequences, newlines) become spaces.
-function printable(text: string): string {
+export function printable(text: string): string {
   return Array.from(text.slice(0, MAX_MESSAGE_LENGTH), (char) =>
     isControl(char) ? " " : char,
   ).join("");

@@ -72,6 +72,20 @@ function unquote(value: string): string {
 }
 
 /**
+ * The `DYNJANDI_PROJECT_ID` the file holds, which D5's step 3 reads so a plain re-run reconnects. `undefined` when
+ * the file has no such line or it is empty. The first line wins; `planEnvChange` refuses a name that appears twice.
+ */
+export function readProjectId(content: string): string | undefined {
+  for (const line of splitLines(content)) {
+    const match = VARIABLE_LINE.exec(line.text);
+    if (match?.[2] !== ID_NAME) continue;
+    const value = unquote(match[4] ?? "");
+    return value === "" ? undefined : value;
+  }
+  return undefined;
+}
+
+/**
  * D8 and D9 over the file's text. Pure: nothing is read or written here. A different value is refused
  * without `force`, and a refusal names the variable, never the value it holds.
  */

@@ -34,3 +34,18 @@ Non-blocking review notes for this feature's phases (#35, `cli-project-setup`). 
 - D7's "say once on stderr" sentence for `no-repo` is not in `git.ts`, which only returns `no-repo`; it belongs to
   `setup`'s runner.
 - The coder reports writing each test file in one pass with its implementation, not red first.
+
+## Phase 3 — The `setup` command and its docs
+
+- A server-supplied stored name reaches a stderr note in `packages/cli/src/setup/run.ts` without `printable()`,
+  though `sentence()` and the error path both use it.
+- `packages/cli/src/errors.ts` says a `pending` failure exits `4`, but `run.ts` maps it to `1`; latent until browser
+  approval exists.
+- The duplicate-line and different-key refusals are local but run only after the project lookup (`planEnvChange`
+  after `settle`); under browser approval a person would approve and then be refused.
+- `packages/cli/README.md` has a double blank line near the top.
+- The exact summary sentences ("Created the project …") are pinned from the implementation; §4's example wording
+  differs.
+- A dry run can't see a negation rule that the real run's re-check would refuse, so it exits `0` where the real run
+  exits `1` — per D11's "steps 1 to 5", but the README's "a dry run that a real run would carry out" overstates it.
+- `MainSettings` carries `git` where §4 names `spawn`; the opener's fields are left to browser approval.

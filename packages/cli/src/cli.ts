@@ -1,16 +1,19 @@
 #!/usr/bin/env node
 import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { DEV_HELP, type DevOptions, parseDevOptions, UsageError } from "./dev/options.js";
+import { DEV_HELP, type DevOptions, parseDevOptions } from "./dev/options.js";
 import { RENDERER_IMAGE_TAG } from "./dev/renderer-image.js";
 import { runCommand } from "./dev/run-command.js";
 import { startServer } from "./dev/server.js";
+import { UsageError } from "./errors.js";
+import { runSetup, type SetupSettings } from "./setup/run.js";
 
 /**
- * Not options: values tests change, so the Docker health wait does not take its 60 s and the signal tests do
+ * Not options: values tests change (and, from `SetupSettings`, the `fetch`, environment, directory and `git` that
+ * `setup` uses), so the Docker health wait does not take its 60 s and the signal tests do
  * not depend on whether they run in a terminal (`runCommand`'s `terminal`).
  */
-export interface MainSettings {
+export interface MainSettings extends SetupSettings {
   dockerHealthTimeoutMs?: number | undefined;
   dockerPollIntervalMs?: number | undefined;
   terminal?: boolean | undefined;
@@ -26,6 +29,7 @@ const HELP = `Usage: dynjandi <command> [options]
 
 Commands:
   dev    run a local Dynjandi server
+  setup  set up a Dynjandi project and write its key to an env file
 
 Run "dynjandi <command> --help" for a command's options.
 `;
@@ -161,7 +165,7 @@ async function runDev(args: string[], io: Io, settings: MainSettings): Promise<n
 }
 
 /**
- * Runs the command line and returns the exit code: 0 done, 1 runtime failure, 2 usage error (D12); under
+ * Runs the command line and returns the exit code: 0 done, 1 runtime failure, 2 usage error (D12), 3 no usable credential for `setup` (D13); under
  * `dev -- <command>` the command's own code, or 128 + n for signal n (D18).
  */
 export async function main(argv: string[], io: Io, settings: MainSettings = {}): Promise<number> {
@@ -172,6 +176,7 @@ export async function main(argv: string[], io: Io, settings: MainSettings = {}):
       return 0;
     }
     if (command === "dev") return await runDev(rest, io, settings);
+    if (command === "setup") return await runSetup(rest, io, settings);
     io.stderr(
       command === undefined
         ? `dynjandi: no command given\n\n${HELP}`
@@ -181,7 +186,7 @@ export async function main(argv: string[], io: Io, settings: MainSettings = {}):
   } catch (error) {
     if (error instanceof UsageError) {
       io.stderr(
-        `dynjandi ${command}: ${error.message}\nRun "dynjandi dev --help" for the options.\n`,
+        `dynjandi ${command}: ${error.message}\nRun "dynjandi ${command} --help" for the options.\n`,
       );
       return 2;
     }

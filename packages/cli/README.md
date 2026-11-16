@@ -1,7 +1,15 @@
 # @dynjandi/cli
 
-`dynjandi dev` runs a local Dynjandi server, so your app and your tests can upload and fetch images without
-the live service.
+The Dynjandi command line. `dynjandi setup` sets up a Dynjandi project for your app and writes its key to a
+file Git ignores, so no one copies or prints a key. `dynjandi dev` runs a local Dynjandi server, so your app
+and your tests can upload and fetch images without the live service.
+
+```sh
+npx @dynjandi/cli setup           # set up the project for this directory (see "dynjandi setup" below)
+```
+
+The other command:
+
 
 ```sh
 dynjandi dev                      # 1. start the server (Docker starts the renderer)
@@ -47,6 +55,122 @@ node packages/cli/dist/cli.js dev
 ```
 
 Node 22 or newer.
+
+## `dynjandi setup`
+
+`dynjandi setup` finds the Dynjandi project for the directory you are in (or creates it) and writes its
+`DYNJANDI_PROJECT_KEY` and `DYNJANDI_PROJECT_ID` to an env file that your app reads and Git does not track. The
+key is never printed, never put in an argument, and never saved anywhere else.
+
+```sh
+export DYNJANDI_API_KEY=dyn_...   # a workspace API key, from the API keys page of the dashboard
+npx @dynjandi/cli setup
+```
+
+```text
+Created the project my-app (3f2a9c) and wrote DYNJANDI_PROJECT_KEY and DYNJANDI_PROJECT_ID to .env.local.
+```
+
+`npx @dynjandi/cli` works once the package is on npm, which it is not yet (see *Status* above); until then,
+run it from a checkout or a tarball as described there.
+
+Run it again and it changes nothing: it reads `DYNJANDI_PROJECT_ID` from the env file, finds the same project,
+and says so. An agent should pass `--json`, which prints the result as one JSON object, and `--dry-run` first
+if it wants to see what would happen:
+
+```sh
+npx @dynjandi/cli setup --json
+npx @dynjandi/cli setup --dry-run
+npx @dynjandi/cli setup --project my-project
+npx @dynjandi/cli setup --name my-app
+npx @dynjandi/cli setup --env-file config/app.env
+npx @dynjandi/cli setup --force
+```
+
+### The credential
+
+The credential is the environment variable `DYNJANDI_API_KEY`: a **workspace** API key, made on the API keys
+page of the dashboard (not a project key). There is no option for it, because an option lands in the process
+list and the shell history; `--api-key` is a usage error that says so. Nothing is saved: every run reads the
+variable. With no key, `setup` exits `3` and names the variable; in CI (`CI` set) it says a job has no person to
+approve anything. A key the API refuses (`401`) also exits `3`.
+
+### Options
+
+| Option | Does |
+|---|---|
+| `--project <id>` | use that project; no such project in your workspace is an error |
+| `--name <name>` | use the project with that name, or create it. Not together with `--project` |
+| `--env-file <path>` | the file to write, relative to the working directory |
+| `--force` | replace a different key or project id already in the env file, or let `--project` / `--name` disagree with the id it holds |
+| `--dry-run` | do every check and every read-only call, then say what a real run would do and change nothing |
+| `--json` | print the result as one JSON object |
+| `--help` | print the help |
+
+### Which project
+
+In this order:
+
+1. `--project <id>`.
+2. `--name <name>`.
+3. The `DYNJANDI_PROJECT_ID` already in the env file, so a plain re-run in the same directory reconnects.
+4. The `name` in `./package.json`, else the directory's name.
+
+For a name (2 and 4), names are compared trimmed and ignoring the case of A-Z, the way the dashboard keeps them
+unique in a workspace. No project has it: one is created. One has it: that one is used, and the summary shows
+its stored name, which may differ in case. A create that finds the name taken a moment earlier uses the project
+that took it. `setup` never makes a second project with a name the workspace already has. If the create's
+answer is lost, the message says the project may exist; running the same command again finds it by name.
+
+### Which file, and Git
+
+The env file is `--env-file`, else an existing `.env.local`, else an existing `.env`, else a new `.env.local`.
+Inside a Git repository, before anything is created:
+
+- a file Git **tracks** is refused, and the message gives `git rm --cached <file>`;
+- a file Git does not ignore gets the entry `/<file name>` in the `.gitignore` beside it (created if needed,
+  keeping its line endings), and Git is asked again; if a rule still keeps it from being ignored, `setup`
+  refuses and names the rule;
+- outside a repository there is nothing to commit the file to, so it is written, and `setup` says once that a
+  repository created later must ignore it.
+
+A symbolic link is refused: pass the file it points to. Only the two `DYNJANDI_PROJECT_*` lines are changed; every
+other line, comment and line ending stays. The file is replaced atomically (a temporary file beside it, then a
+rename) and comes out mode `0600` on macOS and Linux. A different key or id already in the file belongs to
+another project, so it is refused unless you pass `--force`.
+
+### The result
+
+One sentence on standard output; everything else (the `.gitignore` entry, notes) is on standard error. With
+`--json`, one object:
+
+```json
+{"dryRun":false,"project":{"id":"3f2a9c","name":"my-app","action":"create"},"envFile":{"path":".env.local","action":"write"},"gitignore":"add"}
+```
+
+`project.action` is `create` or `use`; `envFile.action` is `write` or `none` (nothing needed changing);
+`gitignore` is `add`, `none` or `no-repo`. A dry run reports the same words with `dryRun: true`, and
+`project.id` is `null` when it would create the project. The object never holds a credential. An error is one
+line on standard error that names the fix.
+
+| Exit code | When |
+|---|---|
+| `0` | done, or `--help`, or a dry run that a real run would carry out |
+| `1` | a failure: the API refused or failed, or a Git or file check refused |
+| `2` | a usage error |
+| `3` | no usable credential: no key, a malformed key, or a key the API refused |
+
+The order is the guarantee: the env file and Git are checked before the credential is used, and a refusal
+before the `.gitignore` entry is written has changed nothing.
+
+### Platforms and limits
+
+`setup` is written for macOS, Linux and Windows and runs on Node 22 and later. The setup tests run on Linux in CI;
+nothing here claims they have run on Windows yet.
+
+This prevents accidental exposure: a key does not travel through a transcript, a commit or a log. It does not
+contain a compromised agent with shell access, which can still read the env file. If another program edits the env
+file at the very moment `setup` replaces it, the replace can win.
 
 ## `dynjandi dev`
 
