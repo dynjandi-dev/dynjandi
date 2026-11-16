@@ -5,15 +5,23 @@ import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { type Io, main } from "../../src/cli.js";
-import { runSetup } from "../../src/setup/run.js";
+import { runSetup, type SetupSettings } from "../../src/setup/run.js";
 import { createEmptyGitConfig, removeEmptyGitConfig } from "../support/git-config.js";
 import {
+  APPROVAL_URL,
+  CLI_TOKEN,
+  DEVICE_CODE,
   documentCreated,
   documentError,
   documentListedProject,
   documentProject,
+  fakeClock,
+  fakeOpener,
   PROJECT_KEY,
+  playApproval,
+  playPolls,
   startStubManagement,
+  USER_CODE,
 } from "../support/stub-management.js";
 
 // Expected values come from the plan, not from the code under test:
@@ -61,14 +69,32 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-function setup(env: Record<string, string | undefined> = { DYNJANDI_API_KEY: API_KEY }) {
+function setup(
+  env: Record<string, string | undefined> = { DYNJANDI_API_KEY: API_KEY },
+  extra: Partial<SetupSettings> = {},
+) {
   const stub = startStubManagement();
+  const clock = fakeClock();
+  const opener = fakeOpener();
   const out: string[] = [];
   const err: string[] = [];
   const io: Io = { stdout: (text) => out.push(text), stderr: (text) => err.push(text) };
-  const settings = { fetch: stub.fetch, env, cwd: dir };
+  // No run waits a real second, opens a real browser or depends on whether the tests run in a terminal.
+  const settings: SetupSettings = {
+    fetch: stub.fetch,
+    env,
+    cwd: dir,
+    terminal: false,
+    now: clock.now,
+    sleep: clock.sleep,
+    spawn: opener.spawn,
+    platform: "linux",
+    ...extra,
+  };
   return {
     stub,
+    clock,
+    opener,
     out,
     err,
     run: (...args: string[]) => runSetup(args, io, settings),
@@ -400,19 +426,32 @@ describe("runSetup: an explicit option against the env file's id (D5)", () => {
 });
 
 describe("runSetup: credentials (D3, D13)", () => {
-  it("exits 3 naming DYNJANDI_API_KEY when there is no key, and sends nothing", async () => {
+  it("exits 3 in CI with no key, saying a job has no person to approve, and starts no approval", async () => {
     await initRepository();
-    const h = setup({});
-    expect(await h.run()).toBe(3);
-    expect(h.err.join("")).toContain("DYNJANDI_API_KEY");
-    expect(h.stub.requests).toHaveLength(0);
-    expect(h.out.join("")).toBe("");
+    for (const ci of ["1", "true"]) {
+      const h = setup({ CI: ci });
+      expect(await h.run()).toBe(3);
+      expect(h.err.join("")).toMatch(
+        /DYNJANDI_API_KEY.*CI job.*set it to a workspace API key from the API keys page/,
+      );
+      expect(h.out.join("")).toBe("");
+      expect(h.stub.requests).toHaveLength(0);
+      expect(h.opener.calls).toEqual([]);
+      expect(await exists(".dynjandi")).toBe(false);
+    }
   });
 
-  it("exits 3 in CI with no key, saying a job has no person to approve", async () => {
-    const h = setup({ CI: "true" });
-    expect(await h.run()).toBe(3);
-    expect(h.err.join("")).toMatch(/CI job.*set it to a workspace API key from the API keys page/);
+  it("with DYNJANDI_API_KEY set, nothing about approval runs, even with no terminal and no CI", async () => {
+    await initRepository();
+    await named("my-app");
+    const h = setup({ DYNJANDI_API_KEY: API_KEY }, { terminal: true });
+    answerList(h, { id: PROJECT_ID, name: "my-app" });
+    answerGet(h);
+    expect(await h.run()).toBe(0);
+    expect(requestsOf(h)).toEqual(["GET /api/projects", `GET /api/projects/${PROJECT_ID}`]);
+    expect(h.stub.requests[0]?.headers.get("Authorization")).toBe(`Bearer ${API_KEY}`);
+    expect(h.opener.calls).toEqual([]);
+    expect(await exists(".dynjandi")).toBe(false);
   });
 
   it("exits 3 for a key with whitespace, without printing it", async () => {
@@ -516,7 +555,7 @@ describe("runSetup: --dry-run (D11)", () => {
   });
 
   it("exits with the real run's code when it would not go ahead", async () => {
-    const h = setup({});
+    const h = setup({ CI: "1" });
     expect(await h.run("--dry-run")).toBe(3);
     const refused = setup();
     await initRepository();
@@ -580,6 +619,191 @@ describe("main: the setup branch (D1, D13)", () => {
   it("refuses --project together with --name", async () => {
     const h = setup();
     expect(await h.main("setup", "--project", "a", "--name", "b")).toBe(2);
+  });
+});
+
+describe("runSetup: browser approval (D3, D13, D18)", () => {
+  const PENDING_FILE = join(".dynjandi", "setup-approval.json");
+  const SENTENCE = `Open ${APPROVAL_URL} and approve code ${USER_CODE}, then run this command again. The link expires in 10 minutes.\n`;
+
+  it("with a terminal: approved, continues with the token as the credential, and saves nothing", async () => {
+    await initRepository();
+    await named("my-app");
+    const h = setup({}, { terminal: true });
+    playApproval(h.stub, ["authorization_pending", "approved"]);
+    h.stub.answer("GET", "/api/projects", ok([]));
+    answerCreate(h);
+
+    expect(await h.run()).toBe(0);
+
+    expect(requestsOf(h)).toEqual([
+      "POST /api/device/code",
+      "POST /api/device/token",
+      "POST /api/device/token",
+      "GET /api/projects",
+      "POST /api/projects",
+    ]);
+    for (const request of h.stub.requests.slice(3)) {
+      expect(request.headers.get("Authorization")).toBe(`Bearer ${CLI_TOKEN}`);
+    }
+    expect(h.err.join("")).toContain(
+      `Approve this setup at ${APPROVAL_URL}. The page shows the code ${USER_CODE}.`,
+    );
+    expect(h.opener.calls[0]?.args).toEqual([APPROVAL_URL]);
+    expect(await read(".env.local")).toBe(ENV_FILE);
+    expect(await exists(PENDING_FILE)).toBe(false);
+  });
+
+  it.each([
+    ["access_denied", /approval denied/],
+    ["expired_token", /link expired/],
+  ] as const)("with a terminal: %s exits 3 and changes nothing", async (step, message) => {
+    await initRepository();
+    const h = setup({}, { terminal: true });
+    playApproval(h.stub, [step]);
+    expect(await h.run()).toBe(3);
+    expect(h.err.join("")).toMatch(message);
+    expect(h.out.join("")).toBe("");
+    expect(requestsOf(h)).not.toContain("GET /api/projects");
+    expect(await exists(".env.local")).toBe(false);
+    expect(await exists(PENDING_FILE)).toBe(false);
+  });
+
+  it("with a terminal, slow_down lengthens the wait before the next poll", async () => {
+    await initRepository();
+    await named("my-app");
+    const h = setup({}, { terminal: true });
+    playApproval(h.stub, ["slow_down", "approved"]);
+    h.stub.answer("GET", "/api/projects", ok([]));
+    answerCreate(h);
+    expect(await h.run()).toBe(0);
+    expect(h.clock.sleeps).toEqual([5000, 10_000]);
+  });
+
+  it("without a terminal: exits 4 at once with the link on stdout, and the pending file", async () => {
+    await initRepository();
+    await named("my-app");
+    const h = setup({});
+    playApproval(h.stub, []);
+
+    expect(await h.run()).toBe(4);
+
+    expect(h.out.join("")).toBe(SENTENCE);
+    expect(h.err.join("")).toBe("");
+    expect(requestsOf(h)).toEqual(["POST /api/device/code"]);
+    expect(JSON.parse(await read(PENDING_FILE)).deviceCode).toBe(DEVICE_CODE);
+    expect(await exists(".env.local")).toBe(false);
+    if (process.platform !== "win32") {
+      expect((await stat(join(dir, PENDING_FILE))).mode & 0o777).toBe(0o600);
+    }
+  });
+
+  it("with --json, even at a terminal: the link as one object, exit 4", async () => {
+    await initRepository();
+    const h = setup({}, { terminal: true });
+    playApproval(h.stub, []);
+
+    expect(await h.run("--json")).toBe(4);
+
+    const lines = h.out.join("").split("\n").filter(Boolean);
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines[0] ?? "")).toEqual({
+      status: "approval-pending",
+      approval: {
+        url: APPROVAL_URL,
+        code: USER_CODE,
+        expiresAt: new Date(h.clock.start + 600_000).toISOString(),
+      },
+    });
+    expect(h.err.join("")).toBe("");
+    expect(await exists(PENDING_FILE)).toBe(true);
+  });
+
+  it("a re-run completes, uses the token, and deletes the file", async () => {
+    await initRepository();
+    await named("my-app");
+    const first = setup({});
+    playApproval(first.stub, []);
+    expect(await first.run()).toBe(4);
+
+    const second = setup({});
+    playPolls(second.stub, ["approved"]);
+    second.stub.answer("GET", "/api/projects", ok([]));
+    answerCreate(second);
+    expect(await second.run()).toBe(0);
+
+    expect(requestsOf(second)).toEqual([
+      "POST /api/device/token",
+      "GET /api/projects",
+      "POST /api/projects",
+    ]);
+    expect(second.stub.requests[1]?.headers.get("Authorization")).toBe(`Bearer ${CLI_TOKEN}`);
+    expect(await read(".env.local")).toBe(ENV_FILE);
+    expect(await exists(PENDING_FILE)).toBe(false);
+  });
+
+  it("a re-run that is still pending exits 4 with the same link and keeps the file", async () => {
+    await initRepository();
+    const first = setup({});
+    playApproval(first.stub, []);
+    await first.run();
+
+    const second = setup({});
+    for (let i = 0; i < 20; i += 1) playPolls(second.stub, ["authorization_pending"]);
+    expect(await second.run()).toBe(4);
+    expect(second.out.join("")).toMatch(
+      new RegExp(
+        `^Open ${APPROVAL_URL.replace(/[.?]/g, "\\$&")} and approve code ${USER_CODE}, then run this command again\\. The link expires in \\d+ minutes?\\.\n$`,
+      ),
+    );
+    expect(await exists(PENDING_FILE)).toBe(true);
+    expect(await exists(".env.local")).toBe(false);
+  });
+
+  it("a re-run whose code is dead exits 3 and deletes the file", async () => {
+    await initRepository();
+    const first = setup({});
+    playApproval(first.stub, []);
+    await first.run();
+
+    const second = setup({});
+    playPolls(second.stub, ["invalid_grant"]);
+    expect(await second.run()).toBe(3);
+    expect(second.err.join("")).toMatch(/no longer valid/);
+    expect(await exists(PENDING_FILE)).toBe(false);
+  });
+
+  it("a 401 after approval says the approval expired, not that a workspace key is needed", async () => {
+    await initRepository();
+    await named("my-app");
+    const h = setup({}, { terminal: true });
+    playApproval(h.stub, ["approved"]);
+    h.stub.answer("GET", "/api/projects", {
+      kind: "response",
+      status: 401,
+      body: documentError("UNAUTHORIZED", "expired"),
+    });
+    expect(await h.run()).toBe(3);
+    expect(h.err.join("")).toContain("the approval expired");
+    expect(h.err.join("")).not.toContain("workspace API key");
+  });
+
+  it("is asked for after the local checks: a tracked env file refuses before any approval starts (D10)", async () => {
+    await initRepository();
+    await writeFile(join(dir, ".env.local"), "TRACKED=1\n");
+    git("add", ".env.local");
+    const h = setup({});
+    expect(await h.run()).toBe(1);
+    expect(h.stub.requests).toHaveLength(0);
+    expect(await exists(".dynjandi")).toBe(false);
+  });
+
+  it("a dry run asks for the approval too, and exits with the real run's code", async () => {
+    await initRepository();
+    const h = setup({});
+    playApproval(h.stub, []);
+    expect(await h.run("--dry-run")).toBe(4);
+    expect(await exists(".env.local")).toBe(false);
   });
 });
 

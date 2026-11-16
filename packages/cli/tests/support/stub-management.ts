@@ -133,3 +133,120 @@ export function documentError(
 ): { error: Record<string, unknown> } {
   return { error: { code, message, ...(details === undefined ? {} : { details }) } };
 }
+
+// ---- Browser approval (D18) ----
+// The shapes below are copied from the same document, version 0.6.0: `startDeviceAuthorization` 200 (the six
+// fields it marks required), `pollDeviceToken` 200 (`access_token`, `token_type: "Bearer"`, `expires_in`), and the
+// `400` outcomes, which are in the `Error` envelope with `error.code` set to RFC 8628's string.
+
+export const DEVICE_CODE = `dc_${"9f".repeat(20)}`;
+export const USER_CODE = "ABCD-EFGH";
+export const APPROVAL_URL = "https://app.dynjandi.dev/device?user_code=ABCD-EFGH";
+export const CLI_TOKEN = `dyn_cli_${"7e".repeat(16)}`;
+
+export function documentDeviceCode(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    device_code: DEVICE_CODE,
+    user_code: USER_CODE,
+    verification_uri: "https://app.dynjandi.dev/device",
+    verification_uri_complete: APPROVAL_URL,
+    expires_in: 600,
+    interval: 5,
+    ...overrides,
+  };
+}
+
+export function documentDeviceToken(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return { access_token: CLI_TOKEN, token_type: "Bearer", expires_in: 300, ...overrides };
+}
+
+/** One answer of `POST /api/device/token`: still waiting, told to slow down, decided, or approved. */
+export type ApprovalStep =
+  | "authorization_pending"
+  | "slow_down"
+  | "access_denied"
+  | "expired_token"
+  | "invalid_grant"
+  | "approved";
+
+/** Queues `POST /api/device/code`'s answer and then one `POST /api/device/token` answer per step, in order. */
+export function playApproval(
+  stub: StubManagement,
+  steps: ApprovalStep[],
+  options: { start?: Record<string, unknown> | null; token?: Record<string, unknown> } = {},
+): void {
+  if (options.start !== null) {
+    stub.answer("POST", "/api/device/code", {
+      kind: "response",
+      status: 200,
+      body: documentDeviceCode(options.start ?? {}),
+    });
+  }
+  playPolls(stub, steps, options.token);
+}
+
+/** Queues only the token answers, for a run that resumes from the pending file. */
+export function playPolls(
+  stub: StubManagement,
+  steps: ApprovalStep[],
+  token: Record<string, unknown> = {},
+): void {
+  for (const step of steps) {
+    stub.answer(
+      "POST",
+      "/api/device/token",
+      step === "approved"
+        ? { kind: "response", status: 200, body: documentDeviceToken(token) }
+        : { kind: "response", status: 400, body: documentError(step, `the ${step} outcome`) },
+    );
+  }
+}
+
+/** A clock that only moves when something sleeps, so a test never waits a real second. */
+export function fakeClock(start = Date.UTC(2026, 10, 16, 12, 0, 0)) {
+  let time = start;
+  const sleeps: number[] = [];
+  return {
+    start,
+    sleeps,
+    now: () => time,
+    sleep: async (ms: number) => {
+      sleeps.push(ms);
+      time += ms;
+    },
+    elapsed: () => time - start,
+  };
+}
+
+export interface OpenerCall {
+  command: string;
+  args: string[];
+  options: unknown;
+}
+
+/**
+ * A `spawn` that records what it was asked to run and starts nothing. `behaviour`: `ok`, `throws` (the call itself
+ * fails) or `error-event` (the child reports ENOENT later, as a missing `xdg-open` does).
+ */
+export function fakeOpener(behaviour: "ok" | "throws" | "error-event" = "ok") {
+  const calls: OpenerCall[] = [];
+  const state = { unrefs: 0, errorListeners: 0 };
+  const spawn = (command: string, args: string[], options: unknown) => {
+    calls.push({ command, args, options });
+    if (behaviour === "throws") throw new Error("spawn xdg-open ENOENT");
+    return {
+      on: (_event: "error", listener: () => void) => {
+        state.errorListeners += 1;
+        if (behaviour === "error-event") listener();
+      },
+      unref: () => {
+        state.unrefs += 1;
+      },
+    };
+  };
+  return { calls, state, spawn };
+}

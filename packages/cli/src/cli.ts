@@ -165,7 +165,7 @@ async function runDev(args: string[], io: Io, settings: MainSettings): Promise<n
 }
 
 /**
- * Runs the command line and returns the exit code: 0 done, 1 runtime failure, 2 usage error (D12), 3 no usable credential for `setup` (D13); under
+ * Runs the command line and returns the exit code: 0 done, 1 runtime failure, 2 usage error (D12), 3 no usable credential and 4 waiting for approval in the browser, for `setup` (D13); under
  * `dev -- <command>` the command's own code, or 128 + n for signal n (D18).
  */
 export async function main(argv: string[], io: Io, settings: MainSettings = {}): Promise<number> {

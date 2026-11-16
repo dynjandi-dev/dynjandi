@@ -75,3 +75,18 @@ Non-blocking review notes for this feature's phases (#35, `cli-project-setup`). 
   too. An `excludesFile` pointing nowhere, or `XDG_CONFIG_HOME` set to the helper's directory, would close it.
 - In `leak.test.ts` the new `beforeAll`/`afterAll` sit between two `let` declarations; `removeEmptyGitConfig`
   throws on `undefined` if `beforeAll` already failed.
+
+## Phase 5 — Browser approval
+
+- `Date` is used in `packages/cli/src/setup/approval.ts` (`Date.parse`, `new Date(...).toISOString()`) and `run.ts`
+  (`Date.now`), where `context/standards/tooling/dates.md` says never to; the CLI already uses `@northguild/gmt/utc`
+  in `dev/store.ts`. Phase 5's Standards line does not list `dates.md`.
+- A `--dry-run` with no key and no terminal hands back an approval and leaves `.dynjandi/setup-approval.json`. That is
+  D18 step 4 and D10 step 3, but D11 says a dry run "changes nothing"; the README says so, and its later "has changed
+  nothing in your project" holds only if the project means the env file and `.gitignore`.
+- The hand-back prints the link and code only on stdout, not on stderr first as D18 step 2 reads; it matches §4's
+  agent example.
+- Stale comments: `MainSettings` in `packages/cli/src/cli.ts` lists only `fetch`, environment, directory and `git`;
+  `run.ts`'s `terminal` doc says "Default: they are" where the default is `atTerminal()`; `terminal` now means "any
+  stream" to `dev` and "stdin and stderr" to `setup`.
+- The leak sweep does not see writes that go straight to `process.stderr` past the injected `io`.

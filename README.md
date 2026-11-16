@@ -35,7 +35,7 @@ For `next/image`, `@dynjandi/sdk/next` is a custom loader; see
 
 To set up a project without copying a key, `dynjandi setup` (in [`packages/cli`](packages/cli/README.md); not on
 npm yet) finds or creates the project for your directory and writes its `DYNJANDI_PROJECT_KEY` to an env file Git
-ignores, never printing it. It reads a workspace API key from `DYNJANDI_API_KEY`.
+ignores, never printing it. It asks for your approval in the browser, or in CI reads a workspace API key from `DYNJANDI_API_KEY`.
 
 To develop without the live service, `dynjandi dev` (in [`packages/cli`](packages/cli/README.md); not on npm
 yet) runs a local server on `127.0.0.1` that stores uploads on disk and renders variants with the Dynjandi

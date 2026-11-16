@@ -1,12 +1,14 @@
 import { describe, expect, test } from "vitest";
 
 // D16: the management API's published document, fetched with no key, still has what `dynjandi setup` uses:
-// the three project calls, the fields `src/setup/api.ts` reads from their answers, and the error envelope.
+// the three project calls, the fields `src/setup/api.ts` reads from their answers, the error envelope, and the two
+// device-authorization calls of the browser approval (D18) with the credential they hand out.
 // NOT part of `pnpm test` (see `test` and `test:management` in package.json): it needs the network and can go
 // red with nothing in the diff, which is its job. `.github/workflows/management-api.yml` runs it daily.
 //
 // Expected values come from `src/setup/api.ts`'s reading of each answer (D4: only `id`, `name` and `projectKey`
-// are read) and from the document at version 0.6.0 (read 2026-11-15), not from running the client.
+// are read; the approval reads the six fields of the start answer and the three of the token answer) and from the
+// document at version 0.6.0 (read 2026-11-15 and 2026-11-16), not from running the client.
 
 const DOCUMENT_URL = "https://app.dynjandi.dev/api/openapi.json";
 // The document's id pattern; `isValidProjectId` in src/setup/api.ts must accept what it accepts.
@@ -158,5 +160,82 @@ describe("the management API's document", () => {
   test("a 429 carries Retry-After as whole seconds", () => {
     const response = resolve(at(operation(LIST, "post"), "responses", "429"));
     expect(at(response, "headers", "Retry-After", "schema", "type")).toBe("integer");
+  });
+});
+
+const DEVICE_CODE = "/api/device/code";
+const DEVICE_TOKEN = "/api/device/token";
+const DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code";
+
+function expectNoSecurity(op: unknown): void {
+  expect(at(op, "security")).toEqual([]);
+}
+
+describe("the management API's document: browser approval (D18)", () => {
+  test("the CLI credential is a bearer scheme, and the three project calls accept it", () => {
+    expect(at(document, "components", "securitySchemes", "cliToken", "type")).toBe("http");
+    expect(at(document, "components", "securitySchemes", "cliToken", "scheme")).toBe("bearer");
+    for (const [path, method] of [
+      [LIST, "get"],
+      [LIST, "post"],
+      [ONE, "get"],
+    ] as const) {
+      const security = at(operation(path, method), "security");
+      expect(Array.isArray(security), `${method} ${path} has a security list`).toBe(true);
+      expect((security as Json[]).some((requirement) => "cliToken" in requirement)).toBe(true);
+    }
+  });
+
+  test("POST /api/device/code is public, takes a client_id, and answers the six fields setup reads", () => {
+    const op = operation(DEVICE_CODE, "post");
+    expect(op).toBeDefined();
+    expectNoSecurity(op);
+    expectString(requiredProperty(jsonSchema(at(op, "requestBody")), "client_id"));
+
+    const schema = responseSchema(op, "200");
+    for (const name of [
+      "device_code",
+      "user_code",
+      "verification_uri",
+      "verification_uri_complete",
+    ]) {
+      expectString(requiredProperty(schema, name));
+    }
+    expect(at(requiredProperty(schema, "expires_in"), "type")).toBe("integer");
+    expect(at(requiredProperty(schema, "interval"), "type")).toBe("integer");
+    expect(at(op, "responses", "429")).toBeDefined();
+  });
+
+  test("POST /api/device/token is public, takes the grant, and answers access_token, token_type Bearer, expires_in", () => {
+    const op = operation(DEVICE_TOKEN, "post");
+    expect(op).toBeDefined();
+    expectNoSecurity(op);
+
+    const body = jsonSchema(at(op, "requestBody"));
+    expect(at(requiredProperty(body, "grant_type"), "const")).toBe(DEVICE_GRANT);
+    expectString(requiredProperty(body, "device_code"));
+    expectString(requiredProperty(body, "client_id"));
+
+    const schema = responseSchema(op, "200");
+    expectString(requiredProperty(schema, "access_token"));
+    expect(at(requiredProperty(schema, "token_type"), "const")).toBe("Bearer");
+    expect(at(requiredProperty(schema, "expires_in"), "type")).toBe("integer");
+  });
+
+  test("an approval's outcomes are 400s in the error envelope, with RFC 8628's strings as the code", () => {
+    const error = resolve(
+      requiredProperty(responseSchema(operation(DEVICE_TOKEN, "post"), "400"), "error"),
+    );
+    const codes = at(requiredProperty(error, "code"), "enum");
+    expect(Array.isArray(codes)).toBe(true);
+    for (const code of [
+      "authorization_pending",
+      "slow_down",
+      "access_denied",
+      "expired_token",
+      "invalid_grant",
+    ]) {
+      expect(codes, code).toContain(code);
+    }
   });
 });

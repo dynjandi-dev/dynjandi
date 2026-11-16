@@ -63,9 +63,11 @@ Node 22 or newer.
 key is never printed, never put in an argument, and never saved anywhere else.
 
 ```sh
-export DYNJANDI_API_KEY=dyn_...   # a workspace API key, from the API keys page of the dashboard
 npx @dynjandi/cli setup
 ```
+
+It prints a link, opens it in your browser, and carries on once you have signed in and approved. A CI job has no one
+to approve anything: it sets `DYNJANDI_API_KEY` instead (see *The credential*).
 
 ```text
 Created the project my-app (3f2a9c) and wrote DYNJANDI_PROJECT_KEY and DYNJANDI_PROJECT_ID to .env.local.
@@ -89,11 +91,43 @@ npx @dynjandi/cli setup --force
 
 ### The credential
 
-The credential is the environment variable `DYNJANDI_API_KEY`: a **workspace** API key, made on the API keys
-page of the dashboard (not a project key). There is no option for it, because an option lands in the process
-list and the shell history; `--api-key` is a usage error that says so. Nothing is saved: every run reads the
-variable. With no key, `setup` exits `3` and names the variable; in CI (`CI` set) it says a job has no person to
-approve anything. A key the API refuses (`401`) also exits `3`.
+By default the credential is **your approval in the browser**. `setup` asks the dashboard for a one-time code
+(the device-authorization grant, RFC 8628), prints `Approve this setup at <link>. The page shows the code
+ABCD-EFGH.` on standard error, tries to open the link (`open` on macOS, `rundll32 url.dll,FileProtocolHandler` on
+Windows, `xdg-open` elsewhere, never through a shell, and only for an `https://app.dynjandi.dev/` link), and polls
+until you approve. If the browser does not open (SSH, a container, a server without a desktop) the printed link is
+enough. You sign in, pick the workspace and approve; the credential it gets lasts 300 seconds, is held in memory for
+that run, and is never written. Ctrl-C stops it with nothing changed. If you deny it, or the link (valid for 10
+minutes) expires, `setup` exits `3`.
+
+**An agent, or `--json`, has no one to wait for.** When standard input or standard error is not a terminal, or
+`--json` is given, `setup` does not wait. It prints the link and exits `4` at once, so an agent that only sees output
+when the command exits can show it to the person:
+
+```text
+Open https://app.dynjandi.dev/device?user_code=ABCD-EFGH and approve code ABCD-EFGH, then run this command again. The link expires in 10 minutes.
+```
+
+or, with `--json`, `{"status":"approval-pending","approval":{"url":"...","code":"ABCD-EFGH","expiresAt":"..."}}`. The
+agent shows the link, the person approves it, and the agent runs the **same command again**. The second run waits up
+to 60 seconds, then continues and finishes; or exits `4` again with the same link if the person has not yet approved;
+or exits `3` if the link was denied or has expired. Between the two runs the one-time code is in
+`.dynjandi/setup-approval.json` (mode `0600` on macOS and Linux). That is the directory `dynjandi dev` keeps out of
+Git with its own `.gitignore`, and `setup` creates it the same way. The file is deleted as soon as its code is used
+or dead. The token is never written to any file. A `--dry-run` asks for the approval too, because its read-only calls
+need a credential, so it can leave that file.
+
+**CI sets `DYNJANDI_API_KEY`** to a **workspace** API key, made on the API keys page of the dashboard (not a project
+key). With it set, nothing about approval runs. With `CI` set and no key, `setup` exits `3` and names the variable,
+without starting an approval, because a CI job has no person to approve anything.
+
+```sh
+export DYNJANDI_API_KEY=dyn_...   # a workspace API key, from the API keys page of the dashboard
+```
+
+There is no option for the key, because an option lands in the process list and the shell history; `--api-key` is a
+usage error that says so. Nothing is saved. A key the API refuses (`401`) exits `3`. After an approval, a `401` means
+the 300 seconds ran out, and the message says so: run the command again.
 
 ### Options
 
@@ -162,10 +196,12 @@ line on standard error that names the fix.
 | `0` | done, or `--help`, or a dry run that a real run would carry out |
 | `1` | a failure: the API refused or failed, or a Git or file check refused |
 | `2` | a usage error |
-| `3` | no usable credential: no key, a malformed key, or a key the API refused |
+| `3` | no usable credential: no key in CI, a malformed or refused key, or an approval denied or expired |
+| `4` | waiting for approval in the browser: show the link, then run the same command again |
 
-The order is the guarantee: the env file and Git are checked before the credential is used, and a refusal
-before the `.gitignore` entry is written has changed nothing.
+The order is the guarantee: the env file and Git are checked before the credential is asked for (a person is never
+asked to approve a run that would then fail on a tracked file), and a refusal or a pending approval before the
+`.gitignore` entry is written has changed nothing in your project.
 
 ### Platforms and limits
 

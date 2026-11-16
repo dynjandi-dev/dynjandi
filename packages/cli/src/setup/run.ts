@@ -1,7 +1,9 @@
 import { mkdir, readFile } from "node:fs/promises";
 import { basename, dirname, join, relative } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { SetupFailure } from "../errors.js";
 import {
+  createDeviceClient,
   createManagementClient,
   isValidProjectId,
   isValidProjectName,
@@ -10,8 +12,10 @@ import {
   type Project,
   printable,
 } from "./api.js";
+import { ApprovalPending, approve } from "./approval.js";
 import { pickEnvFile, planEnvChange, readProjectId, writeEnvFile } from "./env-file.js";
 import { applyGit, type GitPlan, type GitRunner, planGit } from "./git.js";
+import { openBrowser, type SpawnOpener } from "./open-browser.js";
 import { parseSetupOptions, SETUP_HELP, type SetupOptions } from "./options.js";
 import { parseApiKey, redact, type Secret } from "./secret.js";
 
@@ -25,6 +29,14 @@ export interface SetupSettings {
   cwd?: string | undefined;
   /** Runs `git`. Default: the real one. */
   git?: GitRunner | undefined;
+  /** A person is at the terminal (D18): standard input and standard error are terminals. Default: they are. */
+  terminal?: boolean | undefined;
+  /** The clock and the wait between polls, so a test never waits a real second. Default: `Date.now` and a timer. */
+  now?: (() => number) | undefined;
+  sleep?: ((ms: number) => Promise<void>) | undefined;
+  /** The browser opener's `spawn` and the system it picks the command for (D18). Default: the real ones. */
+  spawn?: SpawnOpener | undefined;
+  platform?: NodeJS.Platform | undefined;
 }
 
 export interface SetupIo {
@@ -50,8 +62,8 @@ const KEY_WORDS = "DYNJANDI_PROJECT_KEY and DYNJANDI_PROJECT_ID";
 const NEW_PROJECT_PLACEHOLDER = { key: "0".repeat(64), id: "new-project" };
 
 /**
- * `dynjandi setup` (D10) and the exit code: 0 done, 1 failure, 3 no usable credential (D13). A usage error is
- * thrown, for `main` to report with the command's name.
+ * `dynjandi setup` (D10) and the exit code: 0 done, 1 failure, 3 no usable credential, 4 waiting for approval in the
+ * browser (D13). A usage error is thrown, for `main` to report with the command's name.
  */
 export async function runSetup(
   args: string[],
@@ -64,15 +76,24 @@ export async function runSetup(
     return 0;
   }
   try {
-    const { summary, notes } = await perform(command.options, settings);
+    const { summary, notes } = await perform(command.options, settings, io);
     for (const note of notes) io.stderr(`${redact(note)}\n`);
     // The summary holds no credential by construction; the server's stored name is the one free-form field.
     io.stdout(`${redact(command.options.json ? JSON.stringify(summary) : sentence(summary))}\n`);
     return 0;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    io.stderr(`dynjandi setup: ${redact(printable(message))}\n`);
-    if (error instanceof SetupFailure) return error.kind === "auth" ? 3 : 1;
+    if (error instanceof ApprovalPending) {
+      // The link is the result (D18): on stdout, where an agent reads it.
+      io.stdout(
+        `${redact(command.options.json ? JSON.stringify({ status: "approval-pending", approval: error.approval }) : error.message)}\n`,
+      );
+    } else {
+      const message = error instanceof Error ? error.message : String(error);
+      io.stderr(`dynjandi setup: ${redact(printable(message))}\n`);
+    }
+    if (error instanceof SetupFailure) {
+      return error.kind === "auth" ? 3 : error.kind === "pending" ? 4 : 1;
+    }
     if (error instanceof ManagementError) return error.kind === "auth" ? 3 : 1;
     return 1;
   }
@@ -81,6 +102,7 @@ export async function runSetup(
 async function perform(
   options: SetupOptions,
   settings: SetupSettings,
+  io: SetupIo,
 ): Promise<{ summary: SetupSummary; notes: string[] }> {
   const cwd = settings.cwd ?? process.cwd();
   const env = settings.env ?? process.env;
@@ -96,8 +118,14 @@ async function perform(
   const fileId = readProjectId(content);
 
   // Step 3.
-  const credential = readCredential(env);
-  const client = createManagementClient({ fetch: settings.fetch ?? fetch, credential });
+  const fetchApi = settings.fetch ?? fetch;
+  const { credential, approved } = await obtainCredential(options, { env, cwd, settings, io });
+  const client = createManagementClient({
+    fetch: fetchApi,
+    credential,
+    // The approval's token lives 300 s (D18), so a refusal means it timed out, not that the key is the wrong kind.
+    ...(approved ? { unauthorizedMessage: "the approval expired: run the command again" } : {}),
+  });
 
   // Step 4: read-only calls.
   const settled = await settle(client, options, {
@@ -183,18 +211,36 @@ async function readText(path: string): Promise<string> {
   }
 }
 
-// D3. Until browser approval (D18) lands, the key is the only credential, and its absence exits 3.
-function readCredential(env: Record<string, string | undefined>): Secret {
-  const read = (name: string) => env[name];
-  const raw = read("DYNJANDI_API_KEY");
+// D3 and D18. `DYNJANDI_API_KEY` when it is set, and nothing about approval then runs. Without it, a CI job has no
+// person to approve anything (exit 3), and anything else asks for the browser approval.
+async function obtainCredential(
+  options: SetupOptions,
+  context: {
+    env: Record<string, string | undefined>;
+    cwd: string;
+    settings: SetupSettings;
+    io: SetupIo;
+  },
+): Promise<{ credential: Secret; approved: boolean }> {
+  const { env, cwd, settings, io } = context;
+  const raw = env["DYNJANDI_API_KEY"];
   if (raw === undefined || raw === "") {
-    const ci = (read("CI") ?? "") !== "";
-    throw new SetupFailure(
-      "auth",
-      ci
-        ? "DYNJANDI_API_KEY is not set, and a CI job has no person to approve a setup: set it to a workspace API key from the API keys page of the dashboard"
-        : "DYNJANDI_API_KEY is not set: set it to a workspace API key from the API keys page of the dashboard, then run again",
-    );
+    if ((env["CI"] ?? "") !== "") {
+      throw new SetupFailure(
+        "auth",
+        "DYNJANDI_API_KEY is not set, and a CI job has no person to approve a setup: set it to a workspace API key from the API keys page of the dashboard",
+      );
+    }
+    const credential = await approve({
+      client: createDeviceClient({ fetch: settings.fetch ?? fetch }),
+      cwd,
+      wait: !options.json && (settings.terminal ?? atTerminal()),
+      now: settings.now ?? Date.now,
+      sleep: settings.sleep ?? ((ms) => delay(ms)),
+      open: (url) => void openBrowser(url, { spawn: settings.spawn, platform: settings.platform }),
+      say: (text) => io.stderr(redact(text)),
+    });
+    return { credential, approved: true };
   }
   const key = parseApiKey(raw);
   if (key === undefined) {
@@ -203,7 +249,11 @@ function readCredential(env: Record<string, string | undefined>): Secret {
       "DYNJANDI_API_KEY is not usable: it must be a workspace API key from the API keys page of the dashboard, with no spaces or control characters",
     );
   }
-  return key;
+  return { credential: key, approved: false };
+}
+
+function atTerminal(): boolean {
+  return process.stdin.isTTY === true && process.stderr.isTTY === true;
 }
 
 // The server compares names trimmed and ignoring the case of A-Z only (core#384), and so does D5.

@@ -1,4 +1,4 @@
-import { redact, Secret } from "./secret.js";
+import { parseApiKey, redact, Secret } from "./secret.js";
 
 /** The one origin the client talks to (D2). There is no option for another: a bearer credential goes nowhere else. */
 export const MANAGEMENT_ORIGIN = "https://app.dynjandi.dev";
@@ -41,6 +41,8 @@ export interface ManagementClientOptions {
   credential: Secret;
   /** Per call, in milliseconds. Default 30 000 (D5). */
   timeoutMs?: number;
+  /** What a `401` says, where the default (a workspace API key is needed) would be wrong: an approval that timed out (D18). */
+  unauthorizedMessage?: string;
 }
 
 /**
@@ -144,104 +146,120 @@ function parseNameTaken(
   return { projectId, name };
 }
 
+interface SendOptions {
+  fetch: typeof fetch;
+  timeoutMs: number;
+  /** Sent as the bearer credential; the device calls (D18) have none. */
+  credential?: Secret | undefined;
+  unauthorizedMessage?: string | undefined;
+}
+
+const WORKSPACE_KEY_NEEDED =
+  "the API key was refused (401): a workspace API key is needed, created on the API keys page of the dashboard, not a project key";
+
+function unexpectedResponse(status: number, mayHaveCreated: boolean): ManagementError {
+  return new ManagementError(
+    "failure",
+    `unexpected response (status ${status})${mayHaveCreated ? MAY_EXIST : ""}`,
+    { status, outcomeUnknown: mayHaveCreated },
+  );
+}
+
+// `mayHaveCreated` is a POST that creates a project: it is never retried, and a lost or unreadable answer may still
+// have taken effect (D5).
+async function send(
+  options: SendOptions,
+  method: "GET" | "POST",
+  path: string,
+  body: unknown,
+  mayHaveCreated: boolean,
+): Promise<{ status: number; json: unknown }> {
+  const mutating = mayHaveCreated;
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (options.credential !== undefined) {
+    headers["Authorization"] = `Bearer ${options.credential.reveal()}`;
+  }
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const { timeoutMs } = options;
+
+  let status: number;
+  let retryAfter: string | null;
+  let text: string;
+  try {
+    const response = await options.fetch(`${MANAGEMENT_ORIGIN}${path}`, {
+      method,
+      headers,
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      // A redirect would send the bearer credential to wherever it points.
+      redirect: "error",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    status = response.status;
+    retryAfter = response.headers.get("Retry-After");
+    text = await response.text();
+  } catch (cause) {
+    const timedOut = cause instanceof Error && cause.name === "TimeoutError";
+    const what = timedOut
+      ? `no response within ${Math.round(timeoutMs / 1000)} s from ${MANAGEMENT_ORIGIN}`
+      : `could not reach ${MANAGEMENT_ORIGIN} (${printable(cause instanceof Error ? cause.message : String(cause))})`;
+    throw new ManagementError("failure", what + (mutating ? MAY_EXIST : ""), {
+      outcomeUnknown: mutating,
+    });
+  }
+
+  let json: unknown;
+  try {
+    json = text === "" ? undefined : JSON.parse(text);
+  } catch {
+    json = undefined;
+  }
+
+  if (status === 401) {
+    throw new ManagementError("auth", options.unauthorizedMessage ?? WORKSPACE_KEY_NEEDED, {
+      status,
+    });
+  }
+  if (status < 200 || status >= 300) {
+    const envelope = parseEnvelope(json);
+    if (envelope === undefined) {
+      throw new ManagementError("failure", `unexpected response (status ${status})`, {
+        status,
+        outcomeUnknown: mutating && status >= 500,
+      });
+    }
+    const retryAfterSeconds = status === 429 ? parseRetryAfter(retryAfter) : undefined;
+    const suffix = retryAfterSeconds === undefined ? "" : ` (retry after ${retryAfterSeconds} s)`;
+    const { maxProjects } = envelope.details;
+    throw new ManagementError(
+      "failure",
+      printable(`${envelope.code}: ${envelope.message}`) + suffix,
+      {
+        status,
+        code: printable(envelope.code),
+        outcomeUnknown: mutating && status >= 500,
+        retryAfterSeconds,
+        maxProjects: typeof maxProjects === "number" ? maxProjects : undefined,
+        nameTaken: envelope.code === "NAME_TAKEN" ? parseNameTaken(envelope.details) : undefined,
+      },
+    );
+  }
+  return { status, json };
+}
+
 /**
  * The three project calls of the management API (document version 0.6.0) over an injected `fetch`. No workspace
  * field is sent: the credential's scope picks the workspace. Responses are read narrowly: a field `setup` does not
  * use is ignored, so an additive API change does not break it (D4).
  */
 export function createManagementClient(options: ManagementClientOptions): ManagementClient {
-  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-
-  // `mutating` is a POST: it is never retried, and a lost or unreadable answer may still have taken effect (D5).
-  async function call(
-    method: "GET" | "POST",
-    path: string,
-    body?: unknown,
-  ): Promise<{ status: number; json: unknown }> {
-    const mutating = method === "POST";
-    const headers: Record<string, string> = {
-      Authorization: `Bearer ${options.credential.reveal()}`,
-      Accept: "application/json",
-    };
-    if (body !== undefined) headers["Content-Type"] = "application/json";
-
-    let status: number;
-    let retryAfter: string | null;
-    let text: string;
-    try {
-      const response = await options.fetch(`${MANAGEMENT_ORIGIN}${path}`, {
-        method,
-        headers,
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-        // A redirect would send the bearer credential to wherever it points.
-        redirect: "error",
-        signal: AbortSignal.timeout(timeoutMs),
-      });
-      status = response.status;
-      retryAfter = response.headers.get("Retry-After");
-      text = await response.text();
-    } catch (cause) {
-      const timedOut = cause instanceof Error && cause.name === "TimeoutError";
-      const what = timedOut
-        ? `no response within ${Math.round(timeoutMs / 1000)} s from ${MANAGEMENT_ORIGIN}`
-        : `could not reach ${MANAGEMENT_ORIGIN} (${printable(cause instanceof Error ? cause.message : String(cause))})`;
-      throw new ManagementError("failure", what + (mutating ? MAY_EXIST : ""), {
-        outcomeUnknown: mutating,
-      });
-    }
-
-    let json: unknown;
-    try {
-      json = text === "" ? undefined : JSON.parse(text);
-    } catch {
-      json = undefined;
-    }
-
-    if (status === 401) {
-      throw new ManagementError(
-        "auth",
-        "the API key was refused (401): a workspace API key is needed, created on the API keys page of the dashboard, not a project key",
-        { status },
-      );
-    }
-    if (status < 200 || status >= 300) {
-      const envelope = parseEnvelope(json);
-      if (envelope === undefined) {
-        throw new ManagementError("failure", `unexpected response (status ${status})`, {
-          status,
-          outcomeUnknown: mutating && status >= 500,
-        });
-      }
-      const retryAfterSeconds = status === 429 ? parseRetryAfter(retryAfter) : undefined;
-      const suffix = retryAfterSeconds === undefined ? "" : ` (retry after ${retryAfterSeconds} s)`;
-      const { maxProjects } = envelope.details;
-      throw new ManagementError(
-        "failure",
-        printable(`${envelope.code}: ${envelope.message}`) + suffix,
-        {
-          status,
-          code: printable(envelope.code),
-          outcomeUnknown: mutating && status >= 500,
-          retryAfterSeconds,
-          maxProjects: typeof maxProjects === "number" ? maxProjects : undefined,
-          nameTaken: envelope.code === "NAME_TAKEN" ? parseNameTaken(envelope.details) : undefined,
-        },
-      );
-    }
-    return { status, json };
-  }
-
-  function unexpected(status: number, mutating: boolean): ManagementError {
-    return new ManagementError(
-      "failure",
-      `unexpected response (status ${status})${mutating ? MAY_EXIST : ""}`,
-      {
-        status,
-        outcomeUnknown: mutating,
-      },
-    );
-  }
-
+  const settings: SendOptions = {
+    fetch: options.fetch,
+    timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    credential: options.credential,
+    unauthorizedMessage: options.unauthorizedMessage,
+  };
+  const call = (method: "GET" | "POST", path: string, body?: unknown) =>
+    send(settings, method, path, body, method === "POST");
   function checkedId(id: string): void {
     if (!isValidProjectId(id)) {
       throw new ManagementError(
@@ -256,7 +274,7 @@ export function createManagementClient(options: ManagementClientOptions): Manage
       const { status, json } = await call("GET", "/api/projects");
       const projects = Array.isArray(json) ? json.map(parseSummary) : undefined;
       if (projects === undefined || projects.some((project) => project === undefined))
-        throw unexpected(status, false);
+        throw unexpectedResponse(status, false);
       return projects as ProjectSummary[];
     },
 
@@ -266,7 +284,7 @@ export function createManagementClient(options: ManagementClientOptions): Manage
       }
       const { status, json } = await call("POST", "/api/projects", { name });
       const project = isRecord(json) ? parseProject(field(json, "project")) : undefined;
-      if (project === undefined) throw unexpected(status, true);
+      if (project === undefined) throw unexpectedResponse(status, true);
       return project;
     },
 
@@ -274,8 +292,145 @@ export function createManagementClient(options: ManagementClientOptions): Manage
       checkedId(id);
       const { status, json } = await call("GET", `/api/projects/${id}`);
       const project = parseProject(json);
-      if (project === undefined) throw unexpected(status, false);
+      if (project === undefined) throw unexpectedResponse(status, false);
       return project;
+    },
+  };
+}
+
+// ---- Browser approval: the device-authorization grant (RFC 8628), document version 0.6.0 (D18) ----
+
+const CLIENT_ID = "dynjandi-cli";
+const DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code";
+const USER_CODE_PATTERN = /^[A-Za-z0-9-]{1,32}$/;
+
+/**
+ * The address to approve at, only when it is an `https://app.dynjandi.dev/` one with no credentials in it (D18):
+ * anything else is never shown as a link and never opened. Returns the normalised address.
+ */
+export function approvalUrl(text: string): string | undefined {
+  try {
+    const url = new URL(text);
+    const ok =
+      url.protocol === "https:" &&
+      url.origin === MANAGEMENT_ORIGIN &&
+      url.username === "" &&
+      url.password === "";
+    return ok ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** What starting an approval answers. The device code is a credential, so it is a `Secret`. */
+export interface DeviceAuthorization {
+  deviceCode: Secret;
+  userCode: string;
+  /** `verification_uri_complete`, already checked to be on the management origin. */
+  url: string;
+  expiresInSeconds: number;
+  intervalSeconds: number;
+}
+
+/** One poll's answer. `dead` is `invalid_grant`: an unknown or used code, or an approver who no longer qualifies. */
+export type DevicePoll =
+  | { kind: "approved"; token: Secret }
+  | { kind: "pending" }
+  | { kind: "slow-down" }
+  | { kind: "denied" }
+  | { kind: "expired" }
+  | { kind: "dead" };
+
+export interface DeviceClient {
+  start(): Promise<DeviceAuthorization>;
+  poll(deviceCode: Secret): Promise<DevicePoll>;
+}
+
+function positiveInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+}
+
+function parseDeviceAuthorization(value: unknown): DeviceAuthorization | undefined {
+  if (!isRecord(value)) return undefined;
+  const deviceCode = field(value, "device_code");
+  const userCode = field(value, "user_code");
+  const uri = field(value, "verification_uri_complete");
+  const expiresIn = field(value, "expires_in");
+  const interval = field(value, "interval");
+  if (typeof deviceCode !== "string" || deviceCode === "") return undefined;
+  if (typeof userCode !== "string" || !USER_CODE_PATTERN.test(userCode)) return undefined;
+  const url = typeof uri === "string" ? approvalUrl(uri) : undefined;
+  if (url === undefined || !positiveInteger(expiresIn) || !positiveInteger(interval)) {
+    return undefined;
+  }
+  return {
+    deviceCode: new Secret(deviceCode),
+    userCode,
+    url,
+    expiresInSeconds: expiresIn,
+    intervalSeconds: interval,
+  };
+}
+
+const POLL_OUTCOMES = new Map<string, DevicePoll>([
+  ["authorization_pending", { kind: "pending" }],
+  ["slow_down", { kind: "slow-down" }],
+  ["access_denied", { kind: "denied" }],
+  ["expired_token", { kind: "expired" }],
+  ["invalid_grant", { kind: "dead" }],
+]);
+
+/**
+ * The two device calls over an injected `fetch`. They are public: no credential is sent. Protocol outcomes are `400`
+ * in the dashboard's error envelope, with RFC 8628's strings as `error.code`, not RFC 8628's flat body.
+ */
+export function createDeviceClient(options: {
+  fetch: typeof fetch;
+  timeoutMs?: number;
+}): DeviceClient {
+  const settings: SendOptions = {
+    fetch: options.fetch,
+    timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+  };
+  return {
+    async start() {
+      const { status, json } = await send(
+        settings,
+        "POST",
+        "/api/device/code",
+        { client_id: CLIENT_ID },
+        false,
+      );
+      const authorization = parseDeviceAuthorization(json);
+      if (authorization === undefined) throw unexpectedResponse(status, false);
+      return authorization;
+    },
+
+    async poll(deviceCode) {
+      try {
+        const { status, json } = await send(
+          settings,
+          "POST",
+          "/api/device/token",
+          {
+            grant_type: DEVICE_GRANT,
+            device_code: deviceCode.reveal(),
+            client_id: CLIENT_ID,
+          },
+          false,
+        );
+        const accessToken = isRecord(json) ? field(json, "access_token") : undefined;
+        const tokenType = isRecord(json) ? field(json, "token_type") : undefined;
+        const token = typeof accessToken === "string" ? parseApiKey(accessToken) : undefined;
+        if (token === undefined || tokenType !== "Bearer") throw unexpectedResponse(status, false);
+        return { kind: "approved", token };
+      } catch (error) {
+        if (error instanceof ManagementError && error.status === 400 && error.code !== undefined) {
+          const outcome = POLL_OUTCOMES.get(error.code);
+          if (outcome !== undefined) return outcome;
+        }
+        throw error;
+      }
     },
   };
 }

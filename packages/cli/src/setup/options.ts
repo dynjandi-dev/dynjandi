@@ -21,8 +21,11 @@ export const SETUP_HELP = `Usage: dynjandi setup [options]
 Set up a Dynjandi project for this directory: find the project (or create it) and write its
 DYNJANDI_PROJECT_KEY and DYNJANDI_PROJECT_ID to an env file that Git ignores. The key is never printed.
 
-The credential is DYNJANDI_API_KEY, a workspace API key from the API keys page of the dashboard. There is no
-option for it, because an option lands in the process list and the shell history. Nothing is saved.
+The credential is your approval in the browser: setup prints a link, opens it, and carries on once you approve.
+With no terminal (an agent, or --json) it prints the link and exits 4 at once; show it to the person, who
+approves it, then run the same command again. A CI job has no person to approve, so it sets DYNJANDI_API_KEY to
+a workspace API key from the API keys page of the dashboard; with that set, nothing about approval runs. There is
+no option for the key, because an option lands in the process list and the shell history. Nothing is saved.
 
 The project is, in order: --project, --name, the DYNJANDI_PROJECT_ID already in the env file, the "name" in
 package.json, the directory's name. A project that already has the name is used, never duplicated.
@@ -40,10 +43,11 @@ Options:
   --json              print the result as one JSON object
   --help              print this help
 
-Exit codes: 0 done, 1 failure, 2 usage error, 3 no usable credential.
+Exit codes: 0 done, 1 failure, 2 usage error, 3 no usable credential (no key in CI, a refused key, an approval
+denied or expired), 4 waiting for approval in the browser: run the same command again.
 
 Examples:
-  dynjandi setup --json                 for an agent or a script: the result as one JSON object
+  dynjandi setup --json                 for an agent: the result as one JSON object, or the approval link and exit 4
   dynjandi setup                        set up the project for this directory
   dynjandi setup --project <id>         use a project you already have
   dynjandi setup --dry-run              see what it would do, and change nothing

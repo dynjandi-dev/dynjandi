@@ -223,7 +223,10 @@ Fetches `https://app.dynjandi.dev/api/openapi.json` with no key and asserts what
 scheme, `GET /api/projects` (an `id` and a `name` per project), `POST /api/projects` (a `name` of 1 to 200 characters;
 `201` with `project.id`, `project.name` and `project.projectKey`; `409 NAME_TAKEN` with `details.projectId` and
 `details.name`), `GET /api/projects/{id}` (`id`, `name`, `projectKey`; `404`), the error envelope, the id pattern and the
-`Retry-After` header of a `429`. It sends no credential and writes nothing.
+`Retry-After` header of a `429`, and the browser approval's two calls: `POST /api/device/code` (public; `device_code`, `user_code`,
+`verification_uri`, `verification_uri_complete`, `expires_in`, `interval`), `POST /api/device/token` (public; `access_token`,
+`token_type` `Bearer`, `expires_in`; the outcomes `authorization_pending`, `slow_down`, `access_denied`, `expired_token` and
+`invalid_grant` as `400` error codes) and the `cliToken` scheme the three project calls accept. It sends no credential and writes nothing.
 
 It is not in the gate because it can go red with nothing in the diff: the dashboard changes. It belongs to whatever
 watches the service: `.github/workflows/management-api.yml` runs it daily, on demand, and is callable (`workflow_call`) as
