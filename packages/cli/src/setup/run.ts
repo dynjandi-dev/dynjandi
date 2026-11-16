@@ -11,6 +11,7 @@ import {
   ManagementError,
   type Project,
   printable,
+  scrub,
 } from "./api.js";
 import { ApprovalPending, approve } from "./approval.js";
 import { pickEnvFile, planEnvChange, readProjectId, writeEnvFile } from "./env-file.js";
@@ -95,7 +96,9 @@ export async function runSetup(
       );
     } else {
       const message = error instanceof Error ? error.message : String(error);
-      io.stderr(`dynjandi setup: ${redact(printable(message))}\n`);
+      // Scrubbed, not cut: a server's text is already bounded where it enters (api.ts), and cutting here would drop
+      // what follows it, such as the fix or the may-exist hint.
+      io.stderr(`dynjandi setup: ${redact(scrub(message))}\n`);
     }
     if (error instanceof SetupFailure) {
       return error.kind === "auth" ? 3 : error.kind === "pending" ? 4 : 1;
@@ -161,7 +164,7 @@ async function perform(
   if (settled.action === "use" && settled.requestedName !== undefined) {
     if (settled.requestedName !== settled.project.name) {
       notes.push(
-        `The name "${settled.requestedName}" matches the project "${settled.project.name}".`,
+        `The name "${printable(settled.requestedName)}" matches the project "${printable(settled.project.name)}".`,
       );
     }
   }

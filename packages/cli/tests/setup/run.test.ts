@@ -278,6 +278,19 @@ describe("runSetup: the sequence (D10)", () => {
     expect(h.err.join("")).toContain('"my-app" matches the project "My-App"');
   });
 
+  it("scrubs control characters out of the names in that note, so the stored name cannot drive the terminal", async () => {
+    await initRepository();
+    await named("my\u001b[2Japp");
+    const h = setup();
+    answerList(h, { id: PROJECT_ID, name: "MY\u001b[2JAPP" });
+    answerGet(h, { name: "MY\u001b[2JAPP" });
+
+    expect(await h.run()).toBe(0);
+
+    expect(h.err.join("")).toContain('The name "my [2Japp" matches the project "MY [2JAPP".');
+    expect(h.err.join("")).not.toContain("\u001b");
+  });
+
   it("matches a name with surrounding spaces, trimmed on both sides", async () => {
     await initRepository();
     const h = setup();
@@ -594,6 +607,26 @@ describe("runSetup: --dry-run (D11)", () => {
 });
 
 describe("runSetup: a lost POST response (D5)", () => {
+  it("keeps the may-exist hint after a 5xx whose message fills the 500 characters", async () => {
+    await initRepository();
+    await named("my-app");
+    const h = setup();
+    answerList(h);
+    h.stub.answer("POST", "/api/projects", {
+      kind: "response",
+      status: 502,
+      body: documentError("UPSTREAM_ERROR", "x".repeat(600)),
+    });
+
+    expect(await h.run()).toBe(1);
+
+    // The server's text is cut at 500 characters where it enters; what follows it is printed whole.
+    const serverText = `UPSTREAM_ERROR: ${"x".repeat(600)}`.slice(0, 500);
+    expect(h.err.join("").split("\n")).toContain(
+      `dynjandi setup: ${serverText} The project may exist; running the same command again will find it by name.`,
+    );
+  });
+
   it("says the project may exist, and a re-run finds it by name", async () => {
     await initRepository();
     await named("my-app");

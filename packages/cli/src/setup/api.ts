@@ -97,10 +97,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 // A server's words reach a terminal: control characters (escape sequences, newlines) become spaces.
+export function scrub(text: string): string {
+  return Array.from(text, (char) => (isControl(char) ? " " : char)).join("");
+}
+
+/** `scrub`, and at most 500 characters, so one answer cannot flood the terminal. For a server's own text. */
 export function printable(text: string): string {
-  return Array.from(text.slice(0, MAX_MESSAGE_LENGTH), (char) =>
-    isControl(char) ? " " : char,
-  ).join("");
+  return scrub(text.slice(0, MAX_MESSAGE_LENGTH));
 }
 
 function isControl(char: string): boolean {
