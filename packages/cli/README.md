@@ -1,7 +1,15 @@
 # @dynjandi/cli
 
-`dynjandi dev` runs a local Dynjandi server, so your app and your tests can upload and fetch images without
-the live service.
+The Dynjandi command line. `dynjandi setup` sets up a Dynjandi project for your app and writes its key to a
+file Git ignores, so no one copies or prints a key. `dynjandi dev` runs a local Dynjandi server, so your app
+and your tests can upload and fetch images without the live service.
+
+```sh
+npx @dynjandi/cli setup           # set up the project for this directory (see "dynjandi setup" below)
+```
+
+The other command:
+
 
 ```sh
 dynjandi dev                      # 1. start the server (Docker starts the renderer)
@@ -24,8 +32,11 @@ dynjandi dev -- pnpm test         # 3. run your tests against it; the server sto
 Step 3 sets `DYNJANDI_ORIGIN` and `DYNJANDI_PROJECT_KEY` for the command, stops the server and the renderer
 container when the command exits, and exits with the command's code.
 
-**Status: not published.** This package is not on npm and nothing publishes it, so `npx @dynjandi/cli` and
-`npm i -g @dynjandi/cli` do not work yet. Until it is published, run the commands above from a checkout of this
+**Status: not published yet.** This package is not on npm, so `npx @dynjandi/cli` and
+`npm i -g @dynjandi/cli` do not work yet. Its first version is published by hand, because npm can only trust a
+workflow for a package that exists. Every version after it is published by
+[`publish-cli.yml`](../../.github/workflows/publish-cli.yml) when a release changes `version` here, through npm
+trusted publishing with provenance and no token. Until the first version is out, run the commands above from a checkout of this
 repository (see *Run it from a checkout*: put `node packages/cli/dist/cli.js` where `dynjandi` is written) or
 from a tarball: `pnpm --filter @dynjandi/cli pack` in the checkout writes `dynjandi-cli-0.0.0.tgz` to the
 directory you ran it in; in your project, `npm i -D <path to that file>`, then put `npx dynjandi` where
@@ -47,6 +58,166 @@ node packages/cli/dist/cli.js dev
 ```
 
 Node 22 or newer.
+
+## `dynjandi setup`
+
+`dynjandi setup` finds the Dynjandi project for the directory you are in (or creates it) and writes its
+`DYNJANDI_PROJECT_KEY` and `DYNJANDI_PROJECT_ID` to an env file that your app reads and Git does not track. The
+key is never printed, never put in an argument, and never saved anywhere else.
+
+```sh
+npx @dynjandi/cli setup
+```
+
+It prints a link, opens it in your browser, and carries on once you have signed in and approved. A CI job has no one
+to approve anything: it sets `DYNJANDI_API_KEY` instead (see *The credential*).
+
+```text
+Created the project my-app (3f2a9c) and wrote DYNJANDI_PROJECT_KEY and DYNJANDI_PROJECT_ID to .env.local.
+```
+
+`npx @dynjandi/cli` works once the package is on npm, which it is not yet (see *Status* above); until then,
+run it from a checkout or a tarball as described there.
+
+Run it again and it changes nothing: it reads `DYNJANDI_PROJECT_ID` from the env file, finds the same project,
+and says so. An agent should pass `--json`, which prints the result as one JSON object, and `--dry-run` first
+if it wants to see what would happen:
+
+```sh
+npx @dynjandi/cli setup --json
+npx @dynjandi/cli setup --dry-run
+npx @dynjandi/cli setup --project my-project
+npx @dynjandi/cli setup --name my-app
+npx @dynjandi/cli setup --file config/app.env
+npx @dynjandi/cli setup --force
+```
+
+### The credential
+
+By default the credential is **your approval in the browser**. `setup` asks the dashboard for a one-time code
+(the device-authorization grant, RFC 8628), prints `Approve this setup at <link>. The page shows the code
+ABCD-EFGH.` on standard error, tries to open the link (`open` on macOS, `rundll32 url.dll,FileProtocolHandler` on
+Windows, `xdg-open` elsewhere, never through a shell, and only for an `https://app.dynjandi.dev/` link), and polls
+until you approve. If the browser does not open (SSH, a container, a server without a desktop) the printed link is
+enough. You sign in, pick the workspace and approve; the credential it gets lasts 300 seconds, is held in memory for
+that run, and is never written. Ctrl-C stops it with nothing changed. If you deny it, or the link (valid for 10
+minutes) expires, `setup` exits `3`.
+
+**An agent, or `--json`, has no one to wait for.** When standard input or standard error is not a terminal, or
+`--json` is given, `setup` does not wait. It prints the link and exits `4` at once, so an agent that only sees output
+when the command exits can show it to the person:
+
+```text
+Open https://app.dynjandi.dev/device?user_code=ABCD-EFGH and approve code ABCD-EFGH, then run this command again. The link expires in 10 minutes.
+```
+
+or, with `--json`, `{"status":"approval-pending","approval":{"url":"...","code":"ABCD-EFGH","expiresAt":"..."}}`. The
+agent shows the link, the person approves it, and the agent runs the **same command again**. The second run waits up
+to 60 seconds, then continues and finishes; or exits `4` again with the same link if the person has not yet approved;
+or exits `3` if the link was denied or has expired. A person who runs it again at a terminal instead is waited for
+as on a first run: the link is shown again, and the run waits until the link expires. Between the two runs the
+one-time code is in `.dynjandi/setup-approval.json` (mode `0600` on macOS and Linux). That is the directory `dynjandi dev` keeps out of
+Git with its own `.gitignore`, and `setup` creates it the same way. The file is deleted as soon as its code is used
+or dead. The token is never written to any file. A `--dry-run` asks for the approval too, because its read-only calls
+need a credential, so it can leave that file.
+
+**CI sets `DYNJANDI_API_KEY`** to a **workspace** API key, made on the API keys page of the dashboard (not a project
+key). With it set, nothing about approval runs. With `CI` set and no key, `setup` exits `3` and names the variable,
+without starting an approval, because a CI job has no person to approve anything.
+
+```sh
+export DYNJANDI_API_KEY=dyn_...   # a workspace API key, from the API keys page of the dashboard
+```
+
+There is no option for the key, because an option lands in the process list and the shell history; `--api-key` is a
+usage error that says so. Nothing is saved. A key the API refuses (`401`) exits `3`. After an approval, a `401` means
+the 300 seconds ran out, and the message says so: run the command again.
+
+### Options
+
+| Option | Does |
+|---|---|
+| `--project <id>` | use that project; no such project in your workspace is an error |
+| `--name <name>` | use the project with that name, or create it. Not together with `--project` |
+| `--file <path>` | the file to write, relative to the working directory |
+| `--force` | replace a different key or project id already in the env file, or let `--project` / `--name` disagree with the id it holds |
+| `--dry-run` | do every check and every read-only call, then say what a real run would do and change nothing |
+| `--json` | print the result as one JSON object |
+| `--help` | print the help |
+
+The file option is `--file`, not `--env-file`: Node reads `--env-file` itself, even after the command name, and
+when that file does not exist yet it stops with `node: <file>: not found` and exit `9` before `setup` starts.
+When the file does exist, `setup` refuses `--env-file` as a usage error that names `--file`.
+
+### Which project
+
+In this order:
+
+1. `--project <id>`.
+2. `--name <name>`.
+3. The `DYNJANDI_PROJECT_ID` already in the env file, so a plain re-run in the same directory reconnects.
+4. The `name` in `./package.json`, else the directory's name.
+
+For a name (2 and 4), names are compared trimmed and ignoring the case of A-Z, the way the dashboard keeps them
+unique in a workspace. No project has it: one is created. One has it: that one is used, and the summary shows
+its stored name, which may differ in case. A create that finds the name taken a moment earlier uses the project
+that took it. `setup` never makes a second project with a name the workspace already has. If the create's
+answer is lost, or is a server error (`5xx`) that may have come after the project was made, the message says the
+project may exist; running the same command again finds it by name.
+
+### Which file, and Git
+
+The env file is `--file`, else an existing `.env.local`, else an existing `.env`, else a new `.env.local`.
+Inside a Git repository, before anything is created:
+
+- a file Git **tracks** is refused, and the message gives `git rm --cached <file>`;
+- a file Git does not ignore gets the entry `/<file name>` in the `.gitignore` beside it (created if needed,
+  keeping its line endings), and Git is asked again; if a rule still keeps it from being ignored, `setup`
+  refuses and names the rule;
+- outside a repository there is nothing to commit the file to, so it is written, and `setup` says once that a
+  repository created later must ignore it.
+
+A symbolic link is refused: pass the file it points to. Only the two `DYNJANDI_PROJECT_*` lines are changed; every
+other line, comment and line ending stays. The file is replaced atomically (a temporary file beside it, then a
+rename) and comes out mode `0600` on macOS and Linux. A different key or id already in the file belongs to
+another project, so it is refused unless you pass `--force`.
+
+### The result
+
+One sentence on standard output; everything else (the `.gitignore` entry, notes) is on standard error, and a run
+that fails after writing the `.gitignore` entry still reports it there, before the error. With
+`--json`, one object:
+
+```json
+{"dryRun":false,"project":{"id":"3f2a9c","name":"my-app","action":"create"},"envFile":{"path":".env.local","action":"write"},"gitignore":"add"}
+```
+
+`project.action` is `create` or `use`; `envFile.action` is `write` or `none` (nothing needed changing);
+`gitignore` is `add`, `none` or `no-repo`. A dry run reports the same words with `dryRun: true`, and
+`project.id` is `null` when it would create the project. The object never holds a credential. An error is one
+line on standard error that names the fix.
+
+| Exit code | When |
+|---|---|
+| `0` | done, or `--help`, or a dry run that a real run would carry out |
+| `1` | a failure: the API refused or failed, or a Git or file check refused |
+| `2` | a usage error |
+| `3` | no usable credential: no key in CI, a malformed or refused key, or an approval denied or expired |
+| `4` | waiting for approval in the browser: show the link, then run the same command again |
+
+The order is the guarantee: the env file and Git are checked before the credential is asked for (a person is never
+asked to approve a run that would then fail on a tracked file). A refusal before the `.gitignore` entry is written
+has changed nothing in your project, and a pending approval has changed nothing outside `.dynjandi/`, where it keeps
+the one-time code (above).
+
+### Platforms and limits
+
+`setup` is written for macOS, Linux and Windows and runs on Node 22 and later. CI runs the setup tests on Linux,
+macOS and Windows with Node 24, and on Linux with Node 22 as well.
+
+This prevents accidental exposure: a key does not travel through a transcript, a commit or a log. It does not
+contain a compromised agent with shell access, which can still read the env file. If another program edits the env
+file at the very moment `setup` replaces it, the replace can win.
 
 ## `dynjandi dev`
 
@@ -423,7 +594,10 @@ are untried, and on those `host.docker.internal` may not resolve in the containe
 ### The end-to-end test
 
 `pnpm --filter @dynjandi/cli run test:e2e` starts the built `dynjandi dev` with the real renderer image and
-drives it with the real SDK, and a second case does the same from a Node container with `--containers`. It is not part of `pnpm test`; `context/verify.md` lists its preconditions.
+drives it with the real SDK, and a second case does the same from a Node container with `--containers`. It also
+runs the built `dynjandi setup` on the paths that stop before any request: `--help`, no key, `--api-key`, `--file`
+for a new file, `--env-file`, and a tracked env file. It is not part of `pnpm test`; `context/verify.md` lists its
+preconditions.
 
 ### Run a command against the server
 

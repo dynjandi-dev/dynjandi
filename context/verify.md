@@ -65,7 +65,7 @@ holds, which is the state between releases, so the dry run is skipped (with a me
 `npm view @dynjandi/sdk@<version>` returns that version; the assertions always run. The real dry run is
 therefore seen on the change that bumps the version. The picker is not on npm at all, so `npm view` finds
 nothing and its dry run always runs. Its tarball allowlist is the same four entries, and it requires
-`dist/index.js`, `dist/index.d.ts`, `dist/element.js`, `dist/element.d.ts`, `dist/react.js` and `dist/react.d.ts`. It also fails when the packed `package.json` has `dependencies`, or when React and `react-dom` are not both optional peers (`peerDependenciesMeta`) or any other peer is present. The CLI's tarball allowlist is the same four entries, and it requires `dist/cli.js`, `dist/dev/options.js` and `dist/dev/server.js`; its `bin.dynjandi` must exist in the tarball and start with a `#!/usr/bin/env node` line. It is not on npm either, so its dry run always runs.
+`dist/index.js`, `dist/index.d.ts`, `dist/element.js`, `dist/element.d.ts`, `dist/react.js` and `dist/react.d.ts`. It also fails when the packed `package.json` has `dependencies`, or when React and `react-dom` are not both optional peers (`peerDependenciesMeta`) or any other peer is present. The CLI's tarball allowlist is the same four entries, and it requires `dist/cli.js`, `dist/dev/options.js`, `dist/dev/server.js`, `dist/setup/options.js` and `dist/setup/run.js`; its `bin.dynjandi` must exist in the tarball and start with a `#!/usr/bin/env node` line. It is not on npm either, so its dry run always runs.
 
 ## Test
 
@@ -84,7 +84,7 @@ The CLI's run includes the offline contract suite (`packages/cli/tests/contract/
 
 The CLI's `--containers` tests (`packages/cli/tests/containers.test.ts`) run `docker` as a fake on `PATH`, but open a real second listener on an address this machine lists in `os.networkInterfaces()` besides `127.0.0.1`: `::1`, or where IPv6 is off, the first non-internal IPv4 address. A machine with neither, such as a container with IPv6 off and `--network none`, fails them rather than skipping them.
 
-This excludes `packages/sdk/tests/live/` and `packages/cli/tests/live/`, which need a secret and the network: see *Not run by Gate 1*.
+This excludes `packages/sdk/tests/live/` and `packages/cli/tests/live/`, which need a secret and the network, and `packages/cli/tests/management/`, which needs the network: see *Not run by Gate 1*. The CLI's `setup` tests (`packages/cli/tests/setup/`) are in the run: they use a stub management API injected as `fetch` (no port is opened) and a temporary directory, and never reach `app.dynjandi.dev`.
 
 ## Generated types
 
@@ -189,6 +189,49 @@ daemon is running; the pinned renderer image (`ghcr.io/dynjandi-dev/renderer:0.2
 `docker login ghcr.io` with an account that can read it. A first pull is about 100 MB; the test allows 180
 seconds to start. `pnpm test` excludes `tests/e2e/`. It is not in the gate because it needs Docker and the
 registry and can go red with nothing in the diff; whether CI runs it is open (issue #37, section 9 Q2).
+
+A third case, `tests/e2e/setup.e2e.test.ts`, runs the built `dynjandi setup` and needs no Docker, so it can be run alone
+(`pnpm build && pnpm --filter @dynjandi/cli exec vitest run tests/e2e/setup.e2e.test.ts`). It covers what only the built
+binary shows: `--help`, `setup` with `CI=1` and no key exiting `3` with standard output empty, `--api-key` exiting `2`,
+`setup --file <a new path>` exiting `3` (not Node's `9` for a missing `--env-file`, #66) and writing nothing, `--env-file`
+refused with a message naming `--file`, and a tracked env file exiting `1` with the Git message (not `3`, so the guard runs
+before the credential). No case reaches the network: the child process gets an environment without any `DYNJANDI_*`
+variable (a key in the developer's shell is not passed on), and preloads a module that makes `fetch` exit `99`.
+
+### Three-system setup tests
+
+```bash
+pnpm --filter @dynjandi/cli run test:setup
+```
+
+Runs `packages/cli/tests/setup/` only. `pnpm test` already runs them on this machine; the `setup` job of
+`.github/workflows/ci.yml` runs this command on `ubuntu-latest`, `macos-latest` and `windows-latest` with Node 24, so the
+env file's atomic rename, `.gitignore` line endings, file modes and path handling are proven on all three. It runs only
+these tests because the rest of the CLI's suite puts a Unix script on `PATH` as `docker`
+(`tests/support/fake-docker.mjs`) and the package's `build` script uses `rm` and `chmod`; the job therefore has no `build`
+step, and the tests import from `src/`. Its first step sets `git config --global core.autocrlf false` before checkout, so
+Windows does not check the README out with CRLF endings (a test reads its fenced blocks). It cannot be run for Windows or macOS from another system: its result is the
+pull request's check.
+
+### Management API document check
+
+```bash
+pnpm --filter @dynjandi/cli run test:management
+```
+
+Fetches `https://app.dynjandi.dev/api/openapi.json` with no key and asserts what `dynjandi setup` depends on: the bearer
+scheme, `GET /api/projects` (an `id` and a `name` per project), `POST /api/projects` (a `name` of 1 to 200 characters;
+`201` with `project.id`, `project.name` and `project.projectKey`; `409 NAME_TAKEN` with `details.projectId` and
+`details.name`), `GET /api/projects/{id}` (`id`, `name`, `projectKey`; `404`), the error envelope, the id pattern and the
+`Retry-After` header of a `429`, and the browser approval's two calls: `POST /api/device/code` (public; `device_code`, `user_code`,
+`verification_uri`, `verification_uri_complete`, `expires_in`, `interval`), `POST /api/device/token` (public; `access_token`,
+`token_type` `Bearer`, `expires_in`; the outcomes `authorization_pending`, `slow_down`, `access_denied`, `expired_token` and
+`invalid_grant` as `400` error codes) and the `cliToken` scheme the three project calls accept. It sends no credential and writes nothing.
+
+It is not in the gate because it can go red with nothing in the diff: the dashboard changes. It belongs to whatever
+watches the service: `.github/workflows/management-api.yml` runs it daily, on demand, and is callable (`workflow_call`) as
+the precondition of the CLI's publish workflow. It is deliberately not in `smoke.yml`, which `publish.yml` calls before an
+SDK release.
 
 ### Focal crop capture
 

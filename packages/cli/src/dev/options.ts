@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { UsageError } from "../errors.js";
 import { parseAllowHost } from "./host-check.js";
 
 export const DEFAULT_PORT = 4600;
@@ -31,9 +32,6 @@ export interface DevOptions {
 }
 
 export type DevCommand = { kind: "help" } | { kind: "run"; options: DevOptions };
-
-/** A mistake in how the command was called: exit 2, message on stderr. */
-export class UsageError extends Error {}
 
 export const DEV_HELP = `Usage: dynjandi dev [options]
        dynjandi dev [options] -- <command> [args...]

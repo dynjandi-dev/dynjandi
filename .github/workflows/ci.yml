@@ -42,3 +42,25 @@ jobs:
       - run: pnpm check:package
       - run: pnpm test
       - run: pnpm check:generated
+
+  # D15: the setup tests on all three systems, with Node 24. `check` above runs the whole suite on Linux. This
+  # runs only tests/setup, because `dev`'s tests put a Unix script on PATH as `docker`
+  # (tests/support/fake-docker.mjs) and the package's `build` script uses `rm` and `chmod`, so there is no
+  # `build` step here: tests/setup imports from src/ and needs no dist/.
+  setup:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      # Windows runners check out with CRLF (core.autocrlf=true), which breaks the tests that read the README's fenced blocks.
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @dynjandi/cli run test:setup
