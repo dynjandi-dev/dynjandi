@@ -1,11 +1,12 @@
 import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { devNull, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { type Io, main } from "../../src/cli.js";
 import { runSetup } from "../../src/setup/run.js";
+import { createEmptyGitConfig, removeEmptyGitConfig } from "../support/git-config.js";
 import {
   documentCreated,
   documentError,
@@ -27,6 +28,15 @@ const API_KEY = "dyn_run_test_key_90b1";
 const PROJECT_ID = "3f2a9c";
 
 let dir: string;
+let gitConfig: string;
+
+beforeAll(async () => {
+  gitConfig = await createEmptyGitConfig();
+});
+
+afterAll(async () => {
+  await removeEmptyGitConfig(gitConfig);
+});
 
 function git(...args: string[]): string {
   return execFileSync("git", args, { cwd: dir, encoding: "utf8" });
@@ -41,7 +51,7 @@ async function initRepository(): Promise<void> {
 
 beforeEach(async () => {
   // The machine's own Git configuration (a global ignore file) would change which files count as ignored.
-  vi.stubEnv("GIT_CONFIG_GLOBAL", devNull);
+  vi.stubEnv("GIT_CONFIG_GLOBAL", gitConfig);
   vi.stubEnv("GIT_CONFIG_NOSYSTEM", "1");
   dir = await mkdtemp(join(tmpdir(), "dynjandi-run-"));
 });

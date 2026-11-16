@@ -1,12 +1,13 @@
 import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { devNull, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { type Io, main } from "../../src/cli.js";
 import { UsageError } from "../../src/errors.js";
 import type { GitRunner } from "../../src/setup/git.js";
 import { runSetup } from "../../src/setup/run.js";
+import { createEmptyGitConfig, removeEmptyGitConfig } from "../support/git-config.js";
 import {
   documentCreated,
   documentError,
@@ -23,6 +24,15 @@ const PROJECT_KEY = "5ca1ab1e".repeat(8);
 const PROJECT_ID = "leak-project";
 
 let dir: string;
+let gitConfig: string;
+
+beforeAll(async () => {
+  gitConfig = await createEmptyGitConfig();
+});
+
+afterAll(async () => {
+  await removeEmptyGitConfig(gitConfig);
+});
 let streams: { out: string[]; err: string[] };
 let gitCalls: string[][];
 
@@ -43,7 +53,7 @@ function gitSync(...args: string[]) {
 }
 
 beforeEach(async () => {
-  vi.stubEnv("GIT_CONFIG_GLOBAL", devNull);
+  vi.stubEnv("GIT_CONFIG_GLOBAL", gitConfig);
   vi.stubEnv("GIT_CONFIG_NOSYSTEM", "1");
   dir = await mkdtemp(join(tmpdir(), "dynjandi-leak-"));
   streams = { out: [], err: [] };

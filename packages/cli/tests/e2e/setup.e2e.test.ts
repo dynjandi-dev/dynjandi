@@ -1,9 +1,10 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { devNull, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "vitest";
+import { createEmptyGitConfig, removeEmptyGitConfig } from "../support/git-config.js";
 
 // End-to-end test of the built `dynjandi setup` (`dist/cli.js`) as a child process, for what only the built
 // binary can show: that Node does not take an option before `setup` does (#66), and the exit codes a shell sees.
@@ -29,6 +30,15 @@ const NO_FETCH = `data:text/javascript,${encodeURIComponent(
 const NODE_ENV_FILE_EXIT = 9; // Node's exit code for a missing --env-file (#66).
 
 let dir: string;
+let gitConfig: string;
+
+beforeAll(async () => {
+  gitConfig = await createEmptyGitConfig();
+});
+
+afterAll(async () => {
+  await removeEmptyGitConfig(gitConfig);
+});
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), "dynjandi-setup-e2e-"));
@@ -52,7 +62,7 @@ function environment(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   return {
     ...env,
     // The machine's own Git configuration (a global ignore file) would change which files count as ignored.
-    GIT_CONFIG_GLOBAL: devNull,
+    GIT_CONFIG_GLOBAL: gitConfig,
     GIT_CONFIG_NOSYSTEM: "1",
     ...extra,
   };

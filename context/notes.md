@@ -70,3 +70,8 @@ Non-blocking review notes for this feature's phases (#35, `cli-project-setup`). 
 - `management-api.yml` and `context/verify.md` name `publish-cli.yml` as its caller; Phase 6 creates it.
 - `context/stack.md`'s CI row places the `setup` job after the `pages.yml` clause, so "a second job" is hard to read.
 - `env-file.test.ts` runs two real renames onto one target at once; on Windows that leans on the rename retry.
+- The empty `GIT_CONFIG_GLOBAL` file (`packages/cli/tests/support/git-config.ts`) keeps a global `core.excludesFile`
+  out, but Git still reads its default global ignore, `$XDG_CONFIG_HOME/git/ignore`; `/dev/null` let it through
+  too. An `excludesFile` pointing nowhere, or `XDG_CONFIG_HOME` set to the helper's directory, would close it.
+- In `leak.test.ts` the new `beforeAll`/`afterAll` sit between two `let` declarations; `removeEmptyGitConfig`
+  throws on `undefined` if `beforeAll` already failed.
