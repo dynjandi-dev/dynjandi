@@ -221,8 +221,9 @@ The Actions secret `DYNJANDI_SMOKE_PROJECT_KEY` must exist for the smoke test to
 ### How the CLI is published
 
 The SDK's flow ([`publish.yml`](../.github/workflows/publish.yml)) for a second package, in its own file,
-[`publish-cli.yml`](../.github/workflows/publish-cli.yml). **Written, never run**: `@dynjandi/cli` is `0.0.0`
-and not on npm, so no run has had a version to publish.
+[`publish-cli.yml`](../.github/workflows/publish-cli.yml). **Its publish job has never run**: `@dynjandi/cli` is
+`0.0.0` and not on npm, so no run has had a version to publish. One run on a feature branch (2026-11-16, run
+43856464514) skipped every job, because each refuses every ref but `refs/heads/main`.
 
 | Question | Answer |
 |---|---|
