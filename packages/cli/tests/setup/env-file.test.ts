@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { pickEnvFile, planEnvChange, writeEnvFile } from "../../src/setup/env-file.js";
 
 // Expected values come from the plan (D6, D8, D9), not from the code under test:
-// - D6: --env-file, else an existing .env.local, else an existing .env, else a new .env.local;
+// - D6: --file, else an existing .env.local, else an existing .env, else a new .env.local;
 // - D8: only the two variable lines (with or without `export `) are replaced, every other byte stays,
 //   a missing variable is appended after a final newline is added, a different value is refused without
 //   --force, the same value writes nothing, a name twice is ambiguous, 0600 off Windows, the rename is

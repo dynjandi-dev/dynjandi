@@ -22,7 +22,7 @@ export type EnvPlan =
   | { kind: "append"; content: string }
   | { kind: "refuse"; reason: string };
 
-/** D6: `--env-file`, else an existing `.env.local`, else an existing `.env`, else a new `.env.local`. */
+/** D6: `--file`, else an existing `.env.local`, else an existing `.env`, else a new `.env.local`. */
 export async function pickEnvFile(cwd: string, given: string | undefined): Promise<string> {
   if (given !== undefined) return resolve(cwd, given);
   for (const name of [".env.local", ".env"]) {
@@ -172,7 +172,7 @@ export async function writeEnvFile(
     throw error;
   });
   if (existing?.isSymbolicLink()) {
-    throw new Error(`${path} is a symbolic link; pass the file it points to with --env-file`);
+    throw new Error(`${path} is a symbolic link; pass the file it points to with --file`);
   }
 
   const temporary = join(dirname(path), `.${basename(path)}.${randomBytes(6).toString("hex")}.tmp`);

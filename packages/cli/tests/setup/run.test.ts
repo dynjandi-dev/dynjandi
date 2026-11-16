@@ -171,14 +171,14 @@ describe("runSetup: the sequence (D10)", () => {
     expect(h.err.join("")).toContain("not in a Git repository");
   });
 
-  it("creates the folder of an --env-file that does not exist yet", async () => {
+  it("creates the folder of a --file that does not exist yet", async () => {
     await initRepository();
     await named("my-app");
     const h = setup();
     answerList(h);
     answerCreate(h);
 
-    expect(await h.run("--env-file", join("config", "app.env"))).toBe(0);
+    expect(await h.run("--file", join("config", "app.env"))).toBe(0);
 
     expect(await read(join("config", "app.env"))).toBe(ENV_FILE);
     expect(await read(join("config", ".gitignore"))).toBe("/app.env\n");
@@ -598,7 +598,7 @@ describe("the README's commands", () => {
         "--dry-run",
         "--project my-project",
         "--name my-app",
-        "--env-file config/app.env",
+        "--file config/app.env",
         "--force",
       ]),
     );

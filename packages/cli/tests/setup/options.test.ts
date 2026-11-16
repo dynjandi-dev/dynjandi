@@ -6,7 +6,8 @@ import { parseSetupOptions, SETUP_HELP } from "../../src/setup/options.js";
 // - D3: `--api-key` is a usage error that names the variable DYNJANDI_API_KEY, and never echoes the value;
 // - D5: a project id matches ^[a-z0-9][a-z0-9-]{0,62}$ and a name is 1 to 200 characters (the document's limits);
 //   `--project` and `--name` are two ways to pick the project, so both together are ambiguous;
-// - D4/D5 Phase 3 scope: the options are --project, --name, --env-file, --force, --dry-run, --json, --help.
+// - D4/D5 Phase 3 scope: the options are --project, --name, --file, --force, --dry-run, --json, --help;
+// - D6 (owner, 2026-11-16, #66): the file option is --file, and --env-file is a usage error that names it.
 function parse(...args: string[]) {
   return parseSetupOptions(args);
 }
@@ -38,7 +39,7 @@ describe("parseSetupOptions", () => {
 
   it("reads every option", () => {
     expect(
-      parse("--project", "my-app", "--env-file", "config/.env", "--force", "--dry-run", "--json"),
+      parse("--project", "my-app", "--file", "config/.env", "--force", "--dry-run", "--json"),
     ).toEqual({
       kind: "run",
       options: {
@@ -93,8 +94,14 @@ describe("parseSetupOptions", () => {
     expect(parse("--name", "x".repeat(200)).kind).toBe("run");
   });
 
-  it("refuses an empty --env-file", () => {
-    expect(usageMessage("--env-file", "")).toContain("--env-file");
+  it("refuses an empty --file", () => {
+    expect(usageMessage("--file", "")).toContain("--file");
+  });
+
+  it("refuses --env-file and names --file instead (D6)", () => {
+    for (const args of [["--env-file", "config/app.env"], ["--env-file=config/app.env"]]) {
+      expect(usageMessage(...args)).toContain("--file <path>");
+    }
   });
 });
 
@@ -108,5 +115,10 @@ describe("SETUP_HELP", () => {
     expect(examples).toContain("--dry-run");
     expect(SETUP_HELP.toLowerCase()).not.toContain("wrangler");
     expect(SETUP_HELP).toContain("DYNJANDI_API_KEY");
+  });
+
+  it("lists --file as the file option (D6)", () => {
+    expect(SETUP_HELP).toMatch(/^ {2}--file <path> /m);
+    expect(SETUP_HELP).not.toMatch(/^ {2}--env-file/m);
   });
 });

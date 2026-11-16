@@ -49,3 +49,10 @@ Non-blocking review notes for this feature's phases (#35, `cli-project-setup`). 
 - A dry run can't see a negation rule that the real run's re-check would refuse, so it exits `0` where the real run
   exits `1` — per D11's "steps 1 to 5", but the README's "a dry run that a real run would carry out" overstates it.
 - `MainSettings` carries `git` where §4 names `spawn`; the opener's fields are left to browser approval.
+
+## The `--file` rename (#66, before Phase 4)
+
+- No test sends `--env-file` through `main` and asserts exit `2`; the refusal is pinned as a `UsageError` in
+  `packages/cli/tests/setup/options.test.ts`, and the usage-error-to-`2` mapping only generically, with `--api-key`.
+- The internal names stay `envFile` (`SetupOptions`, the `--json` summary key) and `env-file.ts`: they are not option
+  names.

@@ -204,13 +204,13 @@ const scenarios: Array<{ name: string; exit: number; run: (h: Harness) => Promis
     },
   },
   {
-    name: "an --env-file in a new folder",
+    name: "a --file in a new folder",
     exit: 0,
     run: async (h) => {
       await mkdir(join(dir, "config"));
       h.stub.answer("GET", "/api/projects", respond(200, []));
       h.stub.answer("POST", "/api/projects", respond(201, created()));
-      return runSetup(["--env-file", join("config", "app.env")], io, h.settings);
+      return runSetup(["--file", join("config", "app.env")], io, h.settings);
     },
   },
 ];

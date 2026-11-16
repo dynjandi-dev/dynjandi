@@ -7,7 +7,7 @@ export interface SetupOptions {
   project: string | undefined;
   /** `--name <name>`, trimmed (D5 step 2). */
   name: string | undefined;
-  /** `--env-file <path>`, as given: relative to the working directory (D6). */
+  /** `--file <path>`, as given: relative to the working directory (D6). */
   envFile: string | undefined;
   force: boolean;
   dryRun: boolean;
@@ -27,14 +27,14 @@ option for it, because an option lands in the process list and the shell history
 The project is, in order: --project, --name, the DYNJANDI_PROJECT_ID already in the env file, the "name" in
 package.json, the directory's name. A project that already has the name is used, never duplicated.
 
-The env file is --env-file, else an existing .env.local, else an existing .env, else a new .env.local. In a
-Git repository, a file that is tracked is refused, and one that is not ignored gets an entry in the .gitignore
-beside it.
+The env file is --file, else an existing .env.local, else an existing .env, else a new .env.local. In a Git
+repository, a file that is tracked is refused, and one that is not ignored gets an entry in the .gitignore
+beside it. The option is not --env-file: Node reads that one itself, and stops when the file does not exist.
 
 Options:
   --project <id>      use this project
   --name <name>       use the project with this name, or create it
-  --env-file <path>   the file to write (relative to the working directory)
+  --file <path>       the file to write (relative to the working directory)
   --force             replace a different key or project id already in the env file
   --dry-run           check everything and say what would happen, changing nothing
   --json              print the result as one JSON object
@@ -56,6 +56,13 @@ function readArgs(args: string[]) {
       "there is no --api-key option: set the DYNJANDI_API_KEY environment variable instead",
     );
   }
+  // Node reads --env-file itself, even after the script name, and exits before setup runs when the file does not
+  // exist (#66). When it does reach here, name the option that works rather than call it unknown (D6).
+  if (args.some((arg) => arg === "--env-file" || arg.startsWith("--env-file="))) {
+    throw new UsageError(
+      "there is no --env-file option, because Node reads it itself: use --file <path>",
+    );
+  }
   try {
     return parseArgs({
       args,
@@ -64,7 +71,7 @@ function readArgs(args: string[]) {
       options: {
         project: { type: "string" },
         name: { type: "string" },
-        "env-file": { type: "string" },
+        file: { type: "string" },
         force: { type: "boolean" },
         "dry-run": { type: "boolean" },
         json: { type: "boolean" },
@@ -93,14 +100,14 @@ export function parseSetupOptions(args: string[]): SetupCommand {
   if (name !== undefined && !isValidProjectName(name)) {
     throw new UsageError("--name must be 1 to 200 characters");
   }
-  if (values["env-file"] === "") throw new UsageError("--env-file must not be empty");
+  if (values.file === "") throw new UsageError("--file must not be empty");
 
   return {
     kind: "run",
     options: {
       project: values.project,
       name,
-      envFile: values["env-file"],
+      envFile: values.file,
       force: values.force === true,
       dryRun: values["dry-run"] === true,
       json: values.json === true,

@@ -58,7 +58,7 @@ export async function planGit(
     return {
       kind: "refuse",
       reason: `${path} is a symbolic link, and writing it would replace the link and not the file it points to`,
-      fix: "pass the file it points to with --env-file",
+      fix: "pass the file it points to with --file",
     };
   }
 
@@ -119,7 +119,7 @@ export async function applyGit(
   return {
     kind: "refuse",
     reason: `Git still does not ignore ${displayPath(path, cwd)}${rule ? `; the rule that wins is ${rule}` : ""}`,
-    fix: "remove that rule, or choose another file with --env-file",
+    fix: "remove that rule, or choose another file with --file",
   };
 }
 

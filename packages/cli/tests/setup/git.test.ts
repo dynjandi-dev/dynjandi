@@ -167,7 +167,7 @@ describe("planGit and applyGit (D7)", () => {
     }
     const plan = await planGit(link, root);
     expect(plan.kind).toBe("refuse");
-    if (plan.kind === "refuse") expect(plan.fix).toContain("--env-file");
+    if (plan.kind === "refuse") expect(plan.fix).toContain("--file");
   });
 
   it("passes the path to git as one argument, never through a shell", async () => {

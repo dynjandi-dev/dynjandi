@@ -83,7 +83,7 @@ npx @dynjandi/cli setup --json
 npx @dynjandi/cli setup --dry-run
 npx @dynjandi/cli setup --project my-project
 npx @dynjandi/cli setup --name my-app
-npx @dynjandi/cli setup --env-file config/app.env
+npx @dynjandi/cli setup --file config/app.env
 npx @dynjandi/cli setup --force
 ```
 
@@ -101,11 +101,15 @@ approve anything. A key the API refuses (`401`) also exits `3`.
 |---|---|
 | `--project <id>` | use that project; no such project in your workspace is an error |
 | `--name <name>` | use the project with that name, or create it. Not together with `--project` |
-| `--env-file <path>` | the file to write, relative to the working directory |
+| `--file <path>` | the file to write, relative to the working directory |
 | `--force` | replace a different key or project id already in the env file, or let `--project` / `--name` disagree with the id it holds |
 | `--dry-run` | do every check and every read-only call, then say what a real run would do and change nothing |
 | `--json` | print the result as one JSON object |
 | `--help` | print the help |
+
+The file option is `--file`, not `--env-file`: Node reads `--env-file` itself, even after the command name, and
+when that file does not exist yet it stops with `node: <file>: not found` and exit `9` before `setup` starts.
+When the file does exist, `setup` refuses `--env-file` as a usage error that names `--file`.
 
 ### Which project
 
@@ -124,7 +128,7 @@ answer is lost, the message says the project may exist; running the same command
 
 ### Which file, and Git
 
-The env file is `--env-file`, else an existing `.env.local`, else an existing `.env`, else a new `.env.local`.
+The env file is `--file`, else an existing `.env.local`, else an existing `.env`, else a new `.env.local`.
 Inside a Git repository, before anything is created:
 
 - a file Git **tracks** is refused, and the message gives `git rm --cached <file>`;
