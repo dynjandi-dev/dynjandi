@@ -56,3 +56,17 @@ Non-blocking review notes for this feature's phases (#35, `cli-project-setup`). 
   `packages/cli/tests/setup/options.test.ts`, and the usage-error-to-`2` mapping only generically, with `--api-key`.
 - The internal names stay `envFile` (`SetupOptions`, the `--json` summary key) and `env-file.ts`: they are not option
   names.
+
+## Phase 4 — Proof on every OS and against the live API document
+
+- `projectKey` is checked only as a string in `packages/cli/tests/management/document.test.ts`; `api.ts` refuses
+  anything but 64 lowercase hex, and the document states that only in prose, so there is no pattern to pin.
+- `details.projectId`'s pattern in the `NAME_TAKEN` response is not asserted, though the document carries it.
+- The `servers` assertion is an exact `toEqual`, so a `description` added to the entry turns it red although
+  `setup` never reads `servers`.
+- Some e2e expectations come from the code rather than a documented source (`.env.local is tracked by Git`,
+  the two `Usage:` first lines).
+- Two `as Json[]` casts in `document.test.ts` against `context/standards/typescript/rules.md`'s narrowing rule.
+- `management-api.yml` and `context/verify.md` name `publish-cli.yml` as its caller; Phase 6 creates it.
+- `context/stack.md`'s CI row places the `setup` job after the `pages.yml` clause, so "a second job" is hard to read.
+- `env-file.test.ts` runs two real renames onto one target at once; on Windows that leans on the rename retry.

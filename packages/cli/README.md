@@ -551,7 +551,10 @@ are untried, and on those `host.docker.internal` may not resolve in the containe
 ### The end-to-end test
 
 `pnpm --filter @dynjandi/cli run test:e2e` starts the built `dynjandi dev` with the real renderer image and
-drives it with the real SDK, and a second case does the same from a Node container with `--containers`. It is not part of `pnpm test`; `context/verify.md` lists its preconditions.
+drives it with the real SDK, and a second case does the same from a Node container with `--containers`. It also
+runs the built `dynjandi setup` on the paths that stop before any request: `--help`, no key, `--api-key`, `--file`
+for a new file, `--env-file`, and a tracked env file. It is not part of `pnpm test`; `context/verify.md` lists its
+preconditions.
 
 ### Run a command against the server
 

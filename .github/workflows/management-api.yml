@@ -1,0 +1,35 @@
+name: Management API
+
+# Fetches the management API's published document and checks that what `dynjandi setup` uses is still in it:
+# the project calls and the fields it reads (packages/cli/tests/management/document.test.ts). It needs no key
+# and sends no credential: the document is public. A dashboard change that would break `setup`, such as a
+# renamed response field, turns this red before a user sees it.
+#
+# It is not part of smoke.yml, which publish.yml calls before every SDK release: a dashboard change would then
+# block an SDK that does not use the dashboard.
+#
+# - schedule: daily, at a time off the hour to stay clear of the top-of-hour rush on GitHub's scheduler.
+# - workflow_dispatch: run it by hand.
+# - workflow_call: the precondition publish-cli.yml runs before it publishes the CLI.
+on:
+  schedule:
+    - cron: "43 6 * * *"
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  document:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @dynjandi/cli run test:management

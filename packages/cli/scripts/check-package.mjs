@@ -32,6 +32,8 @@ try {
     "package/dist/cli.js",
     "package/dist/dev/options.js",
     "package/dist/dev/server.js",
+    "package/dist/setup/options.js",
+    "package/dist/setup/run.js",
   ];
   for (const entry of required) {
     if (!entries.includes(entry)) failures.push(`missing from the tarball: ${entry}`);
