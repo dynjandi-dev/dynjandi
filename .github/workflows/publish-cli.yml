@@ -42,7 +42,8 @@ name: Publish CLI
 
 on:
   push:
-    branches: [main]
+    # TEMPORARY (#35, phase 6): run once on this branch to show every job refuses a ref that is not main.
+    branches: [main, feature/35-cli-project-setup]
     paths:
       - packages/cli/**
       - pnpm-lock.yaml
