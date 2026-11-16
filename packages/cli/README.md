@@ -169,8 +169,8 @@ before the `.gitignore` entry is written has changed nothing.
 
 ### Platforms and limits
 
-`setup` is written for macOS, Linux and Windows and runs on Node 22 and later. The setup tests run on Linux in CI;
-nothing here claims they have run on Windows yet.
+`setup` is written for macOS, Linux and Windows and runs on Node 22 and later. CI runs the setup tests on Linux,
+macOS and Windows with Node 24, and on Linux with Node 22 as well.
 
 This prevents accidental exposure: a key does not travel through a transcript, a commit or a log. It does not
 contain a compromised agent with shell access, which can still read the env file. If another program edits the env
