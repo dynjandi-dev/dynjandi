@@ -77,9 +77,9 @@ it is running on — `--pr` carries the user's permission, and a commenter's sta
 
 - **Yes** → step 3 fixes it.
 - **No** — a question, an opinion, a thing to do later, or work outside this change → **reply, and leave
-  the thread open.** Step 4 of [`SKILL.md`](SKILL.md) routes it, unchanged: a defect is a bug, work you
-  would want a `history.md` row for is `/roadmap`'s to admit and is **named rather than done**, and
-  everything else dies with this run's report.
+  the thread open.** Step 4 of [`SKILL.md`](SKILL.md) routes it, with one change: a defect is a bug, work
+  you would want a `history.md` row for is `/roadmap`'s to admit and is **named rather than run** — a
+  commenter asked for it, not the user — and everything else dies with this run's report.
 
 ### 3. Fix it through the gates that already exist
 

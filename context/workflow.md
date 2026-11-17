@@ -334,14 +334,14 @@ was to find:
 however real it is.
 
 **A bug goes wherever this project already files bugs**, carrying this project's own labels. The workflow
-does not read it, rank it or carry it: [`tracking.md`](tracking.md) adds one bit to an issue and reads
-nothing else, and a bug is outside that bit. **Do not apply the backlog label to it.**
+does not rank it or carry it, and only `/roadmap`'s print counts it: [`tracking.md`](tracking.md) adds
+one bit to an issue and branches on nothing else, and a bug is outside that bit. **Do not apply the backlog label to it.**
 
 > **A gate never applies the backlog label.** That label is what `/roadmap` writes, and that command
 > applies the worth-adopting test first — *would you want a history row for it* — then writes what an entry
 > needs to be ranked. A gate that labels an issue itself has appended to the backlog while skipping the one
 > test that decides whether it belongs there, and produced an entry missing what the ranking reads. Where a
-> finding really is a feature, **name `/roadmap` and let it decide.**
+> finding really is a feature, **run `/roadmap` and let it decide.**
 
 **Nothing enters the backlog except through `/roadmap`.** `/tracking-migrate` and `/feature-plan` also
 write the label, and both only move or divide what `/roadmap` has already admitted.

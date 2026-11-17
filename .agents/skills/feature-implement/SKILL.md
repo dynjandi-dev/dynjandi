@@ -239,9 +239,9 @@ argument is *What happens to a defect the gate found* in
   [`context/workflow.md`](../../../context/workflow.md). The backlog is a list of features and this is not
   one.
 - **Not a defect, but work you would want a `history.md` row for** → that is a backlog entry, and adding
-  one is `/roadmap`'s. **Name it and say what you would add**; do not append to the backlog from here. That
-  command applies the worth-adopting test and writes what the ranking reads, and a gate doing it by hand
-  produces neither.
+  one is `/roadmap`'s. **Run it with what you would add**, before step 12, so the entry rides this phase's
+  commit; never append to the backlog by hand. That command applies the worth-adopting test and writes
+  what the ranking reads, and a gate doing it by hand produces neither.
 - **Anything else** → one short entry in `context/notes.md`, naming the phase it came from. Create the file
   if it is not there. It is branch-local, it rides this phase's commit the way the ledger row does, and
   `/feature-close` deletes it whole.
@@ -310,7 +310,7 @@ feature and turns every phase after it into a force-push.
 - Gate 1 output, and Gate 2's verdict.
 - Loopback counts, if any.
 - Any non-blocking observation the review raised, and where each one went — a bug, a `/roadmap` you
-  named, or `notes.md`.
+  ran, or `notes.md`.
 - The phase's new ledger status, and which phase is next.
 
 **When every phase is `done`, say so and name `/feature-close`.** Do not move files, stamp headers or sweep
