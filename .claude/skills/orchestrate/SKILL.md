@@ -118,9 +118,9 @@ whether it needs code changes**, which every true observation about code does.
   project already files bugs, carrying this project's own labels. **Never the backlog label** — see *A bug
   is not a backlog entry* in that same file. The backlog is a list of features and this is not one.
 - **Not a defect, but work you would want a `history.md` row for** → that is a backlog entry, and adding
-  one is `/roadmap`'s. **Name it and say what you would add**; do not append to the backlog from here. That
-  command applies the worth-adopting test and writes what the ranking reads, and a gate doing it by hand
-  produces neither.
+  one is `/roadmap`'s. **Run it with what you would add**, before step 6, so the entry lands with this
+  change; never append to the backlog by hand. That command applies the worth-adopting test and writes
+  what the ranking reads, and a gate doing it by hand produces neither.
 - **Anything else** → this run's report, and it dies with the session. **There is no `context/notes.md` in
   this command** — step 5 says why.
 
@@ -266,8 +266,8 @@ nothing merged it.
 ## Rules
 
 - **No ledger row is touched.** This command has no phase and does not belong to a feature.
-- **No roadmap entry is created, activated or retired.** If the work turns out to be a feature, stop and
-  say so; the user runs `/roadmap`.
+- **No roadmap entry is activated or retired**, and one is created only by step 4's `/roadmap`, for a
+  finding. If the work itself turns out to be a feature, stop and say so; the user runs `/roadmap`.
 - **The release note is not deferred to a later command.** There is no `/feature-close` behind this one to
   write it, which is exactly why the change is the unit.
 - **Never skip Gate 1 to save time.** The gates are the entire reason this command exists.
