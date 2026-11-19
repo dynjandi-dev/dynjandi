@@ -49,6 +49,12 @@ default.
 Docker; the Docker path has not run on a CI runner yet. Windows has not been tried, and nothing here claims
 it works there.
 
+## Using Dynjandi from a coding agent
+
+[`packages/agent-skills`](https://github.com/dynjandi-dev/dynjandi/tree/main/packages/agent-skills) holds
+agent skills that teach a coding agent to run `dynjandi dev` and `dynjandi setup` and use the SDK. They install from the GitHub repository, per
+vendor: see the [install guide](https://github.com/dynjandi-dev/dynjandi/blob/main/packages/agent-skills/README.md#install).
+
 ## Run it from a checkout
 
 ```sh

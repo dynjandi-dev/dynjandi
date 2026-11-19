@@ -32,6 +32,9 @@ Commands:
   setup  set up a Dynjandi project and write its key to an env file
 
 Run "dynjandi <command> --help" for a command's options.
+
+Agent skills for using Dynjandi from a coding agent:
+https://github.com/dynjandi-dev/dynjandi/tree/main/packages/agent-skills
 `;
 
 function describeRenderer(options: DevOptions): string {

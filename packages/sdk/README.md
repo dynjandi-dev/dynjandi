@@ -304,6 +304,12 @@ lists to spend less.
 webpack. A bare file id as `src` built and rendered under each, and the widths it requested answered `200`.
 `next dev` was not run.
 
+## Using Dynjandi from a coding agent
+
+[`packages/agent-skills`](https://github.com/dynjandi-dev/dynjandi/tree/main/packages/agent-skills) holds
+agent skills that teach a coding agent to use this SDK and Dynjandi's other tools. They install from the GitHub repository, per
+vendor: see the [install guide](https://github.com/dynjandi-dev/dynjandi/blob/main/packages/agent-skills/README.md#install).
+
 ## Errors
 
 Every failure is a `DynjandiError` with `status`, `message` and, where there is one, `cause`.

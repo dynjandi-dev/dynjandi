@@ -50,3 +50,10 @@ Branch-local, advisory. Nothing reads this file; `/feature-close` deletes it.
 - The fixture's `.env.example` holds a placeholder value, unlike `security/secrets.md`'s "without values".
 - Loopback re-review: `context/stack.md` Layout "local-admin/case.yaml + fixture.sh, run only with --scaffold" can read as case.yaml running only with `--scaffold`; only fixture.sh does.
 - Phase 4 fix: `context/verify.md`'s `--json` bullet now runs to 127 characters, past the section's ~110-column wrap.
+
+## Phase 5 — Gate 2, non-blocking
+
+- D13 says the help line names the package and the install guide; `dynjandi --help` carries only the tree URL (the phase's Scope asks for that).
+- `agent-skills-pointer.test.ts` hardcodes `packages/agent-skills` apart from `SKILLS_URL`; deriving the path from the URL would tie them.
+- `context/stack.md`'s Documentation entries for the SDK and CLI READMEs don't mention the new *Using Dynjandi from a coding agent* section (summaries, not untrue).
+- The new README lines run past ~110 columns, as others in those files already do.
