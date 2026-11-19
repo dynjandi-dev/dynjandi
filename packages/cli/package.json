@@ -1,6 +1,6 @@
 {
   "name": "@dynjandi/cli",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "The Dynjandi command line. Not yet published; `dynjandi setup` sets up a project and writes its key to a gitignored env file, and `dynjandi dev` runs a local Dynjandi server.",
   "license": "MIT",
   "repository": {
