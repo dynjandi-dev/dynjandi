@@ -213,3 +213,34 @@ repeats, change the skill in the same change.
 pnpm --filter @dynjandi/agent-skills run typecheck
 pnpm --filter @dynjandi/agent-skills run test
 ```
+
+## Evals
+
+`evals/` holds four cases for `claude plugin eval`, each a directory with a `prompt.md` (the prompt, a person's
+words, and its limits: read-only tools `Read`, `Glob`, `Grep`, `Skill`) and `graders/`: a `tool_used` grader that
+shows whether the `Skill` fired, and an `llm` rubric on the reply.
+
+| Case | Prompt | Skill it should fire | What the rubric looks for |
+|---|---|---|---|
+| `local-admin` | "Run the admin against a local Dynjandi." | `dynjandi-local-dev` | `dynjandi dev` or `dynjandi dev -- <command>`, `DYNJANDI_ORIGIN` in every client including the URL-only one, the stand-in kept for the dropped-upload test; fails on a new fake server, production, or a key in browser code |
+| `upload-focal` | "Let editors choose the crop point of uploaded photos." | `dynjandi` | `focal` passed to a server-side `upload`; the picker's publish state checked, not assumed |
+| `browser-upload` | "Upload the photo straight from the browser form." | `dynjandi` | the form posts to the person's own server, which uploads; no key or `upload` call in browser code |
+| `migrate-key` | "Update our Dynjandi setup to the current SDK." | `dynjandi` | `publicKey` renamed to `projectKey`, the installed version checked |
+
+`local-admin`'s `fixture.sh` writes a synthetic workspace shaped like a real app (an SDK `0.1.0` dependency, a
+Vite config reading `DYNJANDI_PUBLIC_KEY`, a hand-written stand-in that simulates a dropped upload, a client
+that only builds URLs and has no `origin`). It holds a placeholder that is not a key and no one's source. It
+runs only with `--scaffold`.
+
+**The run is paid and by hand.** It calls a model for each run, for the judge, and for the no-plugin baseline,
+so it is not in `pnpm test` and nothing in CI runs it. The command and its flags are under *Not run by Gate 1*
+in [`context/verify.md`](../../context/verify.md). Results go to `evals/results/`, which Git ignores.
+
+**It measures intent, not execution.** A run is sandboxed with no Docker and no project configuration, so a case
+can show an agent reaching for `dynjandi dev`, not a local server answering. The other proof is a person's pass
+in a real session.
+
+**The pass line is open.** The command's `--threshold` defaults to `1.0`, which three-vote judge rubrics rarely
+hold; what score, and what `Δ` against the baseline, counts as passing is a person's call (the plan's open
+question 3) and no number is set here. A case whose `Skill` grader never fired is a problem with the skill's
+`description`, not its body.

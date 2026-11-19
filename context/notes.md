@@ -37,3 +37,15 @@ Branch-local, advisory. Nothing reads this file; `/feature-close` deletes it.
 - The guide shows `--pin <ref>` as a placeholder; once a tag holds the skills, a concrete pin is what an agent copies. Copilot as `gh skill`'s default `--agent` was not verified. `--sparse` (in §4.3) is left out of the guide.
 - `GH_VALUE_FLAGS` in `install.ts` cites no source (it is `gh skill install --help`).
 - Loopback re-review: `install.ts`'s "names no plugin" branch has no planted case (a `claude plugin install foo` would pass); the package README's checks bullet says every install command "pins a ref", but only `gh skill` lines are held to it; the ref regex accepts any `\S@\S`.
+
+## Phase 4 — Gate 2, non-blocking
+
+- Nothing offline checks the eval suite: a test could assert each `evals/*/` has a `graders/*.md` and each `skill-fired.md`'s `input_match` names an existing `skills/<name>/` (a renamed skill would otherwise make its indicator silently never fire).
+- `fixture.sh`'s `site/src/images.ts` calls `client.url(id, { resize: { width: 600 } })`; the SDK's `url()` takes `{ width: 600 }`.
+- `fixture.sh`'s `admin/src/upload.ts` sits in a Vite `src/`, takes a `File` and reads the key, so it reads as browser code already holding a key — blurs the rubric's "key in browser code" FAIL; a server/worker file would not.
+- `fixture.sh`'s `admin/vite.config.ts` comment says it "starts the hand-written stand-in", but nothing does; the `__HAS_KEY__` define is unused.
+- upload-focal and browser-upload run in an empty workspace and their prompts don't say "Dynjandi", so a low score with an unfired indicator may reflect missing context rather than the description; a minimal scaffold (`package.json` with `@dynjandi/sdk`) would separate the two.
+- The command in `context/verify.md` has no `--no-publish`; signed in with a claude.ai subscription, the report is published as a private artifact.
+- README: "`--threshold` defaults to `1.0`, which three-vote judge rubrics rarely hold" is an opinion with no source.
+- The fixture's `.env.example` holds a placeholder value, unlike `security/secrets.md`'s "without values".
+- Loopback re-review: `context/stack.md` Layout "local-admin/case.yaml + fixture.sh, run only with --scaffold" can read as case.yaml running only with `--scaffold`; only fixture.sh does.

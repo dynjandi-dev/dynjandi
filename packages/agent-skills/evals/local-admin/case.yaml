@@ -1,0 +1,5 @@
+schema_version: "1.1"
+name: local-admin
+description: A bgmusik-shaped workspace; the agent has to reach `dynjandi dev` without being told how Dynjandi works locally.
+context:
+  scaffold_script: fixture.sh

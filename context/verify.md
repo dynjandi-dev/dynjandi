@@ -112,6 +112,28 @@ repository does not install, so Gate 1 cannot run it. Run it by hand from the re
 `.claude-plugin/` or to `packages/agent-skills/.claude-plugin/plugin.json`; `marketplace.test.ts` covers the
 fields it checks that a machine without `claude` can.
 
+### Plugin eval (paid)
+
+```bash
+claude plugin eval packages/agent-skills --scaffold --trust-plugin --json packages/agent-skills/evals/results/run.json --model <model> --judge-model <model> --max-cost-usd <usd>
+```
+
+Runs the four cases in `packages/agent-skills/evals/` with and without the plugin and reports each case's score,
+the difference between the two, and whether its `Skill` grader fired. It is paid: every run, the judge and the
+baseline call a model with your credentials. It needs Claude Code 2.1.269 or later and Git 2.31 or later, and it
+is by hand only. Not in the gate, and not in CI.
+
+- `--scaffold` runs `local-admin`'s `fixture.sh` (author-supplied Bash, run as you); without it that case starts in
+  an empty workspace.
+- `--trust-plugin` skips the first-run trust prompt; pass it only for this repository's own plugin.
+- `--json [path]` writes the full run result; the path must end in `.json`. `evals/results/` is Git-ignored.
+- Pin `--model` and `--judge-model` so two runs compare; unpinned, the model is the session's default and the
+  judge is `haiku`.
+- `--max-cost-usd` is a hard ceiling: the run aborts and reports partial results (exit `2`).
+- `--ablation none --runs 1` is the cheap load check: one arm, one run per case.
+- `--threshold` defaults to `1.0` and exits `1` below it. What pass line to hold is open (issue #44, section 9
+  Q3); none is set here.
+
 ### Live smoke test
 
 ```bash
