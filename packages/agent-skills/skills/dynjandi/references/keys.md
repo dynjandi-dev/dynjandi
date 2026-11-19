@@ -27,7 +27,10 @@ Run `npm view @dynjandi/cli version`.
 
 ## Set up a project key
 
-Run it from the app's directory. `--json` makes it print one object and never wait:
+Run it from the app's directory. `--json` makes it print one object. The first run does not wait: it exits
+`4` at once with a link for the person to approve. Run the same command again once they have; that run can
+take up to 60 seconds to finish, so give it that long before treating it as stuck
+([CLI, the credential](https://github.com/dynjandi-dev/dynjandi/blob/main/packages/cli/README.md#the-credential)):
 
 ```sh
 dynjandi setup --json

@@ -31,18 +31,26 @@ function markdownUnder(directory: string): string[] {
     .sort();
 }
 
-/** Every `skills/<name>/` that has a `SKILL.md`, so a skill added later is checked with no edit here. */
-export function listSkills(): Skill[] {
-  const skillsDirectory = join(PACKAGE_ROOT, "skills");
+/**
+ * Every `skills/<name>/` that has a `SKILL.md`, so a skill added later is checked with no edit here.
+ * `references/` is optional in the agentskills.io layout, so a skill that is only a `SKILL.md` is listed too.
+ */
+export function listSkills(skillsDirectory: string = join(PACKAGE_ROOT, "skills")): Skill[] {
   return readdirSync(skillsDirectory, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => ({ directory: entry.name, root: join(skillsDirectory, entry.name) }))
     .filter(({ root }) => existsSync(join(root, "SKILL.md")))
-    .map(({ directory, root }) => ({
-      directory,
-      skillFile: join(root, "SKILL.md"),
-      markdownFiles: [join(root, "SKILL.md"), ...markdownUnder(join(root, "references"))],
-    }));
+    .map(({ directory, root }) => {
+      const references = join(root, "references");
+      return {
+        directory,
+        skillFile: join(root, "SKILL.md"),
+        markdownFiles: [
+          join(root, "SKILL.md"),
+          ...(existsSync(references) ? markdownUnder(references) : []),
+        ],
+      };
+    });
 }
 
 export function readText(path: string): string {

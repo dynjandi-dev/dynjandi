@@ -1,3 +1,5 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { headingAnchors } from "./support/markdown.js";
@@ -6,6 +8,7 @@ import {
   commandsIn,
   frontmatterProblems,
   linkProblems,
+  listSkills,
   publishStateProblems,
   REPOSITORY_ROOT,
   sizeProblems,
@@ -236,5 +239,38 @@ describe("publish state (plan D5)", () => {
         "Run `npm view @dynjandi/cli version`; a 404 means there is no release yet.",
       ),
     ).toEqual([]);
+  });
+});
+
+describe("listing the skills (agentskills.io, Directory structure)", () => {
+  test("lists a skill that is only a SKILL.md, since references/ is optional", () => {
+    const root = mkdtempSync(join(tmpdir(), "agent-skills-"));
+    try {
+      mkdirSync(join(root, "solo"));
+      writeFileSync(join(root, "solo/SKILL.md"), skillFile("name: solo\ndescription: Alone."));
+      mkdirSync(join(root, "with-references/references/deep"), { recursive: true });
+      writeFileSync(join(root, "with-references/SKILL.md"), skillFile("name: with-references"));
+      writeFileSync(join(root, "with-references/references/deep/a.md"), "# A\n");
+      mkdirSync(join(root, "not-a-skill"));
+
+      const listed = listSkills(root).sort((a, b) => a.directory.localeCompare(b.directory));
+      expect(listed).toEqual([
+        {
+          directory: "solo",
+          skillFile: join(root, "solo/SKILL.md"),
+          markdownFiles: [join(root, "solo/SKILL.md")],
+        },
+        {
+          directory: "with-references",
+          skillFile: join(root, "with-references/SKILL.md"),
+          markdownFiles: [
+            join(root, "with-references/SKILL.md"),
+            join(root, "with-references/references/deep/a.md"),
+          ],
+        },
+      ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

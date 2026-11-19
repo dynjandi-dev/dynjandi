@@ -71,6 +71,10 @@ export function makeClient() {
 }
 ```
 
+`projectKey` needs `@dynjandi/sdk` `0.2.0` or later, so read the installed version first. On an older SDK,
+upgrade it, or keep the `publicKey` option it already uses; the `dynjandi` skill's
+[migrating from `publicKey`](../dynjandi/SKILL.md#6-migrating-from-publickey) says what changes.
+
 The Next.js loader is not a client: `createDynjandiLoader` takes its own `origin`, and without one it builds
 production URLs
 ([SDK, using with Next.js](https://github.com/dynjandi-dev/dynjandi/blob/main/packages/sdk/README.md#using-with-nextjs)). Set the loader file up as the `dynjandi`
