@@ -1,0 +1,16 @@
+{
+  "name": "dynjandi",
+  "owner": {
+    "name": "Dynjandi"
+  },
+  "metadata": {
+    "description": "Agent skills for Dynjandi, an image CDN."
+  },
+  "plugins": [
+    {
+      "name": "dynjandi",
+      "source": "./packages/agent-skills",
+      "description": "Skills that teach a coding agent to integrate Dynjandi, an image CDN: its SDK, keys, uploads, variant URLs, focal points, and running it locally."
+    }
+  ]
+}

@@ -26,3 +26,14 @@ Branch-local, advisory. Nothing reads this file; `/feature-close` deletes it.
 - `references/containers.md` says an older SDK "refuses `apiOrigin` at compile time" — TypeScript only; plain JS ignores the key.
 - Loopback re-review: no test checks that `DYNJANDI_PROJECT_KEY` never appears in a snippet's `env:` or a `NEXT_PUBLIC_` name; and `dynjandi/references/nextjs.md` says to pass `origin` to `createDynjandiLoader` without saying how it reaches the browser (a pointer to the local-dev skill's §3 would close it).
 - Loopback 2 re-review: "or run `next dev`" could say `dynjandi dev -- next dev` outright; `sh -c "next build && next start"` calls a bare `next`, which needs `node_modules/.bin` on PATH (likely under `npx @dynjandi/cli`, not under the checkout's `node packages/cli/dist/cli.js`) — `npx next …` or the project's scripts are safer; `sh -c` is POSIX-only (Windows is already stated as untried).
+
+## Phase 3 — Gate 2, non-blocking
+
+- `install.ts` matches `--all` as a substring, so `--allow-hidden-dirs` (or any `--allow-…`) also reports "contains --all"; a word-boundary match is more exact.
+- `marketplace.test.ts` uses `as Marketplace` / `as { name?: unknown }` and a named arrow-function const, against `typescript/rules.md`.
+- `context/verify.md` and the package README say every install command "pins a ref", but the pin rule applies only to `gh skill` lines; the README credits all planted tries to `checks.test.ts` though the marketplace ones are in `marketplace.test.ts`.
+- `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` is cited from the docs but was not run; the guide's "Claude Code commands were run against a local clone" could be read as covering it.
+- `plugin.json`'s description still names only uploads, variant URLs and focal points; the marketplace entry adds local running (stale since Phase 2).
+- The guide shows `--pin <ref>` as a placeholder; once a tag holds the skills, a concrete pin is what an agent copies. Copilot as `gh skill`'s default `--agent` was not verified. `--sparse` (in §4.3) is left out of the guide.
+- `GH_VALUE_FLAGS` in `install.ts` cites no source (it is `gh skill install --help`).
+- Loopback re-review: `install.ts`'s "names no plugin" branch has no planted case (a `claude plugin install foo` would pass); the package README's checks bullet says every install command "pins a ref", but only `gh skill` lines are held to it; the ref regex accepts any `\S@\S`.
