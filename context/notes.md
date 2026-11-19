@@ -14,3 +14,15 @@ Branch-local, advisory. Nothing reads this file; `/feature-close` deletes it.
 - `keys.md` omits `setup`'s exit `1`; `nextjs.md` drops the README's "when this was tested" qualifier on the original format being served.
 - Style against `typescript/rules.md`: one `as Record<string, unknown>` after `yaml.parse`; module-level arrow-function constants in `checks.test.ts` and `vitest.config.ts`; `noPropertyAccessFromIndexSignature` off for all of `tests/`, not only snippets.
 - Loopback re-review: `nextjs.md`'s last bullet repeats the line above it about `createDynjandiLoader({ origin, format })`, and the two fixed sentences run past the ~110-column wrap.
+
+## Phase 2 — Gate 2, non-blocking
+
+- `tests/snippets/local-next-loader.js` copies `https://cdn.dynjandi.dev` by hand (the loader's `origin?: string` type forces a fallback); it drifts silently if the SDK's `DEFAULT_ORIGIN` changes.
+- `dynjandi-local-dev` SKILL.md says "there is no option to listen anywhere else", then that `--containers` adds an address; the CLI README's "the one flag that listens anywhere else is `--containers`" reads better.
+- "Run on macOS only" understates the CLI README, which says Linux CI covers the parts that need no Docker.
+- The publish-state check is not listed in the package README's *How the skills are kept true* or in `context/verify.md` *Test* (incomplete, not untrue).
+- The banned-phrase list misses "not yet on npm" (the SDK README's own wording), "isn't on npm", "unpublished".
+- `node packages/cli/dist/cli.js` is relative to the dynjandi checkout while `dev` runs from the app's directory (same as the CLI README).
+- `references/containers.md` says an older SDK "refuses `apiOrigin` at compile time" — TypeScript only; plain JS ignores the key.
+- Loopback re-review: no test checks that `DYNJANDI_PROJECT_KEY` never appears in a snippet's `env:` or a `NEXT_PUBLIC_` name; and `dynjandi/references/nextjs.md` says to pass `origin` to `createDynjandiLoader` without saying how it reaches the browser (a pointer to the local-dev skill's §3 would close it).
+- Loopback 2 re-review: "or run `next dev`" could say `dynjandi dev -- next dev` outright; `sh -c "next build && next start"` calls a bare `next`, which needs `node_modules/.bin` on PATH (likely under `npx @dynjandi/cli`, not under the checkout's `node packages/cli/dist/cli.js`) — `npx next …` or the project's scripts are safer; `sh -c` is POSIX-only (Windows is already stated as untried).

@@ -253,3 +253,14 @@ export function linkProblems(file: string, markdown: string): string[] {
   }
   return problems;
 }
+
+// --- (e) no skill says whether a package is on npm (plan D5, §2): the agent checks at run time ---
+
+const PUBLISH_STATE_PHRASES = ["not on npm", "not published", "is on npm"];
+
+export function publishStateProblems(markdown: string): string[] {
+  const lower = markdown.toLowerCase();
+  return PUBLISH_STATE_PHRASES.filter((phrase) => lower.includes(phrase)).map(
+    (phrase) => `says "${phrase}": state the check (\`npm view\`), not the package's publish state`,
+  );
+}

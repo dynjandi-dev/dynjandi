@@ -6,6 +6,7 @@ import {
   linkProblems,
   listSkills,
   PACKAGE_ROOT,
+  publishStateProblems,
   readSnippets,
   readText,
   sizeProblems,
@@ -19,8 +20,10 @@ import {
 const skills = listSkills();
 const snippets = readSnippets();
 
-test("finds the dynjandi skill", () => {
-  expect(skills.map((skill) => skill.directory)).toContain("dynjandi");
+test("finds both skills", () => {
+  expect(skills.map((skill) => skill.directory)).toEqual(
+    expect.arrayContaining(["dynjandi", "dynjandi-local-dev"]),
+  );
 });
 
 describe.each(skills)("skill $directory", (skill) => {
@@ -43,6 +46,10 @@ describe.each(skills)("skill $directory", (skill) => {
 
       test("every code block is a compiled snippet, shown exactly", () => {
         expect(snippetProblems(text, snippets)).toEqual([]);
+      });
+
+      test("says nothing about whether a package is on npm", () => {
+        expect(publishStateProblems(text)).toEqual([]);
       });
 
       test("every link resolves, and every anchor names a heading", () => {

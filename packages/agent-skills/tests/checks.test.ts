@@ -6,6 +6,7 @@ import {
   commandsIn,
   frontmatterProblems,
   linkProblems,
+  publishStateProblems,
   REPOSITORY_ROOT,
   sizeProblems,
   snippetProblems,
@@ -218,5 +219,22 @@ describe("heading anchors (GitHub's rule)", () => {
         "# A `Code` title\n## What it costs?\n## What it costs?\n```\n# not a heading\n```\n",
       ),
     ]).toEqual(["a-code-title", "what-it-costs", "what-it-costs-1"]);
+  });
+});
+
+describe("publish state (plan D5)", () => {
+  test.each(["not on npm", "Not Published", "it is on npm", "this is not published yet"])(
+    "refuses %s",
+    (phrase) => {
+      expect(publishStateProblems(`Some text, ${phrase}, more.`)).toHaveLength(1);
+    },
+  );
+
+  test("accepts a check the agent runs", () => {
+    expect(
+      publishStateProblems(
+        "Run `npm view @dynjandi/cli version`; a 404 means there is no release yet.",
+      ),
+    ).toEqual([]);
   });
 });

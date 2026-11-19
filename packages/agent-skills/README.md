@@ -7,6 +7,7 @@ plugin named `dynjandi` (`.claude-plugin/plugin.json`).
 | Skill | For |
 |---|---|
 | [`dynjandi`](skills/dynjandi/SKILL.md) | integrating the SDK and the service: which key is which, uploads, `getFile`, variant URLs and what each costs, focal points, the Next.js loader, the `publicKey` to `projectKey` migration, where the docs are |
+| [`dynjandi-local-dev`](skills/dynjandi-local-dev/SKILL.md) | running Dynjandi locally with `dynjandi dev`: getting the CLI, `dev -- <command>`, giving every client the origin, `--containers` and `apiOrigin`, the renderer, CI and Compose, what to do with an existing fake, what `dev` does not do |
 
 Each skill is a `SKILL.md` with `references/*.md` files it loads when it needs them. It uses the portable
 frontmatter only (`name` and `description`), and there are no scripts, no hooks and no MCP server, so

@@ -21,7 +21,7 @@ Vite exposes only `VITE_` variables to client code and Next.js only `NEXT_PUBLIC
 Run `npm view @dynjandi/cli version`.
 
 - A version printed: use `npx @dynjandi/cli@<that version>` where `dynjandi` is written below.
-- An error saying the package is not found: it is not published yet. Build it from a checkout of
+- A 404 from `npm view`: there is no release yet. Build it from a checkout of
   `https://github.com/dynjandi-dev/dynjandi` and use `node packages/cli/dist/cli.js` where `dynjandi` is
   written ([CLI, run it from a checkout](https://github.com/dynjandi-dev/dynjandi/blob/main/packages/cli/README.md#run-it-from-a-checkout)).
 

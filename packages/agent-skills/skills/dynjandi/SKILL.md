@@ -118,8 +118,8 @@ export async function bannerUrl(client: Client, id: string) {
 ```
 
 To let a person choose the point, the repository has a picker, `@dynjandi/focal-picker`. Run
-`npm view @dynjandi/focal-picker version`: a version means it can be installed; an error saying the package
-is not found means it is not published yet; its README describes the element and its React wrapper but gives no other way to install it
+`npm view @dynjandi/focal-picker version`: a version means it can be installed; a 404 error means there is
+no release of it yet, and its README describes the element and its React wrapper but gives no other way to install it
 ([picker README](https://github.com/dynjandi-dev/dynjandi/blob/main/packages/focal-picker/README.md#install)).
 The point travels through your own server to `upload`
 ([hand-off](https://github.com/dynjandi-dev/dynjandi/blob/main/packages/focal-picker/README.md#from-the-picker-to-upload)).
