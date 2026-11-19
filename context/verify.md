@@ -126,7 +126,9 @@ is by hand only. Not in the gate, and not in CI.
 - `--scaffold` runs `local-admin`'s `fixture.sh` (author-supplied Bash, run as you); without it that case starts in
   an empty workspace.
 - `--trust-plugin` skips the first-run trust prompt; pass it only for this repository's own plugin.
-- `--json [path]` writes the full run result; the path must end in `.json`. `evals/results/` is Git-ignored.
+- `--json [path]` writes the full run result; the path must end in `.json`. `evals/results/` is Git-ignored, and `biome.json`'s
+  `files.includes` excludes it too, since Biome does not read `.gitignore` here — without that, the
+  results JSON a run leaves behind fails `pnpm format:check`.
 - Pin `--model` and `--judge-model` so two runs compare; unpinned, the model is the session's default and the
   judge is `haiku`.
 - `--max-cost-usd` is a hard ceiling: the run aborts and reports partial results (exit `2`).

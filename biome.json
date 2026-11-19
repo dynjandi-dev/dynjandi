@@ -10,6 +10,7 @@
       "!.claude",
       "!.agents",
       "!.phase-trees",
+      "!packages/agent-skills/evals/results",
       "!**/node_modules",
       "!**/dist",
       "!**/coverage",

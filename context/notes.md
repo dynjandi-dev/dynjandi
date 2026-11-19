@@ -49,3 +49,4 @@ Branch-local, advisory. Nothing reads this file; `/feature-close` deletes it.
 - README: "`--threshold` defaults to `1.0`, which three-vote judge rubrics rarely hold" is an opinion with no source.
 - The fixture's `.env.example` holds a placeholder value, unlike `security/secrets.md`'s "without values".
 - Loopback re-review: `context/stack.md` Layout "local-admin/case.yaml + fixture.sh, run only with --scaffold" can read as case.yaml running only with `--scaffold`; only fixture.sh does.
+- Phase 4 fix: `context/verify.md`'s `--json` bullet now runs to 127 characters, past the section's ~110-column wrap.
