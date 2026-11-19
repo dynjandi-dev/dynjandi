@@ -248,6 +248,12 @@ this order:
 
 1. Run `/release` for the version. It consumes the CLI's pending notes into `packages/cli/CHANGELOG.md` and
    moves `packages/cli/package.json`'s `version` off `0.0.0`, on a release pull request. Nothing else bumps.
+   **Then add a commit to that release branch that removes the "not on npm" wording from the files inside the
+   tarball** (`/release` edits nothing else, so this is a person's or an agent's), before step 2, because step 2
+   packs from the branch's head and the tarball becomes the package's npm page and description. The wording is
+   in `packages/cli/README.md` (the status line, the `npx` sentence under the `setup` quick start, and the two
+   "not on npm yet" comments in the CI recipes) and in `packages/cli/package.json` (the `description`'s "Not yet
+   published;"). It is true once the release pull request merges, and the first version cannot ship it any later.
 2. The owner runs `npm publish` from `packages/cli`: `pnpm pack --pack-destination "$(mktemp -d)"` there
    (it runs `prepack`), then `npm login` (the account must belong to the `@dynjandi` organisation; 2FA
    applies), `npm publish <dir>/dynjandi-cli-<version>.tgz --access public`, then `npm view @dynjandi/cli
@@ -263,10 +269,9 @@ this order:
 4. Tag `cli-v<version>` (with its GitHub release): `gh release create cli-v<version> --target <the commit on
    main the merge produced> --title "@dynjandi/cli <version>" --notes "..."`. The run that merges the release
    finds the version held and stops green, so it makes none.
-5. Remove "not yet on npm" from `packages/cli/README.md` (the status line and the `npx` sentence under the
-   `setup` quick start, and the two "not on npm yet" comments in the CI recipes) and from `README.md` (the
-   `packages/cli` row and the two paragraphs that say "not on npm"), and the "not yet published" wording in
-   `context/stack.md`.
+5. Remove "not yet on npm" from what is outside the tarball: `README.md` (the `packages/cli` row and the two
+   paragraphs that say "not on npm") and the "not yet published" wording in `context/stack.md`. The CLI's own
+   README and `package.json` were done in step 1, since they ship in the tarball.
 
 The first version CI publishes is the one after it, and that run is what shows the publisher is configured.
 
