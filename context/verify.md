@@ -84,6 +84,8 @@ The CLI's run includes the offline contract suite (`packages/cli/tests/contract/
 
 The CLI's `--containers` tests (`packages/cli/tests/containers.test.ts`) run `docker` as a fake on `PATH`, but open a real second listener on an address this machine lists in `os.networkInterfaces()` besides `127.0.0.1`: `::1`, or where IPv6 is off, the first non-internal IPv4 address. A machine with neither, such as a container with IPv6 off and `--network none`, fails them rather than skipping them.
 
+`packages/agent-skills` runs three files, with no network and no model (`packages/agent-skills/tests/`). `skills.test.ts` runs the checks over **every** `packages/agent-skills/skills/*/SKILL.md` and the markdown under its `references/`, so a skill added later is covered with no edit: the frontmatter (`name` 1 to 64 characters of `a-z`, `0-9` and single hyphens, equal to its directory; `description` 1 to 1,024 characters; only the keys `name`, `description`, `license`, `compatibility` and `metadata`), a `SKILL.md` under 500 lines, every `dynjandi dev` and `dynjandi setup` line of a fenced `sh` block (its `npx @dynjandi/cli` or `node …/cli.js` prefix stripped) parsing through the CLI's own `parseDevOptions` and `parseSetupOptions` with no usage error, every `ts`, `tsx`, `js` or `jsx` block equal, character for character, to a file in `packages/agent-skills/tests/snippets/`, and every link to this repository (a relative path, or a `github.com/dynjandi-dev/dynjandi/blob/main` or `raw.githubusercontent.com/dynjandi-dev/dynjandi/main` URL) naming a file that exists and, with a `#anchor`, a heading in it. `marketplace.test.ts` checks `.claude-plugin/marketplace.json` (the required fields of code.claude.com's *Marketplace reference*, the names `dynjandi`, the source `./packages/agent-skills` holding a `plugin.json` of the same name, and no `version` in either file) and the package README's install commands (each names a skill or a path and pins a ref, none shows `--all`, `--allow-hidden-dirs` or an `npx skills` install). `checks.test.ts` tries each of those checks on text planted in the test, so each is shown to fail for what it is for. The snippets are compiled by `pnpm typecheck` (this package's `tsconfig.json` maps `@dynjandi/sdk` and `@dynjandi/sdk/next` to `packages/sdk/src/`, and the CLI's two option parsers to `packages/cli/src/`, so neither needs built output).
+
 This excludes `packages/sdk/tests/live/` and `packages/cli/tests/live/`, which need a secret and the network, and `packages/cli/tests/management/`, which needs the network: see *Not run by Gate 1*. The CLI's `setup` tests (`packages/cli/tests/setup/`) are in the run: they use a stub management API injected as `fetch` (no port is opened) and a temporary directory, and never reach `app.dynjandi.dev`.
 
 ## Generated types
@@ -98,6 +100,41 @@ fails when the spec and the committed file disagree; fix with `pnpm --filter @dy
 `openapi-typescript` needs TypeScript 5, so `.pnpmfile.cjs` gives it its own copy; the repo stays on 7.
 
 ## Not run by Gate 1
+
+### Plugin validation
+
+```bash
+claude plugin validate .
+```
+
+Validates `.claude-plugin/marketplace.json` and the plugin it lists. It needs the `claude` binary, which this
+repository does not install, so Gate 1 cannot run it. Run it by hand from the repository root after a change to
+`.claude-plugin/` or to `packages/agent-skills/.claude-plugin/plugin.json`; `marketplace.test.ts` covers the
+fields it checks that a machine without `claude` can.
+
+### Plugin eval (paid)
+
+```bash
+claude plugin eval packages/agent-skills --scaffold --trust-plugin --json packages/agent-skills/evals/results/run.json --model <model> --judge-model <model> --max-cost-usd <usd>
+```
+
+Runs the four cases in `packages/agent-skills/evals/` with and without the plugin and reports each case's score,
+the difference between the two, and whether its `Skill` grader fired. It is paid: every run, the judge and the
+baseline call a model with your credentials. It needs Claude Code 2.1.269 or later and Git 2.31 or later, and it
+is by hand only. Not in the gate, and not in CI.
+
+- `--scaffold` runs `local-admin`'s `fixture.sh` (author-supplied Bash, run as you); without it that case starts in
+  an empty workspace.
+- `--trust-plugin` skips the first-run trust prompt; pass it only for this repository's own plugin.
+- `--json [path]` writes the full run result; the path must end in `.json`. `evals/results/` is Git-ignored, and `biome.json`'s
+  `files.includes` excludes it too, since Biome does not read `.gitignore` here — without that, the
+  results JSON a run leaves behind fails `pnpm format:check`.
+- Pin `--model` and `--judge-model` so two runs compare; unpinned, the model is the session's default and the
+  judge is `haiku`.
+- `--max-cost-usd` is a hard ceiling: the run aborts and reports partial results (exit `2`).
+- `--ablation none --runs 1` is the cheap load check: one arm, one run per case.
+- `--threshold` defaults to `1.0` and exits `1` below it. What pass line to hold is open (issue #44, section 9
+  Q3); none is set here.
 
 ### Live smoke test
 

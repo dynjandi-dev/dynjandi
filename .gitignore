@@ -22,3 +22,6 @@ packages/cli/LICENSE
 
 # Vitest browser mode writes failure screenshots and attachments here
 .vitest/
+
+# claude plugin eval results (paid, by hand: packages/agent-skills/README.md)
+packages/agent-skills/evals/results/

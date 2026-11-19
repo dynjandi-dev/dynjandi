@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    // The snippets in tests/snippets/ are what a skill shows an agent to put in someone else's app, and
+    // that app's compiler does not have this one flag on, so a snippet is checked without it.
+    "noPropertyAccessFromIndexSignature": false,
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "paths": {
+      "@dynjandi/sdk": ["../sdk/src/index.ts"],
+      "@dynjandi/sdk/next": ["../sdk/src/next.ts"],
+      "@dynjandi/cli/dev/options": ["../cli/src/dev/options.ts"],
+      "@dynjandi/cli/setup/options": ["../cli/src/setup/options.ts"]
+    }
+  },
+  "include": ["tests", "vitest.config.ts"]
+}

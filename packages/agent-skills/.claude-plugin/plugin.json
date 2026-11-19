@@ -1,0 +1,6 @@
+{
+  "name": "dynjandi",
+  "description": "Skills that teach a coding agent to integrate Dynjandi, an image CDN: its SDK, keys, uploads, variant URLs and focal points.",
+  "homepage": "https://github.com/dynjandi-dev/dynjandi/tree/main/packages/agent-skills#readme",
+  "license": "MIT"
+}
