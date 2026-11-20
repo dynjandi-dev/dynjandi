@@ -32,17 +32,12 @@ dynjandi dev -- pnpm test         # 3. run your tests against it; the server sto
 Step 3 sets `DYNJANDI_ORIGIN` and `DYNJANDI_PROJECT_KEY` for the command, stops the server and the renderer
 container when the command exits, and exits with the command's code.
 
-**Status: not published yet.** This package is not on npm, so `npx @dynjandi/cli` and
-`npm i -g @dynjandi/cli` do not work yet. Its first version is published by hand, because npm can only trust a
-workflow for a package that exists. Every version after it is published by
+**Status: on npm.** `npx @dynjandi/cli <command>` runs it with nothing installed, and `npm i -D @dynjandi/cli`
+puts `dynjandi` in your project's scripts. Every version after the first is published by
 [`publish-cli.yml`](../../.github/workflows/publish-cli.yml) when a release changes `version` here, through npm
-trusted publishing with provenance and no token. Until the first version is out, run the commands above from a checkout of this
-repository (see *Run it from a checkout*: put `node packages/cli/dist/cli.js` where `dynjandi` is written) or
-from a tarball: `pnpm --filter @dynjandi/cli pack` in the checkout writes `dynjandi-cli-0.0.0.tgz` to the
-directory you ran it in; in your project, `npm i -D <path to that file>`, then put `npx dynjandi` where
-`dynjandi` is written. Variants are rendered by the Dynjandi renderer, which `dev` starts with Docker, or you
-can name one that is already running with `--renderer-url`. The renderer's image is private
-until the organization makes it public, so until then only an account that can read it can use the Docker
+trusted publishing with provenance and no token. Variants are rendered by the Dynjandi renderer, which `dev`
+starts with Docker, or you can name one that is already running with `--renderer-url`. The renderer's image is
+private until the organization makes it public, so until then only an account that can read it can use the Docker
 default.
 
 **Where it was run.** The quick start has been run on macOS. Linux is covered by CI for the parts that need no
@@ -82,8 +77,7 @@ to approve anything: it sets `DYNJANDI_API_KEY` instead (see *The credential*).
 Created the project my-app (3f2a9c) and wrote DYNJANDI_PROJECT_KEY and DYNJANDI_PROJECT_ID to .env.local.
 ```
 
-`npx @dynjandi/cli` works once the package is on npm, which it is not yet (see *Status* above); until then,
-run it from a checkout or a tarball as described there.
+`npx @dynjandi/cli` fetches the published package, so nothing needs installing first.
 
 Run it again and it changes nothing: it reads `DYNJANDI_PROJECT_ID` from the env file, finds the same project,
 and says so. An agent should pass `--json`, which prints the result as one JSON object, and `--dry-run` first
@@ -435,8 +429,8 @@ jobs:
       - run: echo "$GHCR_READ_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
         env:
           GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
-      # ... install and build @dynjandi/cli (it is not on npm yet), then:
-      - run: node packages/cli/dist/cli.js dev -- pnpm test
+      # ... set up Node and your package manager, install your dependencies, then:
+      - run: npx @dynjandi/cli@0.1 dev -- pnpm test
 ```
 
 `dev -- <tests>` waits for the renderer, runs your tests against `DYNJANDI_ORIGIN`, and stops the server and
@@ -465,8 +459,8 @@ jobs:
           password: ${{ secrets.GHCR_READ_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      # ... install and build @dynjandi/cli (it is not on npm yet), then:
-      - run: node packages/cli/dist/cli.js dev --renderer-url http://localhost:8080 -- pnpm test
+      # ... set up Node and your package manager, install your dependencies, then:
+      - run: npx @dynjandi/cli@0.1 dev --renderer-url http://localhost:8080 -- pnpm test
 ```
 
 If the runner has no Docker at all, use `--no-renderer`: every variant URL
@@ -512,11 +506,8 @@ the origins and the key from the environment `dev` gives it, and nobody copies a
 dynjandi dev --containers -- docker compose up --no-log-prefix
 ```
 
-Three files in a fresh directory, plus any image named `photo.png`. The released SDK does not have
-`apiOrigin` yet, so the app installs the SDK from a tarball packed in a checkout of this repository
-(`pnpm --filter @dynjandi/sdk pack --pack-destination <your directory>`, then rename the file to
-`dynjandi-sdk.tgz`). Your own app installs `@dynjandi/sdk` in its image as usual, and its service only needs the
-`environment:` block.
+Two files in a fresh directory, plus any image named `photo.png`. `apiOrigin` is in `@dynjandi/sdk` from 0.2.1.
+Your own app installs `@dynjandi/sdk` in its image as usual, and its service only needs the `environment:` block.
 
 `compose.yaml`:
 
@@ -528,7 +519,7 @@ services:
     working_dir: /app
     volumes:
       - ./:/app
-    command: sh -c "npm install --no-audit --no-fund ./dynjandi-sdk.tgz && exec node app.mjs"
+    command: sh -c "npm install --no-audit --no-fund @dynjandi/sdk@^0.2.1 && exec node app.mjs"
     environment:
       DYNJANDI_PROJECT_KEY: ${DYNJANDI_PROJECT_KEY:?run this under dynjandi dev --containers}
       DYNJANDI_ORIGIN: ${DYNJANDI_ORIGIN:?run this under dynjandi dev --containers}

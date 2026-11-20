@@ -34,7 +34,7 @@ Set by `/onboard` on 2026-10-01, after `release-init` put changesets in place.
 |---|---|---|---|
 | `packages/sdk` | people installing `@dynjandi/sdk` from npm | its public API, runtime behaviour, dependencies or supported runtimes change — **not** tests, internal refactors, README wording or CI | while `0.x`: **minor is a breaking change**, patch is everything else (additions and fixes); ordinary semver from `1.0` |
 | `packages/focal-picker` | people installing `@dynjandi/focal-picker` from npm — **nobody can yet**: it is not published, and nothing publishes it (`publish.yml` publishes the SDK only) | its public API, runtime behaviour, dependencies or supported runtimes change, **once it is published** — until then its changes announce nothing. Notes are written like the SDK's, and are then collected from `.changeset/` | while `0.x`: **minor is a breaking change**, patch is everything else (additions and fixes); ordinary semver from `1.0`, the same rule as the SDK's |
-| `packages/cli` | people installing `@dynjandi/cli` from npm — **nobody can yet**: it is not on npm until the first version is published by hand (*The CLI's first publish*), and `publish-cli.yml` publishes every one after | its public API (commands, options, output, exit codes), runtime behaviour, dependencies or supported runtimes change — **notes are owed from now on**, not only once it is published, so that the first version's notes are already waiting. Notes are written like the SDK's, and are then collected from `.changeset/` | while `0.x`: **minor is a breaking change**, patch is everything else (additions and fixes); ordinary semver from `1.0`, the same rule as the SDK's |
+| `packages/cli` | people installing `@dynjandi/cli` from npm — on npm since `0.1.0`, published by hand on 2026-11-20 (*The CLI's first publish*); `publish-cli.yml` publishes every one after | its public API (commands, options, output, exit codes), runtime behaviour, dependencies or supported runtimes change — **notes are owed for every such change**. Notes are written like the SDK's, and are then collected from `.changeset/` | while `0.x`: **minor is a breaking change**, patch is everything else (additions and fixes); ordinary semver from `1.0`, the same rule as the SDK's |
 | `packages/spec` | integrators reading the spec at its raw GitHub URL | **never on its own.** A contract change regenerates the SDK's types (`pnpm check:generated` fails until it does), so it is announced by the SDK's note | nothing changesets moves: the spec's version is `info.version` in `openapi.yaml`, bumped by hand by the rule in `packages/spec/README.md` |
 | everything else — `context/`, `.github/`, `.changeset/`, root config | nobody | never | — |
 
@@ -76,7 +76,7 @@ its own (the plan for issue #4 leaves it out). `pnpm check:package` packs it and
 --dry-run` over it all the same, which is how it is kept publishable; `npm view` finds no such package, so
 the dry run is always run.
 
-**`packages/cli` is public and not on npm yet.** Its first version is published by hand (*The CLI's first
+**`packages/cli` is public and on npm.** Its first version, `0.1.0`, was published by hand (*The CLI's first
 publish*), and `publish-cli.yml` publishes every one after. `pnpm check:package` packs it, requires the `dynjandi` bin in the
 tarball, and runs `npm publish --dry-run` over it.
 
@@ -126,23 +126,21 @@ CLI's are the same wires in `publish-cli.yml` (*How the CLI is published*).
   **Run by `/release`**, typed by a person on an up-to-date `main` once notes have accumulated there: it makes `release/<name>` with the
   release form in [`executors.md`](executors.md)'s *Branch and worktree*, runs the script once, and ends at
   a pull request. `/feature-close --release` runs the same script on a feature's branch instead, for a
-  release fused into that feature's merge. Nothing in CI runs it. **Run once, on 2026-10-01**, on the
-  `sdk-ecosystem` branch: it cut `0.1.0`. **Two notes wait on `main`** since then (`getFile` and the
-  responsive helpers, both `patch`), which is the shape `/release` exists for.
+  release fused into that feature's merge. Nothing in CI runs it. First run on 2026-10-01, on the
+  `sdk-ecosystem` branch, where it cut `0.1.0`; most recently by `/release` on 2026-11-19 (pull request #89), which cut
+  `@dynjandi/sdk` `0.2.1` and `@dynjandi/cli` `0.1.0`.
 - **Tag** — `publish.yml`, after a successful publish: `sdk-v<version>` on the commit the run is for. The
-  name has no `/` so it is safe inside a `raw.githubusercontent.com` URL. **Written, never run**: the job
-  has been skipped on every run (see *Publish*), and **the repository has no tags at all** — `0.1.0` was
-  never tagged by hand either (*The first publish*, step 6).
+  name has no `/` so it is safe inside a `raw.githubusercontent.com` URL. It has run for every version CI
+  published: `sdk-v0.1.1`, `sdk-v0.2.0` and `sdk-v0.2.1` exist. `0.1.0` was never tagged (*The first publish*,
+  step 6).
 - **Release** — `publish.yml`, in the same job as the tag. It is idempotent: a tag or release that already
-  exists for the version is a notice, not a failure. **Written, never run**; there are no GitHub releases.
+  exists for the version is a notice, not a failure. There is a GitHub release for each of those three tags.
   **Gap:** its text is fixed (an npm link and the spec URL); it does not carry the version's
   `CHANGELOG.md` entry, so the note never reaches the page written for its reader.
 - **Publish** — `publish.yml`, on a push to `main` when the version is not on npm, after the live smoke
-  test passes. **The workflow has run; its publish job never has.** Three pushes to `main` (2026-10-02, and
-  twice on 2026-10-04) each found `0.1.0` on npm and stopped green at *Check the registry*, skipping smoke,
-  build, publish and tag-and-release. `0.1.0` itself was published by hand (*The first publish*), so the
-  first version CI publishes — with provenance, through the trusted publisher — will be the next one, and
-  that run is what proves the publisher is configured. `@dynjandi/sdk` goes to npm; **the spec is not
+  test passes. `0.1.0` was published by hand (*The first publish*); `0.1.1`, `0.2.0` and `0.2.1` were published by this
+  workflow through the trusted publisher, each with provenance (`npm view @dynjandi/sdk@<version>
+  dist.attestations`), the last on 2026-11-19. `@dynjandi/sdk` goes to npm; **the spec is not
   published by anything**: its stable URL is the raw GitHub one on `main`, and a release makes
   `sdk-v<version>` addressable as a snapshot of it (below).
 - **Deploy** — `pages.yml` deploys `packages/checker`'s page to GitHub Pages on a push to `main` that touches
@@ -157,8 +155,8 @@ CLI's are the same wires in `publish-cli.yml` (*How the CLI is published*).
 
 | Path | On the release merge | Leaves behind |
 |---|---|---|
-| `packages/sdk` | published to npm by `publish.yml` (its publish job has never run) | `sdk-v<version>` tag + GitHub release, by `publish.yml` (written, never run) |
-| `packages/cli` | published to npm by `publish-cli.yml` (not run yet: the first version is published by hand) | `cli-v<version>` tag + GitHub release, by `publish-cli.yml` (written, never run) |
+| `packages/sdk` | published to npm by `publish.yml` | `sdk-v<version>` tag + GitHub release, by `publish.yml` |
+| `packages/cli` | published to npm by `publish-cli.yml` (its publish job has not yet published a version; `0.1.0` was by hand) | `cli-v<version>` tag + GitHub release, by `publish-cli.yml` (written, never run) |
 | `packages/spec` | nothing — it is already live on `main`; the release's tag makes a snapshot of it addressable | the SDK's tag |
 
 ### How the SDK is published
@@ -176,11 +174,10 @@ CLI's are the same wires in `publish-cli.yml` (*How the CLI is published*).
 
 ### The first publish is by hand, and the trusted publisher names `publish.yml`
 
-**Done, except steps 6 and 7's tag half.** `0.1.0` is on npm (the only version there, as of 2026-10-19) and
+**Done, except steps 6 and 7's tag half.** `0.1.0` is on npm and
 `README.md` and `packages/sdk/README.md` no longer say otherwise. **No `sdk-v0.1.0` tag or GitHub release
-exists**, so the spec still has no versioned URL and `packages/spec/README.md`'s "No such tag exists yet"
-is still true; step 6 is still open, and is a person's to run. Whether step 4's trusted publisher is
-configured cannot be read from this repository — the first CI publish is what shows it. The steps below
+exists**, so step 6 is still open, and is a person's to run; the spec has versioned URLs from `sdk-v0.1.1` on. Step 4's trusted publisher is
+configured: CI has published every version since `0.1.1`. The steps below
 stay as the record of how it was done.
 
 A trusted publisher can only be configured on npmjs.com **for a package that already exists**, so CI cannot
@@ -224,9 +221,10 @@ The Actions secret `DYNJANDI_SMOKE_PROJECT_KEY` must exist for the smoke test to
 ### How the CLI is published
 
 The SDK's flow ([`publish.yml`](../.github/workflows/publish.yml)) for a second package, in its own file,
-[`publish-cli.yml`](../.github/workflows/publish-cli.yml). **Its publish job has never run**: `@dynjandi/cli` is
-`0.0.0` and not on npm, so no run has had a version to publish. One run on a feature branch (2026-11-16, run
-43856464514) skipped every job, because each refuses every ref but `refs/heads/main`.
+[`publish-cli.yml`](../.github/workflows/publish-cli.yml). **Its publish job has not yet published a version.** The run on the `0.1.0` release merge (2026-11-19) passed
+every precondition and failed at `npm publish` with `E404`, because the package did not exist yet and so had no
+trusted publisher: the release pull request merged before the hand publish below. `0.1.0` was then published by
+hand on 2026-11-20 and the trusted publisher configured, so the next version is the first CI publishes.
 
 | Question | Answer |
 |---|---|
@@ -242,7 +240,8 @@ The SDK's flow ([`publish.yml`](../.github/workflows/publish.yml)) for a second 
 
 ### The CLI's first publish is by hand, and the trusted publisher names `publish-cli.yml`
 
-**Not done: `@dynjandi/cli` is not on npm.** A trusted publisher can only be configured on npmjs.com for a
+**Done, except step 4: `0.1.0` is on npm (published by hand on 2026-11-20) and the trusted publisher names
+`publish-cli.yml`.** The steps below stay as the record of how it was done. A trusted publisher can only be configured on npmjs.com for a
 package that already exists, so CI cannot publish the first version, and the first publish is permanent. In
 this order:
 
