@@ -429,7 +429,8 @@ jobs:
       - run: echo "$GHCR_READ_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
         env:
           GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
-      - run: npx @dynjandi/cli dev -- pnpm test
+      # ... set up Node and your package manager, install your dependencies, then:
+      - run: npx @dynjandi/cli@0.1 dev -- pnpm test
 ```
 
 `dev -- <tests>` waits for the renderer, runs your tests against `DYNJANDI_ORIGIN`, and stops the server and
@@ -458,7 +459,8 @@ jobs:
           password: ${{ secrets.GHCR_READ_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - run: npx @dynjandi/cli dev --renderer-url http://localhost:8080 -- pnpm test
+      # ... set up Node and your package manager, install your dependencies, then:
+      - run: npx @dynjandi/cli@0.1 dev --renderer-url http://localhost:8080 -- pnpm test
 ```
 
 If the runner has no Docker at all, use `--no-renderer`: every variant URL

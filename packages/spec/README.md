@@ -18,9 +18,8 @@ after the package is on npm), and the spec as it was at that release is at
 https://raw.githubusercontent.com/dynjandi-dev/dynjandi/<tag>/packages/spec/openapi.yaml
 ```
 
-for example `.../dynjandi/sdk-v0.1.1/packages/spec/openapi.yaml`. **No such tag exists yet**: the first
-release is published by hand and is tagged only if someone tags it by hand (see `context/release.md`), so the
-first tagged URL may not appear until the next release. The tag
+for example `.../dynjandi/sdk-v0.2.1/packages/spec/openapi.yaml`. Every SDK version from `0.1.1` on has a tag;
+`0.1.0`, published by hand, has none. The tag
 names the SDK's version, not the spec's: read `info.version` in the document for the spec's own.
 
 ## The contract
