@@ -58,6 +58,32 @@ describe("getFile", () => {
     expect(firstGetRequest(fetchMock).url).toBe(`https://images.example.com/files/${FILE_ID}`);
   });
 
+  test("reads from the default origin when origin and apiOrigin are both explicitly undefined", async () => {
+    const fetchMock = fakeFetch(() => jsonResponse(FILE_BODY, 200));
+    const origin: string | undefined = undefined;
+    const apiOrigin: string | undefined = undefined;
+    const client = createClient({ projectKey: PROJECT_KEY, origin, apiOrigin, fetch: fetchMock });
+
+    await client.getFile(FILE_ID);
+
+    expect(firstGetRequest(fetchMock).url).toBe(`https://cdn.dynjandi.dev/files/${FILE_ID}`);
+  });
+
+  test("reads from a custom origin when apiOrigin is explicitly undefined", async () => {
+    const fetchMock = fakeFetch(() => jsonResponse(FILE_BODY, 200));
+    const apiOrigin: string | undefined = undefined;
+    const client = createClient({
+      projectKey: PROJECT_KEY,
+      origin: "https://images.example.com",
+      apiOrigin,
+      fetch: fetchMock,
+    });
+
+    await client.getFile(FILE_ID);
+
+    expect(firstGetRequest(fetchMock).url).toBe(`https://images.example.com/files/${FILE_ID}`);
+  });
+
   test("reads from apiOrigin with the key, and makes no request to origin", async () => {
     const fetchMock = fakeFetch(() => jsonResponse(FILE_BODY, 200));
     const client = createClient({
