@@ -25,6 +25,18 @@ export function part(picker: DynjandiFocalPicker, name: string): HTMLElement {
   return found;
 }
 
+/** Whether the part exists right now; `part` throws when it does not. */
+export function hasPart(picker: DynjandiFocalPicker, name: string): boolean {
+  return picker.shadowRoot?.querySelector(`[part~="${name}"]`) != null;
+}
+
+/** The always-present live region the error part is inserted into. */
+export function alertRegion(picker: DynjandiFocalPicker): HTMLElement {
+  const found = picker.shadowRoot?.querySelector<HTMLElement>('[role="alert"]');
+  if (!found) throw new Error("no alert region");
+  return found;
+}
+
 export function allParts(picker: DynjandiFocalPicker): HTMLElement[] {
   return [...(picker.shadowRoot?.querySelectorAll<HTMLElement>("[part]") ?? [])];
 }

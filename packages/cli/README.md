@@ -40,9 +40,11 @@ starts with Docker, or you can name one that is already running with `--renderer
 private until the organization makes it public, so until then only an account that can read it can use the Docker
 default.
 
-**Where it was run.** The quick start has been run on macOS. Linux is covered by CI for the parts that need no
-Docker; the Docker path has not run on a CI runner yet. Windows has not been tried, and nothing here claims
-it works there.
+**Where it was run.** The `dynjandi dev` quick start (steps 1 to 3) has been run on macOS. For `dev`, Linux is
+covered by CI for the parts that need no Docker; the Docker path has not run on a CI runner yet. Windows has not been
+tried for `dev`, and nothing here claims it works there. `dynjandi setup` has not been run against the live
+management API: its tests use a stub of it, and CI runs them on Linux, macOS and Windows (see
+[Platforms and limits](#platforms-and-limits)).
 
 ## Using Dynjandi from a coding agent
 
