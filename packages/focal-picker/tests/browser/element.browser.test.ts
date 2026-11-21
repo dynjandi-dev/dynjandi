@@ -578,4 +578,31 @@ describe("properties set before the element upgrades", () => {
     expect(picker.getAttribute("src")).toBe("/example.png");
     expect(picker.src).toBe("/example.png");
   });
+
+  test("an early value the setter rejects is dropped with a warning, and the picker still upgrades and works", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    class LateBad extends DynjandiFocalPicker {}
+    const tag = "dynjandi-focal-picker-late-bad";
+    const picker = document.createElement(tag) as DynjandiFocalPicker;
+    const file = await pngFile(200, 100);
+    const own = picker as unknown as EarlyProperties;
+    own.value = undefined;
+    own.file = file;
+    document.body.append(picker);
+
+    customElements.define(tag, LateBad);
+
+    expect(picker).toBeInstanceOf(LateBad);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[0])).toContain("value");
+    expect(Object.hasOwn(picker, "value")).toBe(false);
+    expect(picker.value).toBeNull();
+    // The name after the rejected one is still taken over, so the image shows and the picker takes a point.
+    expect(Object.hasOwn(picker, "file")).toBe(false);
+    expect(picker.file).toBe(file);
+    await shown(picker);
+    picker.value = { x: 0.5, y: 0.25 };
+    expect(field("X").value).toBe("50");
+    expect(field("Y").value).toBe("25");
+  });
 });
