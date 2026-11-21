@@ -246,6 +246,50 @@ describe("runSetup: the sequence (D10)", () => {
     expect(again.out.join("")).not.toContain(PROJECT_KEY);
   });
 
+  it("reads the id back from an export line and from a quoted value, and reconnects", async () => {
+    for (const line of [
+      `export DYNJANDI_PROJECT_ID=${PROJECT_ID}`,
+      `DYNJANDI_PROJECT_ID="${PROJECT_ID}"`,
+      `DYNJANDI_PROJECT_ID='${PROJECT_ID}'`,
+    ]) {
+      await initRepository();
+      await named("my-app");
+      const content = `DYNJANDI_PROJECT_KEY=${PROJECT_KEY}\n${line}\n`;
+      await writeFile(join(dir, ".env.local"), content);
+      await writeFile(join(dir, ".gitignore"), "*.local\n");
+
+      const h = setup();
+      answerGet(h);
+      expect(await h.run("--json")).toBe(0);
+
+      expect(requestsOf(h)).toEqual([`GET /api/projects/${PROJECT_ID}`]);
+      expect(JSON.parse(h.out.join(""))).toMatchObject({
+        project: { id: PROJECT_ID, action: "use" },
+        envFile: { action: "none" },
+      });
+      expect(await read(".env.local")).toBe(content);
+    }
+  });
+
+  it("skips an id that fails the id pattern and falls through to the name lookup", async () => {
+    await initRepository();
+    await named("my-app");
+    await writeFile(
+      join(dir, ".env.local"),
+      `DYNJANDI_PROJECT_KEY=${PROJECT_KEY}\nDYNJANDI_PROJECT_ID=Not A Valid Id!\n`,
+    );
+    await writeFile(join(dir, ".gitignore"), "*.local\n");
+
+    const h = setup();
+    answerList(h, { id: PROJECT_ID, name: "my-app" });
+    answerGet(h);
+    expect(await h.run("--force")).toBe(0);
+
+    // No `GET /api/projects/Not A Valid Id!`: the bad id is never asked for, the name is looked up instead.
+    expect(requestsOf(h)).toEqual(["GET /api/projects", `GET /api/projects/${PROJECT_ID}`]);
+    expect(await read(".env.local")).toBe(ENV_FILE);
+  });
+
   it("uses the one existing project with the name", async () => {
     await initRepository();
     await named("my-app");
@@ -466,6 +510,20 @@ describe("runSetup: credentials (D3, D13)", () => {
     expect(h.stub.requests[0]?.headers.get("Authorization")).toBe(`Bearer ${API_KEY}`);
     expect(h.opener.calls).toEqual([]);
     expect(await exists(".dynjandi")).toBe(false);
+  });
+
+  it("treats an empty DYNJANDI_API_KEY as unset: exit 3 in CI, and approval otherwise", async () => {
+    await initRepository();
+    const inCi = setup({ DYNJANDI_API_KEY: "", CI: "true" });
+    expect(await inCi.run()).toBe(3);
+    expect(inCi.err.join("")).toMatch(/DYNJANDI_API_KEY is not set/);
+    expect(inCi.stub.requests).toHaveLength(0);
+
+    const noTerminal = setup({ DYNJANDI_API_KEY: "" });
+    playApproval(noTerminal.stub, []);
+    expect(await noTerminal.run()).toBe(4);
+    expect(requestsOf(noTerminal)).toEqual(["POST /api/device/code"]);
+    expect(noTerminal.err.join("")).not.toContain("is not usable");
   });
 
   it("exits 3 for a key with whitespace, without printing it", async () => {
