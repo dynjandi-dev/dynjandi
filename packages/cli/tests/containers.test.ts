@@ -78,6 +78,38 @@ describe("planContainerAccess", () => {
     ]);
   });
 
+  it("takes the IPv4 gateway of a dual-stack bridge that lists its IPv6 entry first", () => {
+    const output = JSON.stringify([
+      { Subnet: "fd00::/64", Gateway: "fd00::1" },
+      { Subnet: "172.17.0.0/16", Gateway: "172.17.0.1" },
+    ]);
+    const plan = planContainerAccess(output, [LOOPBACK, "fd00::1", "172.17.0.1"]);
+    expect(plan.addresses).toEqual([LOOPBACK, "172.17.0.1"]);
+    expect(containerOrigin(plan, 4600)).toBe("http://172.17.0.1:4600");
+  });
+
+  it("uses the IPv4 gateway of a dual-stack bridge even when only it is a host address", () => {
+    const output = JSON.stringify([
+      { Subnet: "fd00::/64", Gateway: "fd00::1" },
+      { Subnet: "172.17.0.0/16", Gateway: "172.17.0.1" },
+    ]);
+    expect(planContainerAccess(output, [LOOPBACK, "172.17.0.1"]).addresses).toEqual([
+      LOOPBACK,
+      "172.17.0.1",
+    ]);
+  });
+
+  it("falls back to the first gateway of any family when none is IPv4", () => {
+    const output = JSON.stringify([
+      { Subnet: "x" },
+      { Gateway: "fd00::1" },
+      { Gateway: "fd00::2" },
+    ]);
+    const plan = planContainerAccess(output, [LOOPBACK, "fd00::1", "fd00::2"]);
+    expect(plan.addresses).toEqual([LOOPBACK, "fd00::1"]);
+    expect(plan.containerHost).toBe("[fd00::1]");
+  });
+
   // An unspecified address reaches every network the machine is on, the exposure D1 and D2 rule out.
   it.each(["0.0.0.0", "::", "::0", "0:0:0:0:0:0:0:0", "::ffff:0.0.0.0"])(
     "refuses the unspecified address %s even when the host lists it",

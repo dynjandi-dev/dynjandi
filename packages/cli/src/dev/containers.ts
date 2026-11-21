@@ -42,7 +42,9 @@ function canonical(address: string): string | undefined {
 // `::` and `0.0.0.0`, and the forms that mean the same: IPv4-mapped (`::ffff:0.0.0.0`).
 const UNSPECIFIED = new Set(["0.0.0.0", "[::]", "[::ffff:0:0]"]);
 
-// The first entry of `IPAM.Config` that has a gateway. A user-defined network may have entries without one.
+// The gateway of `IPAM.Config`: the first entry whose gateway is an IPv4 address, else the first entry that has
+// any gateway. `host-gateway` is the default bridge's IPv4 address (dockerd reference; plan #43, section 8), and a
+// dual-stack bridge may list its IPv6 entry first. A user-defined network may have entries without a gateway.
 function gatewayOf(inspectOutput: string): unknown {
   let config: unknown;
   try {
@@ -57,10 +59,13 @@ function gatewayOf(inspectOutput: string): unknown {
       "could not read the bridge network from `docker network inspect bridge`: it has no IPAM config",
     );
   }
-  const entry = config.find(
+  const withGateway = config.filter(
     (item: unknown): item is { Gateway: unknown } =>
       typeof item === "object" && item !== null && "Gateway" in item && item.Gateway !== undefined,
   );
+  const entry =
+    withGateway.find((item) => typeof item.Gateway === "string" && isIP(item.Gateway) === 4) ??
+    withGateway[0];
   if (entry === undefined) {
     fail(
       "could not read the bridge network from `docker network inspect bridge`: no entry has a Gateway",
