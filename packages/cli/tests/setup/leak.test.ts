@@ -102,6 +102,7 @@ function harness(
   return { stub, settings };
 }
 type Harness = ReturnType<typeof harness>;
+type RunSetup = typeof runSetup;
 
 const created = () =>
   documentCreated({ id: PROJECT_ID, name: "leak-app", projectKey: PROJECT_KEY });
@@ -125,12 +126,16 @@ const scenarios: Array<{
   exit: number;
   /** No `DYNJANDI_API_KEY`: the credential is the browser approval. */
   approval?: true;
-  run: (h: Harness) => Promise<number>;
+  /**
+   * `runSetup` is a fresh module graph's; `fresh()` hands out another, for a second run that stands in for a
+   * second process and so must not inherit the first one's registry.
+   */
+  run: (h: Harness, runSetup: RunSetup, fresh: () => Promise<RunSetup>) => Promise<number>;
 }> = [
   {
     name: "a create",
     exit: 0,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       h.stub.answer("GET", "/api/projects", respond(200, []));
       h.stub.answer("POST", "/api/projects", respond(201, created()));
       return runSetup([], io, h.settings);
@@ -139,7 +144,7 @@ const scenarios: Array<{
   {
     name: "a create with --json",
     exit: 0,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       h.stub.answer("GET", "/api/projects", respond(200, []));
       h.stub.answer("POST", "/api/projects", respond(201, created()));
       return runSetup(["--json"], io, h.settings);
@@ -148,7 +153,7 @@ const scenarios: Array<{
   {
     name: "a use, the project's stored name holding both canaries",
     exit: 0,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       const name = `leak-app ${BOTH}`;
       h.stub.answer(
         "GET",
@@ -162,7 +167,7 @@ const scenarios: Array<{
   {
     name: "a dry run",
     exit: 0,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       h.stub.answer("GET", "/api/projects", respond(200, []));
       return runSetup(["--dry-run"], io, h.settings);
     },
@@ -170,7 +175,7 @@ const scenarios: Array<{
   {
     name: "a 403 whose message holds the API key",
     exit: 1,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       h.stub.answer("GET", "/api/projects", respond(200, []));
       h.stub.answer(
         "POST",
@@ -183,7 +188,7 @@ const scenarios: Array<{
   {
     name: "a lost POST whose network error holds the API key",
     exit: 1,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       h.stub.answer("GET", "/api/projects", respond(200, []));
       h.stub.answer("POST", "/api/projects", {
         kind: "network-error",
@@ -195,7 +200,7 @@ const scenarios: Array<{
   {
     name: "a 500 whose body is not the envelope and holds both canaries",
     exit: 1,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       h.stub.answer("GET", "/api/projects", respond(500, undefined, `<html>${BOTH}</html>`));
       return runSetup([], io, h.settings);
     },
@@ -203,7 +208,7 @@ const scenarios: Array<{
   {
     name: "a 401",
     exit: 3,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       h.stub.answer("GET", "/api/projects", respond(401, documentError("UNAUTHORIZED", BOTH)));
       return runSetup([], io, h.settings);
     },
@@ -211,7 +216,7 @@ const scenarios: Array<{
   {
     name: "a key with whitespace",
     exit: 3,
-    run: async () => {
+    run: async (_h, runSetup) => {
       const h = harness({ DYNJANDI_API_KEY: `${API_KEY} extra` });
       return runSetup([], io, h.settings);
     },
@@ -219,7 +224,7 @@ const scenarios: Array<{
   {
     name: "a 409 NAME_TAKEN and a project read back",
     exit: 0,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       h.stub.answer("GET", "/api/projects", respond(200, []));
       h.stub.answer(
         "POST",
@@ -233,7 +238,7 @@ const scenarios: Array<{
   {
     name: "a tracked env file",
     exit: 1,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       await writeFile(join(dir, ".env.local"), "TRACKED=1\n");
       await gitSync("add", "-f", ".env.local");
       return runSetup([], io, h.settings);
@@ -242,7 +247,7 @@ const scenarios: Array<{
   {
     name: "a different key already in the env file",
     exit: 1,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       await writeFile(join(dir, ".env.local"), `DYNJANDI_PROJECT_KEY=${"b".repeat(64)}\n`);
       h.stub.answer("GET", "/api/projects", respond(200, []));
       return runSetup([], io, h.settings);
@@ -252,7 +257,7 @@ const scenarios: Array<{
     name: "an approval at a terminal, approved, and a create",
     exit: 0,
     approval: true,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       approve(h, "authorization_pending", "approved");
       h.stub.answer("GET", "/api/projects", respond(200, []));
       h.stub.answer("POST", "/api/projects", respond(201, created()));
@@ -263,7 +268,7 @@ const scenarios: Array<{
     name: "an approval handed back as a sentence",
     exit: 4,
     approval: true,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       approve(h);
       return runSetup([], io, h.settings);
     },
@@ -272,7 +277,7 @@ const scenarios: Array<{
     name: "an approval handed back with --json",
     exit: 4,
     approval: true,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       approve(h);
       return runSetup(["--json"], io, at(h.settings));
     },
@@ -281,31 +286,31 @@ const scenarios: Array<{
     name: "a re-run that completes the approval",
     exit: 0,
     approval: true,
-    run: async (h) => {
+    run: async (h, runSetup, fresh) => {
       approve(h);
       await runSetup([], io, h.settings);
       playPolls(h.stub, ["approved"], { access_token: TOKEN });
       h.stub.answer("GET", "/api/projects", respond(200, []));
       h.stub.answer("POST", "/api/projects", respond(201, created()));
-      return runSetup(["--json"], io, h.settings);
+      return (await fresh())(["--json"], io, h.settings);
     },
   },
   {
     name: "a re-run that is still pending",
     exit: 4,
     approval: true,
-    run: async (h) => {
+    run: async (h, runSetup, fresh) => {
       approve(h);
       await runSetup([], io, h.settings);
       for (let i = 0; i < 20; i += 1) playPolls(h.stub, ["authorization_pending"]);
-      return runSetup([], io, h.settings);
+      return (await fresh())([], io, h.settings);
     },
   },
   {
     name: "a denial whose message holds the device code and the token",
     exit: 3,
     approval: true,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       approve(h);
       h.stub.answer("POST", "/api/device/token", {
         kind: "response",
@@ -319,7 +324,7 @@ const scenarios: Array<{
     name: "a poll answered with an unknown code whose message holds the device code",
     exit: 1,
     approval: true,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       approve(h);
       h.stub.answer("POST", "/api/device/token", respond(400, documentError("ODD", DEVICE_CODE)));
       return runSetup([], io, at(h.settings));
@@ -329,7 +334,7 @@ const scenarios: Array<{
     name: "a poll answered 500 with a body that holds both canaries",
     exit: 1,
     approval: true,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       approve(h);
       h.stub.answer(
         "POST",
@@ -343,7 +348,7 @@ const scenarios: Array<{
     name: "a 401 after approval whose message holds the token",
     exit: 3,
     approval: true,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       approve(h, "approved");
       h.stub.answer("GET", "/api/projects", respond(401, documentError("UNAUTHORIZED", TOKEN)));
       return runSetup([], io, at(h.settings));
@@ -353,7 +358,7 @@ const scenarios: Array<{
     name: "a start answer with an off-origin link that carries the device code",
     exit: 1,
     approval: true,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       h.stub.answer("POST", "/api/device/code", {
         kind: "response",
         status: 200,
@@ -372,7 +377,7 @@ const scenarios: Array<{
   {
     name: "a --file in a new folder",
     exit: 0,
-    run: async (h) => {
+    run: async (h, runSetup) => {
       await mkdir(join(dir, "config"));
       h.stub.answer("GET", "/api/projects", respond(200, []));
       h.stub.answer("POST", "/api/projects", respond(201, created()));
@@ -393,8 +398,20 @@ async function filesUnder(root: string): Promise<string[]> {
 
 describe("the leak sweep", () => {
   it.each(scenarios)("$name", async ({ exit, run, approval }) => {
+    // `redact()` keeps a module-level registry of every secret the process has held, so a scenario that shares
+    // it would be scrubbed by what an earlier one registered, and a path that stopped wrapping a credential in a
+    // `Secret` could still pass. A fresh module graph per scenario starts each one with an empty registry.
+    // The registry is checked empty each time, so removing the reset fails here rather than passing quietly.
+    const fresh = async (): Promise<RunSetup> => {
+      vi.resetModules();
+      const { redact } = await import("../../src/setup/secret.js");
+      for (const canary of [API_KEY, PROJECT_KEY, DEVICE_CODE, TOKEN]) {
+        expect(redact(canary)).toBe(canary);
+      }
+      return (await import("../../src/setup/run.js")).runSetup;
+    };
     const h = harness(approval === true ? {} : { DYNJANDI_API_KEY: API_KEY });
-    const code = await run(h);
+    const code = await run(h, await fresh(), fresh);
     expect(code).toBe(exit);
 
     const everywhere = [

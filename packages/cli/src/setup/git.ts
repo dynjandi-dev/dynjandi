@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative } from "node:path";
+import { temporaryName } from "./env-file.js";
 
 export interface GitResult {
   /** `null` when git could not be started (not installed). */
@@ -18,7 +19,7 @@ export interface GitSettings {
 
 export type GitPlan =
   | { kind: "none" }
-  | { kind: "add"; gitignorePath: string; entry: string }
+  | { kind: "add"; gitignorePath: string; entries: string[] }
   | { kind: "no-repo" }
   | { kind: "refuse"; reason: string; fix: string };
 
@@ -77,13 +78,26 @@ export async function planGit(
     };
   }
 
-  const ignored = await run(["check-ignore", "-q", "--", target], gitCwd);
-  if (ignored.code === 0) return { kind: "none" };
-  return {
-    kind: "add",
-    gitignorePath: join(directory, ".gitignore"),
-    entry: `/${escapePattern(name)}`,
-  };
+  // The key also sits in a temporary file beside the env file until the rename (D8), so the rule that keeps the
+  // key out of Git has to cover that name too: a kill between the write and the rename leaves the file behind.
+  const entries: string[] = [];
+  if (!(await isIgnored(run, target, gitCwd))) entries.push(`/${escapePattern(name)}`);
+  const probe = join(dirname(target), temporaryName(name, PROBE_TOKEN));
+  if (!(await isIgnored(run, probe, gitCwd))) entries.push(temporaryEntry(name));
+  if (entries.length === 0) return { kind: "none" };
+  return { kind: "add", gitignorePath: join(directory, ".gitignore"), entries };
+}
+
+// Same length and alphabet as the token `writeEnvFile` draws, so a rule that is length- or class-sensitive agrees.
+const PROBE_TOKEN = "0123456789ab";
+
+async function isIgnored(run: GitRunner, target: string, cwd: string): Promise<boolean> {
+  return (await run(["check-ignore", "-q", "--", target], cwd)).code === 0;
+}
+
+// The entry for every `temporaryName(name, <token>)`: the token is the one part that changes.
+function temporaryEntry(name: string): string {
+  return `/${temporaryName(escapePattern(name), "*")}`;
 }
 
 /**
@@ -108,17 +122,26 @@ export async function applyGit(
   });
   const eol = before.includes("\r\n") ? "\r\n" : "\n";
   const separator = before === "" || before.endsWith("\n") ? "" : eol;
-  await writeFile(plan.gitignorePath, `${before}${separator}${plan.entry}${eol}`);
+  const added = plan.entries.map((entry) => `${entry}${eol}`).join("");
+  await writeFile(plan.gitignorePath, `${before}${separator}${added}`);
 
   const target = relative(directory, path);
+  const probe = join(dirname(target), temporaryName(basename(path), PROBE_TOKEN));
   const again = await run(["check-ignore", "-q", "--", target], directory);
-  if (again.code === 0) return { kind: "ok" };
+  const againTemporary = await run(["check-ignore", "-q", "--", probe], directory);
+  if (again.code === 0 && againTemporary.code === 0) return { kind: "ok" };
 
-  const why = await run(["check-ignore", "-v", "--no-index", "--", target], directory);
+  // The probe is a made-up name, so a refusal over it names the pattern and why it matters, never the probe.
+  const open = again.code === 0 ? probe : target;
+  const shown =
+    open === probe
+      ? `the temporary file ${displayPath(join(directory, temporaryName(basename(path), "*")), cwd)}, which holds the key until the rename`
+      : displayPath(path, cwd);
+  const why = await run(["check-ignore", "-v", "--no-index", "--", open], directory);
   const rule = why.stdout.split("\t")[0]?.trim();
   return {
     kind: "refuse",
-    reason: `Git still does not ignore ${displayPath(path, cwd)}${rule ? `; the rule that wins is ${rule}` : ""}`,
+    reason: `Git still does not ignore ${shown}${rule ? `; the rule that wins is ${rule}` : ""}`,
     fix: "remove that rule, or choose another file with --file",
   };
 }

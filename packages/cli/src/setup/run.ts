@@ -397,7 +397,7 @@ function gitNotes(
 ): string[] {
   if (plan.kind === "add") {
     const verb = where.dryRun ? "Would add" : "Added";
-    return [`${verb} ${plan.entry} to ${display(plan.gitignorePath, where.cwd)}.`];
+    return [`${verb} ${plan.entries.join(" and ")} to ${display(plan.gitignorePath, where.cwd)}.`];
   }
   if (plan.kind === "no-repo") {
     return [

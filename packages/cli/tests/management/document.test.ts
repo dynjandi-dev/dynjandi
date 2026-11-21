@@ -110,6 +110,8 @@ describe("the management API's document", () => {
     expectBearer(op);
 
     const body = jsonSchema(at(op, "requestBody"));
+    // `setup` creates a project with `{ name }` only (D4), so a second required field would break its create.
+    expect(at(body, "required")).toEqual(["name"]);
     const name = requiredProperty(body, "name");
     expectString(name);
     expect(at(name, "minLength")).toBe(1);
