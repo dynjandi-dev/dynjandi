@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { request } from "node:http";
+import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -168,6 +169,35 @@ describe("the Host header (DNS rebinding, D5)", () => {
       expect(read).not.toHaveBeenCalled();
     },
   );
+
+  // Neither `fetch` nor `request` can send an HTTP/1.0 request line, so a request with no Host needs a raw socket. Plan #43 section 8:
+  // HTTP/1.1 with no Host is 400 (RFC 9112 section 3.2, Node's requireHostHeader, before any handler runs);
+  // HTTP/1.0 may omit it and then is refused with 421, logged as "(none)".
+  function rawStatusLine(requestLine: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const socket = connect({ host: "127.0.0.1", port: Number(port()) });
+      let received = "";
+      socket.setEncoding("latin1");
+      socket.on("connect", () => socket.write(`${requestLine}\r\n\r\n`));
+      socket.on("data", (chunk: string) => {
+        received += chunk;
+      });
+      socket.on("error", reject);
+      socket.on("close", () => resolve(received.split("\r\n")[0] ?? ""));
+    });
+  }
+
+  it("is 400 for an HTTP/1.1 request with no Host, and never reaches a handler", async () => {
+    expect(await rawStatusLine("GET /health HTTP/1.1")).toBe("HTTP/1.1 400 Bad Request");
+    expect(logs).toEqual([]);
+  });
+
+  it("is 421 for an HTTP/1.0 request with no Host, logged as (none)", async () => {
+    expect(await rawStatusLine("GET /health HTTP/1.0")).toMatch(/^HTTP\/1\.[01] 421 /);
+    const lines = logs.filter((line) => line.includes("refused Host"));
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('"(none)"');
+  });
 
   it("logs one line that quotes the refused host and names --allow-host", async () => {
     await rawGet("/health", { Host: `evil.example:${port()}` });
