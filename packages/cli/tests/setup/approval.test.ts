@@ -110,10 +110,10 @@ describe("approve with a person at the terminal (D18 step 3)", () => {
 
   it("lengthens the wait by 5 s on each slow_down", async () => {
     const h = harness(true);
-    playApproval(h.stub, ["slow_down", "authorization_pending", "approved"]);
+    playApproval(h.stub, ["slow_down", "slow_down", "authorization_pending", "approved"]);
     await approve(h.seams);
-    // 5 s, then slow_down: 10 s; pending leaves it at 10 s.
-    expect(h.clock.sleeps).toEqual([5000, 10_000, 10_000]);
+    // 5 s, then each slow_down adds 5 s (10 s, 15 s: doubling would give 20 s); pending leaves it at 15 s.
+    expect(h.clock.sleeps).toEqual([5000, 10_000, 15_000, 15_000]);
   });
 
   it("follows the interval the server gives", async () => {
