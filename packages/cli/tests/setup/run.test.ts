@@ -824,6 +824,20 @@ describe("runSetup: browser approval (D3, D13, D18)", () => {
     }
   });
 
+  it("without a terminal: a link longer than 500 characters reaches stdout whole", async () => {
+    // D18: the link is the result, so the pending message is scrubbed, not cut (as the failure message below is).
+    const longUrl = `${APPROVAL_URL}&state=${"a".repeat(600)}`;
+    await initRepository();
+    const h = setup({});
+    playApproval(h.stub, [], { start: { verification_uri_complete: longUrl } });
+
+    expect(await h.run()).toBe(4);
+
+    expect(h.out.join("")).toBe(
+      `Open ${longUrl} and approve code ${USER_CODE}, then run this command again. The link expires in 10 minutes.\n`,
+    );
+  });
+
   it("with --json, even at a terminal: the link as one object, exit 4", async () => {
     await initRepository();
     const h = setup({}, { terminal: true });

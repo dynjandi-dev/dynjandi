@@ -304,7 +304,8 @@ export function createManagementClient(options: ManagementClientOptions): Manage
 
 const CLIENT_ID = "dynjandi-cli";
 const DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code";
-const USER_CODE_PATTERN = /^[A-Za-z0-9-]{1,32}$/;
+/** What a user code may look like: shown to the person and typed into the approval page. */
+export const USER_CODE_PATTERN = /^[A-Za-z0-9-]{1,32}$/;
 
 /**
  * The address to approve at, only when it is an `https://app.dynjandi.dev/` one with no credentials in it (D18):

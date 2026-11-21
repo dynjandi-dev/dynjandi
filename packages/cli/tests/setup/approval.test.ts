@@ -264,6 +264,55 @@ describe("approve with nobody at the terminal (D18 step 4)", () => {
       deviceCode: DEVICE_CODE,
     });
   });
+
+  it.each([
+    ["a code with a control character", { code: "AB\u001b[31mCD" }],
+    ["a code with a bell", { code: "ABCD\u0007" }],
+    ["a code of the wrong shape", { code: "AB CD" }],
+    ["a code that is too long", { code: "A".repeat(33) }],
+    ["an empty code", { code: "" }],
+    ["a link off the approval origin", { url: "https://example.com/device" }],
+    ["an expiry with a control character", { expiresAt: "Sat Nov 21 2099 (\u009b31m)" }],
+    ["an expiry that is not an ISO time", { expiresAt: "Sat Nov 21 2099" }],
+  ])("a pending file with %s is replaced by a new approval", async (_name, tamper) => {
+    const seed = harness(false);
+    playApproval(seed.stub, []);
+    await failureOf(approve(seed.seams));
+    const stored = JSON.parse(await readFile(PENDING(), "utf8"));
+    await writeFile(PENDING(), JSON.stringify({ ...stored, ...tamper }));
+
+    const h = harness(false);
+    playApproval(h.stub, []);
+    const error = await failureOf(approve(h.seams));
+
+    expect(error).toBeInstanceOf(ApprovalPending);
+    expect(requestsOf(h)).toEqual(["POST /api/device/code"]);
+    expect((error as ApprovalPending).approval).toMatchObject({
+      url: APPROVAL_URL,
+      code: USER_CODE,
+    });
+  });
+
+  it("prints the normalised link of a stored one, not the raw string", async () => {
+    const seed = harness(false);
+    playApproval(seed.stub, []);
+    await failureOf(approve(seed.seams));
+    const stored = JSON.parse(await readFile(PENDING(), "utf8"));
+    // A tab and a newline inside the link are dropped by URL parsing; the raw text would carry them to the terminal.
+    await writeFile(
+      PENDING(),
+      JSON.stringify({ ...stored, url: "https://app.dynjandi.dev/dev\nice?user_code=\tABCD-EFGH" }),
+    );
+
+    const h = harness(false);
+    for (let i = 0; i < 20; i += 1) playPolls(h.stub, ["authorization_pending"]);
+    const error = await failureOf(approve(h.seams));
+
+    expect(error).toBeInstanceOf(ApprovalPending);
+    const { url } = (error as ApprovalPending).approval;
+    expect(url).toBe("https://app.dynjandi.dev/device?user_code=ABCD-EFGH");
+    expect([...(error as ApprovalPending).message].some((c) => c.charCodeAt(0) < 0x20)).toBe(false);
+  });
 });
 
 describe("approve, resumed at a terminal (D18 step 3 for a run that finds the file)", () => {
