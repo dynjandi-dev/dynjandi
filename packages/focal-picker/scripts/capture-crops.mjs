@@ -12,7 +12,8 @@
 //
 //   (set -a; . ./.env; set +a; pnpm --filter @dynjandi/focal-picker run capture:crops)
 //
-// Options (after `--`): `--check` compares a fresh run with the committed fixture instead of writing it;
+// Options go after the script name (a leading `--` is accepted and skipped, since pnpm 10 passes it through):
+// `--check` compares a fresh run with the committed fixture instead of writing it;
 // `--every <n>` keeps every nth grid row (a cheap re-run); `--out <path>` writes elsewhere.
 //
 // The key is read from the environment and goes only to the SDK, which sends it as a header. It is never
@@ -72,6 +73,9 @@ function readOptions(argv) {
   const options = { check: false, every: 1, out: DEFAULT_OUT };
   for (let index = 0; index < argv.length; index++) {
     const argument = argv[index];
+    if (index === 0 && argument === "--") {
+      continue;
+    }
     if (argument === "--check") {
       options.check = true;
     } else if (argument === "--every") {
