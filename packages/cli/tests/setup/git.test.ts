@@ -190,6 +190,63 @@ describe("planGit and applyGit (D7)", () => {
     expect(await isIgnored("aXb.env")).toBe(false);
   });
 
+  // gitignore(5) decides these: a backslash makes the next character literal, so an unescaped `?`, `[` or `\`
+  // would match the near miss, and trailing spaces are dropped unless escaped, so an unescaped entry would name
+  // the near miss instead. A backslash is a path separator on Windows, so that row runs everywhere else.
+  it.each(
+    [
+      { label: "?", name: "a?b.env", entry: "/a\\?b.env", nearMiss: "aXb.env" },
+      { label: "[", name: "a[1].env", entry: "/a\\[1\\].env", nearMiss: "a1.env" },
+      {
+        label: "a backslash",
+        name: "a\\b.env",
+        entry: "/a\\\\b.env",
+        nearMiss: "ab.env",
+        posixOnly: true,
+      },
+      { label: "trailing spaces", name: "x.env  ", entry: "/x.env\\ \\ ", nearMiss: "x.env" },
+    ].filter((row) => !(row.posixOnly && process.platform === "win32")),
+  )(
+    "escapes $label in the entry, so the named file and its temporary file are ignored and a near miss is not",
+    async ({ name, entry, nearMiss }) => {
+      initRepository();
+      const path = join(root, name);
+      const plan = await planGit(path, root);
+      expect(plan).toEqual({
+        kind: "add",
+        gitignorePath: join(root, ".gitignore"),
+        entries: [entry, `${entry}.*.tmp`],
+      });
+      expect(await applyGit(plan, path, root)).toEqual({ kind: "ok" });
+      expect(await isIgnored(name)).toBe(true);
+      expect(await isIgnored(temporaryName(name, "0123456789ab"))).toBe(true);
+      expect(await isIgnored(nearMiss)).toBe(false);
+    },
+  );
+
+  // gitignore(5) does not decide these. A `#` or `!` is a comment or a negation only at the start of a line, and an
+  // entry starts with `/`, so Git reads `/#x.env` and `/\#x.env` alike (the same holds for `]` outside a bracket,
+  // in the `[` row above). The escape is defensive: these rows pin the entry text and show the escape is harmless.
+  it.each([
+    { label: "a leading #", name: "#x.env", entry: "/\\#x.env" },
+    { label: "a leading !", name: "!x.env", entry: "/\\!x.env" },
+  ])(
+    "escapes $label in the entry, and Git still ignores the named file and its temporary file",
+    async ({ name, entry }) => {
+      initRepository();
+      const path = join(root, name);
+      const plan = await planGit(path, root);
+      expect(plan).toEqual({
+        kind: "add",
+        gitignorePath: join(root, ".gitignore"),
+        entries: [entry, `${entry}.*.tmp`],
+      });
+      expect(await applyGit(plan, path, root)).toEqual({ kind: "ok" });
+      expect(await isIgnored(name)).toBe(true);
+      expect(await isIgnored(temporaryName(name, "0123456789ab"))).toBe(true);
+    },
+  );
+
   it("adds an entry for the temporary file when only the env file is ignored", async () => {
     initRepository();
     await writeFile(join(root, ".gitignore"), "/.env.local\n");
