@@ -91,6 +91,12 @@ describe("refusalLine", () => {
     expect(line).toContain("--allow-host");
   });
 
+  it("escapes DEL and the C1 controls, which JSON.stringify leaves as raw characters", () => {
+    const line = refusalLine("ev\u009bil\u007f\u0080\u009f");
+    expect(line).toContain('"ev\\u009bil\\u007f\\u0080\\u009f"');
+    expect(line).not.toMatch(/[\u007f-\u009f]/);
+  });
+
   it("cuts a very long host", () => {
     expect(refusalLine("a".repeat(5000)).length).toBeLessThan(400);
   });
