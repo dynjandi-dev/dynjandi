@@ -356,6 +356,9 @@ export class DynjandiFocalPicker extends HTMLElement {
   #setSource(source: string | null): void {
     if (source === this.#source) return;
     this.#source = source;
+    // A new image starts with no error: the next failure is then a fresh insertion into the live region,
+    // which is announced, and a stale message never sits beside an image still loading.
+    this.#alert.replaceChildren();
     if (source === null) this.#natural = null;
     for (const image of [this.#image, ...this.#previews.map((preview) => preview.image)]) {
       if (source === null) image.removeAttribute("src");

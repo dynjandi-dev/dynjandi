@@ -48,7 +48,9 @@ The image is the `file` property (a `File` or `Blob`, shown through an object UR
 the file changes or the element is removed) or the `src` attribute or property (a URL). `file` wins when
 both are set. An image that cannot be read shows an error message instead of the surface. The message, the
 `error` part, is inserted into an always-present, empty `role="alert"` region when the image fails, so it
-is announced when it appears, and removed again when an image loads or the image is taken away.
+is announced when it appears, and removed again as soon as the image changes, before the next one
+loads, or when the image is taken away. A second unreadable image in a row is therefore a new insertion,
+announced like the first.
 
 ### `value` and events
 
