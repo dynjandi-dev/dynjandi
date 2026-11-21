@@ -58,16 +58,21 @@ const DEFAULT_RATIOS: ReadonlyArray<readonly [number, number]> = [
   [9, 16],
 ];
 
-/** A list of `[width, height]` pairs that are all positive and finite, and not empty. */
+/**
+ * A list of `[width, height]` pairs that are all positive and finite, and not empty. `Array.from` turns a
+ * hole into `undefined`, which `every` would otherwise skip, so a sparse list or pair fails here.
+ */
 function isRatioList(list: unknown): list is [number, number][] {
   return (
     Array.isArray(list) &&
     list.length > 0 &&
-    list.every(
+    Array.from(list).every(
       (pair) =>
         Array.isArray(pair) &&
         pair.length === 2 &&
-        pair.every((side) => typeof side === "number" && Number.isFinite(side) && side > 0),
+        Array.from(pair).every(
+          (side) => typeof side === "number" && Number.isFinite(side) && side > 0,
+        ),
     )
   );
 }

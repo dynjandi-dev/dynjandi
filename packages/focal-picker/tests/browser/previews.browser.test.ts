@@ -243,6 +243,15 @@ describe("crop previews", () => {
   });
 });
 
+/** An array of `length` with only the given indexes set; the rest are holes, which the lint forbids in a literal. */
+function sparse(length: number, filled: Record<number, unknown>): unknown[] {
+  const list = new Array<unknown>(length);
+  for (const [index, value] of Object.entries(filled)) {
+    list[Number(index)] = value;
+  }
+  return list;
+}
+
 describe("ratios", () => {
   test("take a list of [width, height] pairs and caption each", async () => {
     const picker = await mount(200, 100);
@@ -272,6 +281,11 @@ describe("ratios", () => {
     ["a non-finite side", [[Number.POSITIVE_INFINITY, 9]]],
     ["a pair of the wrong length", [[16]]],
     ["an empty list", []],
+    ["a pair that is all holes", [sparse(2, {})]],
+    ["a pair with a hole after its width", [sparse(2, { 0: 16 })]],
+    ["a pair with a hole before its height", [sparse(2, { 1: 9 })]],
+    ["a hole in the list", sparse(2, { 1: [1, 1] })],
+    ["a list that is all holes", sparse(1, {})],
     ["a string", "16:9"],
   ])("fall back to the defaults with one warning for %s", async (_name, bad) => {
     const picker = await mount(200, 100);
