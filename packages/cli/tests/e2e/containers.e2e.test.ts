@@ -26,6 +26,9 @@ const NODE_IMAGE =
 const START_TIMEOUT_MS = 180_000;
 const STOP_TIMEOUT_MS = 60_000;
 const TEST_TIMEOUT_MS = 120_000;
+// The app container's name, so `afterAll` can remove it. `--init` makes PID 1 forward SIGTERM to `node`; without
+// it the timeout's SIGTERM (sig-proxied by the docker client) is ignored and the container outlives the test.
+const APP_CONTAINER = `dynjandi-e2e-app-${process.pid}`;
 
 interface Ready {
   origin: string;
@@ -85,6 +88,8 @@ beforeAll(async () => {
 afterAll(async () => {
   if (child.exitCode === null && child.signalCode === null) child.kill("SIGTERM");
   await exit;
+  // A timeout kills the docker client, not necessarily the container; remove it by name (absent is fine).
+  await execFileAsync("docker", ["rm", "-f", APP_CONTAINER]).catch(() => undefined);
   await rm(dataDir, { recursive: true, force: true });
 }, STOP_TIMEOUT_MS);
 
@@ -106,6 +111,9 @@ describe("an app in a container against dynjandi dev --containers", () => {
         [
           "run",
           "--rm",
+          "--init",
+          "--name",
+          APP_CONTAINER,
           "--read-only",
           "-v",
           `${REPO}:${REPO}:ro`,

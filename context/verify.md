@@ -218,7 +218,9 @@ variant on the host: `200`, the uploaded bytes, a PNG of the asked size; a `Host
 whole repository, read-only, at the same path as on the host, because `node_modules` holds pnpm symlinks (the SDK's
 `@dynjandi/transform-grammar`) that a mount of `packages/sdk` alone would leave dangling. The two files share one
 container namespace and each asserts no `dynjandi-renderer-*` is left, so `test:e2e` runs them one after the other
-(`--no-file-parallelism`).
+(`--no-file-parallelism`). The Node container runs with `--init` and a fixed `--name`
+(`dynjandi-e2e-app-<pid>`): `--init` puts an init process at PID 1 so `node` acts on the timeout's `SIGTERM` (as PID 1 it would ignore it), and
+`afterAll` removes the container by name if it is still there.
 
 Preconditions: `pnpm build` has been run (it uses the built bin, not the source); Docker is installed and its
 daemon is running; the pinned renderer image (`ghcr.io/dynjandi-dev/renderer:0.2.0@sha256:...`, in
