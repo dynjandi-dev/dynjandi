@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { main } from "../src/cli.js";
 import { containerOrigin, planContainerAccess } from "../src/dev/containers.js";
 import { startServer } from "../src/dev/server.js";
+import { waitFor } from "./support/wait.js";
 
 // Expected values come from the plan (#43), not from the code under test:
 // - D2: the second listener is the default bridge's gateway, only when `os.networkInterfaces()` lists it; the
@@ -175,14 +176,6 @@ function capture() {
       stderr: (text: string) => void err.push(text),
     },
   };
-}
-
-async function waitFor(condition: () => boolean, what: string): Promise<void> {
-  for (let attempt = 0; attempt < 300; attempt += 1) {
-    if (condition()) return;
-    await new Promise((done) => setTimeout(done, 10));
-  }
-  throw new Error(`never happened: ${what}`);
 }
 
 beforeEach(() => {

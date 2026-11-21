@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { main } from "../src/cli.js";
 import { startServer } from "../src/dev/server.js";
 import { startStubRenderer } from "./support/stub-renderer.js";
+import { waitFor } from "./support/wait.js";
 
 // Expected values come from the plan: GET /health is 200 {"ok":true,"service":"dynjandi-dev","version","renderer"}
 // (section 4.2, D20; "version" is the CLI's package.json, read here straight from the file); an unknown path is 404
@@ -146,11 +147,8 @@ describe("main dev", () => {
   }
 
   async function waitForReadyLine(out: string[]): Promise<string> {
-    for (let attempt = 0; attempt < 200; attempt += 1) {
-      if (out.length > 0) return out.join("");
-      await new Promise((done) => setTimeout(done, 10));
-    }
-    throw new Error("the ready line never appeared");
+    await waitFor(() => out.length > 0, "the ready line");
+    return out.join("");
   }
 
   // D12: stdout holds the ready line (origin, the key if default, the data directory, the renderer);
