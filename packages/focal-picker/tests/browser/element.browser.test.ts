@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import type { DynjandiFocalPicker } from "../../src/element.js";
-import "../../src/element.js";
+import { DynjandiFocalPicker } from "../../src/element.js";
 import { shown } from "./support.js";
 
 // Real layout and real input: clicks and drags go through Playwright's mouse (userEvent.click and
@@ -525,5 +524,85 @@ describe("registration", () => {
 
     expect(define).not.toHaveBeenCalled();
     expect(customElements.get(TAG)).toBe(registered);
+  });
+});
+
+/** The properties a host sets on a tag that has not upgraded: plain own properties, typed as nothing. */
+interface EarlyProperties {
+  value?: unknown;
+  file?: unknown;
+  ratios?: unknown;
+  src?: unknown;
+}
+
+describe("properties set before the element upgrades", () => {
+  test("value, file, src and ratios set on the tag before it is defined are taken over on upgrade", async () => {
+    // A class can be registered once, and the module has already registered the real one, so a subclass is
+    // defined under a tag of its own after the properties are set: the same upgrade the real tag gets.
+    class Late extends DynjandiFocalPicker {}
+    const tag = "dynjandi-focal-picker-late";
+    const picker = document.createElement(tag) as DynjandiFocalPicker;
+    expect(picker).not.toBeInstanceOf(DynjandiFocalPicker);
+    const file = await pngFile(200, 100);
+    const own = picker as unknown as EarlyProperties;
+    own.value = { x: 0.25, y: 0.75 };
+    own.file = file;
+    own.ratios = [[3, 2]];
+    document.body.append(picker);
+
+    customElements.define(tag, Late);
+
+    expect(picker).toBeInstanceOf(Late);
+    expect(Object.hasOwn(picker, "value")).toBe(false);
+    expect(Object.hasOwn(picker, "file")).toBe(false);
+    expect(Object.hasOwn(picker, "ratios")).toBe(false);
+    expect(picker.value).toEqual({ x: 0.25, y: 0.75 });
+    expect(picker.file).toBe(file);
+    expect(picker.ratios).toEqual([[3, 2]]);
+    await shown(picker);
+    expect(field("X").value).toBe("25");
+    expect(field("Y").value).toBe("75");
+    expect(part(picker, "preview-caption").textContent).toBe("3:2");
+  });
+
+  test("src set as a property before the upgrade becomes the attribute", () => {
+    class LateSrc extends DynjandiFocalPicker {}
+    const tag = "dynjandi-focal-picker-late-src";
+    const picker = document.createElement(tag) as DynjandiFocalPicker;
+    (picker as unknown as EarlyProperties).src = "/example.png";
+    document.body.append(picker);
+
+    customElements.define(tag, LateSrc);
+
+    expect(Object.hasOwn(picker, "src")).toBe(false);
+    expect(picker.getAttribute("src")).toBe("/example.png");
+    expect(picker.src).toBe("/example.png");
+  });
+
+  test("an early value the setter rejects is dropped with a warning, and the picker still upgrades and works", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    class LateBad extends DynjandiFocalPicker {}
+    const tag = "dynjandi-focal-picker-late-bad";
+    const picker = document.createElement(tag) as DynjandiFocalPicker;
+    const file = await pngFile(200, 100);
+    const own = picker as unknown as EarlyProperties;
+    own.value = undefined;
+    own.file = file;
+    document.body.append(picker);
+
+    customElements.define(tag, LateBad);
+
+    expect(picker).toBeInstanceOf(LateBad);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[0])).toContain("value");
+    expect(Object.hasOwn(picker, "value")).toBe(false);
+    expect(picker.value).toBeNull();
+    // The name after the rejected one is still taken over, so the image shows and the picker takes a point.
+    expect(Object.hasOwn(picker, "file")).toBe(false);
+    expect(picker.file).toBe(file);
+    await shown(picker);
+    picker.value = { x: 0.5, y: 0.25 };
+    expect(field("X").value).toBe("50");
+    expect(field("Y").value).toBe("25");
   });
 });

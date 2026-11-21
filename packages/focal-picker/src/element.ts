@@ -216,6 +216,32 @@ export class DynjandiFocalPicker extends HTMLElement {
       input.addEventListener("change", () => this.#commitEntry(axis));
       input.addEventListener("blur", () => this.#syncInputs());
     }
+
+    this.#upgradeProperties();
+  }
+
+  /**
+   * A host can set `value`, `file`, `src` or `ratios` on the tag before this module has loaded. Those are
+   * own data properties on the not-yet-upgraded element and shadow the accessors below, so each is
+   * removed and set again through its accessor. Runs last, once the shadow tree the setters render into exists.
+   * A value its setter rejects is dropped with a warning rather than thrown: a throw here would fail the
+   * upgrade itself and leave a picker that never connects, and the host that set it is not on the stack.
+   */
+  #upgradeProperties(): void {
+    for (const name of ["ratios", "value", "file", "src"] as const) {
+      if (!Object.hasOwn(this, name)) continue;
+      const early: unknown = Reflect.get(this, name);
+      Reflect.deleteProperty(this, name);
+      try {
+        Reflect.set(this, name, early);
+      } catch (error) {
+        // biome-ignore lint/suspicious/noConsole: a rejected early property is reported to the developer, once.
+        console.warn(
+          `dynjandi-focal-picker: ignored ${name} set before the element upgraded`,
+          error,
+        );
+      }
+    }
   }
 
   /** The chosen point, or `null` for none. A copy: changing it does not change the picker. */
