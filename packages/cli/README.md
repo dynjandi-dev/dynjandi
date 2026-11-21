@@ -559,8 +559,9 @@ and `${VAR:?message}` stops with the message when the variable is unset. So runn
   4600` so the port is fixed. Use this when compose is not run under `dev`.
 - On Linux Engine, a container does not have the name `host.docker.internal` unless you add it:
   `extra_hosts: ["host.docker.internal:host-gateway"]`. The recipe above does not need it, because on Linux
-  `DYNJANDI_CONTAINER_ORIGIN` is the bridge gateway's address. On Docker Desktop for Mac the same line is
-  harmless (see *Where it was run*), so one compose file can serve both systems.
+  `DYNJANDI_CONTAINER_ORIGIN` is the bridge gateway's address. On Docker Desktop for Mac the same line did
+  not break the clients tried, but it is not free: it adds an IPv6 address to the name (see *Where it was run*),
+  so one compose file can serve both systems only if your clients cope with that.
 - `network_mode: host` on the service lets one origin, `http://127.0.0.1:<port>`, serve both halves, and
   `apiOrigin` is not needed. Compose refuses `network_mode: host` together with `ports` or `networks`, and Docker
   Desktop needs version 4.34 or newer, a sign-in and a setting for it (Docker, *Host network driver*).
@@ -582,10 +583,14 @@ server, and `src` is on `origin`, which from inside the container is the contain
 `apiOrigin` is only used by `upload` and `getFile`.
 
 **Where it was run.** The recipe above and the end-to-end test (`test:e2e`, `tests/e2e/containers.e2e.test.ts`)
-were run on macOS with Docker Desktop (engine 29.9.2, Compose v5.6.1). On that system `extra_hosts:
-["host.docker.internal:host-gateway"]` changed nothing a container could notice: `host.docker.internal` stayed
-reachable, and `/etc/hosts` in the container listed the name once with Desktop's IPv4 address and once with an
-IPv6 one. No other system was run: Linux Engine,
+were run on macOS with Docker Desktop (engine 29.9.2, Compose v5.6.1). On that system, in the pinned
+`node:24.22.3-alpine` image, `host.docker.internal` resolved without `extra_hosts` to Desktop's IPv4 address
+(`192.168.65.254`). With `extra_hosts: ["host.docker.internal:host-gateway"]`, `/etc/hosts` in the container
+gained an IPv6 address (`fdc4:f303:9324::254`) beside it, and `getent hosts host.docker.internal` printed only
+the IPv6 one. That address is not reachable from the default bridge. Node `fetch`, `http.get` with family 4
+and busybox `wget` still reached `dev`; `http.get` with family 6 failed with `ENETUNREACH`. A client that takes
+only the first address the name gives could therefore fail, so leave the line out of a compose file used on
+Docker Desktop unless you need it. No other system was run: Linux Engine,
 Docker Desktop on Windows, OrbStack, Colima, Rancher Desktop, Podman, rootless Docker and a remote `DOCKER_HOST`
 are untried, and on those `host.docker.internal` may not resolve in the container.
 
