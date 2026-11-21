@@ -259,7 +259,7 @@ async function obtainCredential(
   if (key === undefined) {
     throw new SetupFailure(
       "auth",
-      "DYNJANDI_API_KEY is not usable: it must be a workspace API key from the API keys page of the dashboard, with no spaces or control characters",
+      "DYNJANDI_API_KEY is not usable: it must be a workspace API key from the API keys page of the dashboard, using only printable ASCII characters, with no spaces",
     );
   }
   return { credential: key, approved: false };

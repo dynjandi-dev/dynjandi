@@ -475,6 +475,14 @@ describe("runSetup: credentials (D3, D13)", () => {
     expect(h.stub.requests).toHaveLength(0);
   });
 
+  it("exits 3 for a key with a character above U+00FF, which could not go into a header (#58)", async () => {
+    const h = setup({ DYNJANDI_API_KEY: "dyn_€" });
+    expect(await h.run()).toBe(3);
+    expect(h.err.join("")).toContain("DYNJANDI_API_KEY is not usable");
+    expect(h.err.join("")).not.toContain("could not reach");
+    expect(h.stub.requests).toHaveLength(0);
+  });
+
   it("exits 3 when the API answers 401, and says a workspace API key is needed", async () => {
     await initRepository();
     await named("my-app");
