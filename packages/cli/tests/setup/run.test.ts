@@ -156,15 +156,15 @@ describe("runSetup: the sequence (D10)", () => {
       expect(request.headers.get("Authorization")).toBe(`Bearer ${API_KEY}`);
     }
     expect(await read(".env.local")).toBe(ENV_FILE);
-    expect(await read(".gitignore")).toBe("/.env.local\n");
+    expect(await read(".gitignore")).toBe("/.env.local\n/.env.local.*.tmp\n");
     expect(h.out.join("")).toBe(
       `Created the project my-app (${PROJECT_ID}) and wrote DYNJANDI_PROJECT_KEY and DYNJANDI_PROJECT_ID to .env.local.\n`,
     );
-    expect(h.err.join("")).toContain("Added /.env.local to .gitignore");
+    expect(h.err.join("")).toContain("Added /.env.local and /.env.local.*.tmp to .gitignore");
     expect(h.out.join("") + h.err.join("")).not.toContain(PROJECT_KEY);
   });
 
-  it("leaves a .gitignore alone when it already covers the file", async () => {
+  it("adds only the temporary file's entry when .gitignore already covers the file", async () => {
     await initRepository();
     await named("my-app");
     await writeFile(join(dir, ".gitignore"), "*.local\n");
@@ -174,12 +174,12 @@ describe("runSetup: the sequence (D10)", () => {
 
     expect(await h.run("--json")).toBe(0);
 
-    expect(await read(".gitignore")).toBe("*.local\n");
+    expect(await read(".gitignore")).toBe("*.local\n/.env.local.*.tmp\n");
     expect(JSON.parse(h.out.join(""))).toEqual({
       dryRun: false,
       project: { id: PROJECT_ID, name: "my-app", action: "create" },
       envFile: { path: ".env.local", action: "write" },
-      gitignore: "none",
+      gitignore: "add",
     });
   });
 
@@ -218,7 +218,7 @@ describe("runSetup: the sequence (D10)", () => {
     expect(await h.run("--file", join("config", "app.env"))).toBe(0);
 
     expect(await read(join("config", "app.env"))).toBe(ENV_FILE);
-    expect(await read(join("config", ".gitignore"))).toBe("/app.env\n");
+    expect(await read(join("config", ".gitignore"))).toBe("/app.env\n/app.env.*.tmp\n");
   });
 
   it("on a re-run uses the project the env file names, and writes nothing", async () => {
@@ -511,8 +511,8 @@ describe("runSetup: credentials (D3, D13)", () => {
     expect(h.err.join("")).toContain("PROJECT_LIMIT_REACHED");
     expect(await exists(".env.local")).toBe(false);
     // Step 6 ran before the create was refused: the entry it wrote is reported, not left silent.
-    expect(await read(".gitignore")).toBe("/.env.local\n");
-    expect(h.err.join("")).toContain("Added /.env.local to .gitignore.");
+    expect(await read(".gitignore")).toBe("/.env.local\n/.env.local.*.tmp\n");
+    expect(h.err.join("")).toContain("Added /.env.local and /.env.local.*.tmp to .gitignore.");
   });
 
   it("reports the .gitignore entry when Git still does not ignore the file after it", async () => {
@@ -530,9 +530,9 @@ describe("runSetup: credentials (D3, D13)", () => {
 
     expect(await h.run()).toBe(1);
 
-    expect(await read(".gitignore")).toBe("/.env.local\n");
+    expect(await read(".gitignore")).toBe("/.env.local\n/.env.local.*.tmp\n");
     expect(h.err.join("")).toMatch(
-      /^Added \/\.env\.local to \.gitignore\.\ndynjandi setup: Git still does not ignore \.env\.local/,
+      /^Added \/\.env\.local and \/\.env\.local\.\*\.tmp to \.gitignore\.\ndynjandi setup: Git still does not ignore \.env\.local/,
     );
     expect(requestsOf(h)).not.toContain("POST /api/projects");
   });
@@ -647,9 +647,9 @@ describe("runSetup: a lost POST response (D5)", () => {
     expect(lost.err.join("")).toMatch(/may exist.*same command again/);
     expect(await exists(".env.local")).toBe(false);
     // D10 step 6 before step 7: the entry exists although the POST never answered, and the run says so, first.
-    expect(await read(".gitignore")).toBe("/.env.local\n");
+    expect(await read(".gitignore")).toBe("/.env.local\n/.env.local.*.tmp\n");
     expect(lost.err.join("")).toMatch(
-      /^Added \/\.env\.local to \.gitignore\.\ndynjandi setup: .*may exist/,
+      /^Added \/\.env\.local and \/\.env\.local\.\*\.tmp to \.gitignore\.\ndynjandi setup: .*may exist/,
     );
     expect(lost.stub.requests.filter((r) => r.method === "POST")).toHaveLength(1);
 

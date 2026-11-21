@@ -174,8 +174,11 @@ Inside a Git repository, before anything is created:
 
 - a file Git **tracks** is refused, and the message gives `git rm --cached <file>`;
 - a file Git does not ignore gets the entry `/<file name>` in the `.gitignore` beside it (created if needed,
-  keeping its line endings), and Git is asked again; if a rule still keeps it from being ignored, `setup`
-  refuses and names the rule;
+  keeping its line endings);
+- the temporary file the key sits in until the rename gets the entry `/<file name>.*.tmp` there whenever nothing
+  ignores it already, even when the env file itself is ignored;
+- Git is then asked again about both, and if a rule still keeps either from being ignored, `setup` refuses and
+  names the rule;
 - outside a repository there is nothing to commit the file to, so it is written, and `setup` says once that a
   repository created later must ignore it.
 

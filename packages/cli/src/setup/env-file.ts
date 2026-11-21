@@ -11,6 +11,14 @@ const RETRYABLE_RENAME_CODES = new Set(["EPERM", "EBUSY", "EACCES"]);
 const RENAME_RETRIES = 5;
 const RENAME_RETRY_DELAY_MS = 100;
 
+/**
+ * D7: the name of the temporary file `writeEnvFile` creates beside `name`. It holds the key until the rename, so
+ * `planGit` asks Git about this exact shape and adds an entry for it (`temporaryEntry`) when nothing ignores it.
+ */
+export function temporaryName(name: string, token: string): string {
+  return `${name}.${token}.tmp`;
+}
+
 export interface EnvChange {
   key: string;
   id: string;
@@ -175,7 +183,10 @@ export async function writeEnvFile(
     throw new Error(`${path} is a symbolic link; pass the file it points to with --file`);
   }
 
-  const temporary = join(dirname(path), `.${basename(path)}.${randomBytes(6).toString("hex")}.tmp`);
+  const temporary = join(
+    dirname(path),
+    temporaryName(basename(path), randomBytes(6).toString("hex")),
+  );
   const handle = await open(temporary, "wx", 0o600);
   try {
     await handle.writeFile(content, "utf8");
