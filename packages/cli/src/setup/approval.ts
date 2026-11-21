@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { SetupFailure } from "../errors.js";
-import { approvalUrl, type DeviceClient, type DevicePoll } from "./api.js";
+import { approvalUrl, type DeviceClient, type DevicePoll, USER_CODE_PATTERN } from "./api.js";
 import { Secret } from "./secret.js";
 
 // D18. Browser approval: show the link, open it, then either wait for the person (a terminal) or hand the link back
@@ -72,11 +72,17 @@ function parseStored(text: string): StoredApproval | undefined {
   if (typeof value !== "object" || value === null) return undefined;
   const { deviceCode, url, code, expiresAt, intervalSeconds } = value as Record<string, unknown>;
   if (typeof deviceCode !== "string" || deviceCode === "") return undefined;
-  if (typeof url !== "string" || approvalUrl(url) === undefined) return undefined;
-  if (typeof code !== "string" || typeof expiresAt !== "string") return undefined;
-  if (Number.isNaN(Date.parse(expiresAt))) return undefined;
+  // What is read back reaches the terminal, so it is held to what a fresh approval is held to: the normalised link
+  // (never the raw string), a code of the user-code shape, and the expiry exactly as `approve` writes it (an ISO time;
+  // `Date.parse` alone accepts free text in brackets). Anything else is not ours: a new approval starts.
+  const link = typeof url === "string" ? approvalUrl(url) : undefined;
+  if (link === undefined) return undefined;
+  if (typeof code !== "string" || !USER_CODE_PATTERN.test(code)) return undefined;
+  if (typeof expiresAt !== "string") return undefined;
+  const expiry = Date.parse(expiresAt);
+  if (Number.isNaN(expiry) || new Date(expiry).toISOString() !== expiresAt) return undefined;
   if (typeof intervalSeconds !== "number" || !(intervalSeconds > 0)) return undefined;
-  return { deviceCode, url, code, expiresAt, intervalSeconds };
+  return { deviceCode, url: link, code, expiresAt, intervalSeconds };
 }
 
 async function readStored(cwd: string): Promise<StoredApproval | undefined> {
