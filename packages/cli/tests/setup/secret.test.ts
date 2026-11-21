@@ -5,8 +5,8 @@ import { parseApiKey, redact, Secret } from "../../src/setup/secret.js";
 // Expected values come from the plan, not from the code under test:
 // - D12: a `Secret` prints `[redacted]` through `toString`, `toJSON` and `util.inspect`, and `redact()` replaces
 //   every credential in a string with the same marker;
-// - D3: a key is non-empty and free of whitespace and control characters (it goes into a header); the `dyn_`
-//   prefix is not enforced.
+// - D3: a key is non-empty printable ASCII, so no whitespace, control or non-ASCII characters (it
+//   goes into a header); the `dyn_` prefix is not enforced.
 // The canary values below are invented for these tests and belong to nothing.
 const CANARY = "dyn_canary_8f3a91c2d7e54b60";
 const OTHER = "dyn_cli_canary_0b7e22aa91";
@@ -66,6 +66,10 @@ describe("parseApiKey", () => {
     ["a tab", "dyn_\tabc"],
     ["a NUL", "dyn_\u0000abc"],
     ["a DEL", "dyn_\u007fabc"],
+    ["a C1 control", "dyn_\u0085abc"],
+    ["a Latin-1 letter", "dyn_é"],
+    ["a character above U+00FF", "dyn_€"],
+    ["an astral character", "dyn_\u{1F511}"],
   ])("rejects a key with %s", (_name, value) => {
     expect(parseApiKey(value)).toBeUndefined();
   });

@@ -44,17 +44,16 @@ export function redact(text: string): string {
   return result;
 }
 
-// Whitespace and control characters (C0, DEL, C1): the key goes into a header (D3).
+// Anything but printable ASCII (U+0021 to U+007E): the key goes into a header (D3), and a
+// character above U+00FF makes `Headers` and `fetch` throw. Whitespace and controls are out too.
 function isUnsafeInHeader(raw: string): boolean {
-  return (
-    /\s/u.test(raw) ||
-    Array.from(raw).some((char) => char <= "\u001f" || (char >= "\u007f" && char <= "\u009f"))
-  );
+  return !/^[\u0021-\u007e]+$/u.test(raw);
 }
 
 /**
- * The API key from `DYNJANDI_API_KEY` (D3): non-empty and free of whitespace and control characters. The `dyn_`
- * prefix is not checked, because the document only calls it a `bearerFormat` hint. `undefined` when unusable.
+ * The API key from `DYNJANDI_API_KEY` (D3): non-empty printable ASCII, so no whitespace or control
+ * characters. The `dyn_` prefix is not checked, because the document only calls it a `bearerFormat`
+ * hint. `undefined` when unusable.
  */
 export function parseApiKey(raw: string | undefined): Secret | undefined {
   if (raw === undefined || raw === "" || isUnsafeInHeader(raw)) return undefined;
