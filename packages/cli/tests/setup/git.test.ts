@@ -13,6 +13,7 @@ import { createEmptyGitConfig, removeEmptyGitConfig } from "../support/git-confi
 //   so does `/<file name>.*.tmp` for the temporary file that holds the key until the rename; git is asked again;
 // - outside a work tree: nothing to commit to, so write it;
 // - a symbolic link: refuse.
+// - a file name in an entry is escaped the way gitignore(5) reads a backslash, so `a*b.env` names that file only.
 let root: string;
 let gitConfig: string;
 
@@ -140,6 +141,53 @@ describe("planGit and applyGit (D7)", () => {
       "/.env.local\n/.env.local.*.tmp\n",
     );
     expect(await isIgnored(join("app", ".env.local"))).toBe(true);
+  });
+
+  it("asks git from the nearest existing directory when the env file's directory is missing", async () => {
+    initRepository();
+    // Spawning git in a directory that does not exist fails with ENOENT, which reads as no-repo: a key would be
+    // written inside a repository with no ignore entry.
+    const path = join(root, "new", "deep", ".env");
+    const plan = await planGit(path, root);
+    expect(plan).toEqual({
+      kind: "add",
+      gitignorePath: join(root, "new", "deep", ".gitignore"),
+      entries: ["/.env", "/.env.*.tmp"],
+    });
+    expect(await applyGit(plan, path, root)).toEqual({ kind: "ok" });
+    expect(await isIgnored(join("new", "deep", ".env"))).toBe(true);
+  });
+
+  it("asks git from the nearest existing directory, not cwd, when cwd is outside the repository", async () => {
+    initRepository();
+    const outside = await mkdtemp(join(tmpdir(), "dynjandi-git-outside-"));
+    try {
+      const path = join(root, "new", "deep", ".env");
+      const plan = await planGit(path, outside);
+      expect(plan).toEqual({
+        kind: "add",
+        gitignorePath: join(root, "new", "deep", ".gitignore"),
+        entries: ["/.env", "/.env.*.tmp"],
+      });
+      expect(await applyGit(plan, path, outside)).toEqual({ kind: "ok" });
+      expect(await isIgnored(join("new", "deep", ".env"))).toBe(true);
+    } finally {
+      await rm(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("escapes glob characters in the entry, so only the named file is ignored", async () => {
+    initRepository();
+    const path = join(root, "a*b.env");
+    const plan = await planGit(path, root);
+    expect(plan).toEqual({
+      kind: "add",
+      gitignorePath: join(root, ".gitignore"),
+      entries: ["/a\\*b.env", "/a\\*b.env.*.tmp"],
+    });
+    expect(await applyGit(plan, path, root)).toEqual({ kind: "ok" });
+    expect(await isIgnored("a*b.env")).toBe(true);
+    expect(await isIgnored("aXb.env")).toBe(false);
   });
 
   it("adds an entry for the temporary file when only the env file is ignored", async () => {
