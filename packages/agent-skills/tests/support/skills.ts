@@ -149,14 +149,19 @@ export interface Command {
 // `text` and the like are output, not commands, and stay unchecked.
 const SHELL_LANGUAGES = new Set(["sh", "bash", "shell", "zsh", "console", ""]);
 
+const PROMPT = /^\s*\$\s/;
+
 /**
  * The `dev` and `setup` lines of the fenced shell blocks (`sh`, `bash`, `shell`, `zsh`, `console`, untagged),
- * with a leading `$ ` prompt, their prefix and a trailing comment stripped.
+ * with a leading `$ ` prompt, their prefix and a trailing comment stripped. A `console` block is a transcript,
+ * so only its `$ ` lines are commands; the rest is output.
  */
 export function commandsIn(markdown: string): Command[] {
   return fencedBlocks(markdown)
     .filter((block) => SHELL_LANGUAGES.has(block.language))
-    .flatMap((block) => block.body.split("\n"))
+    .flatMap((block) =>
+      block.body.split("\n").filter((line) => block.language !== "console" || PROMPT.test(line)),
+    )
     .map((line) =>
       line
         .replace(/\s+#.*$/, "")

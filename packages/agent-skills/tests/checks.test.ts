@@ -112,7 +112,7 @@ describe("commands (the CLI's own parsers)", () => {
     ]);
   });
 
-  test.each(["bash", "shell", "zsh", "console", ""])(
+  test.each(["bash", "shell", "zsh", ""])(
     "checks a command in a `%s` fence, with or without a `$ ` prompt",
     (language) => {
       const fence = (text: string) => `\`\`\`${language}\n${text}\n\`\`\`\n`;
@@ -128,6 +128,17 @@ describe("commands (the CLI's own parsers)", () => {
       expect(commandProblems(`\`\`\`${info}\ndynjandi dev --bogus\n\`\`\`\n`)).toHaveLength(1);
     },
   );
+
+  test("reads only the `$ ` lines of a `console` block, the rest being output", () => {
+    const transcript = "```console\n$ dynjandi dev --port 0\ndynjandi dev --bogus\n```\n";
+    expect(commandsIn(transcript).map((command) => command.line)).toEqual([
+      "dynjandi dev --port 0",
+    ]);
+    const fence = (text: string) => `\`\`\`console\n${text}\n\`\`\`\n`;
+    expect(commandProblems(fence("$ dynjandi dev --bogus"))).toHaveLength(1);
+    expect(commandProblems(fence("$ npx @dynjandi/cli setup --api-key dyn_x"))).toHaveLength(1);
+    expect(commandProblems(fence("$ dynjandi dev -- pnpm test"))).toEqual([]);
+  });
 
   test("accepts lines the CLI README shows", () => {
     const markdown = block(

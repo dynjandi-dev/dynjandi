@@ -194,8 +194,9 @@ A skill repeats facts from the [SDK](../sdk/README.md) and [CLI](../cli/README.m
   1,024 characters, only the keys `name`, `description`, `license`, `compatibility` and `metadata`, and a
   `SKILL.md` under 500 lines.
 - **Commands.** Every `dynjandi dev` and `dynjandi setup` line in a fenced shell block (`sh`, `bash`,
-  `shell`, `zsh`, `console` or no language, a leading `$ ` allowed) parses through the CLI's own option
-  parsers (`parseDevOptions`, `parseSetupOptions`), so a flag the CLI would refuse fails.
+  `shell`, `zsh`, `console` or no language, a leading `$ ` allowed; in `console`, only the `$ ` lines)
+  parses through the CLI's own option parsers (`parseDevOptions`, `parseSetupOptions`), so a flag the CLI
+  would refuse fails.
 - **Snippets.** Every `ts` or `js` block in a skill is a file in `tests/snippets/`, shown character for
   character; a `tsx` or `jsx` block is refused, as the package compiles no JSX. `pnpm typecheck` compiles
   those files against the SDK's source, so a snippet the SDK's types no longer accept fails.
