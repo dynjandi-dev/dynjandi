@@ -82,7 +82,8 @@ Created the project my-app (3f2a9c) and wrote DYNJANDI_PROJECT_KEY and DYNJANDI_
 `npx @dynjandi/cli` fetches the published package, so nothing needs installing first.
 
 Run it again and it changes nothing: it reads `DYNJANDI_PROJECT_ID` from the env file, finds the same project,
-and says so. An agent should pass `--json`, which prints the result as one JSON object, and `--dry-run` first
+and says so. The one exception is a `.gitignore` that covers the env file but not its temporary file (one an earlier
+version wrote, say): the first re-run adds the temporary file's entry, described under *Which file, and Git*. An agent should pass `--json`, which prints the result as one JSON object, and `--dry-run` first
 if it wants to see what would happen:
 
 ```sh
@@ -174,8 +175,11 @@ Inside a Git repository, before anything is created:
 
 - a file Git **tracks** is refused, and the message gives `git rm --cached <file>`;
 - a file Git does not ignore gets the entry `/<file name>` in the `.gitignore` beside it (created if needed,
-  keeping its line endings), and Git is asked again; if a rule still keeps it from being ignored, `setup`
-  refuses and names the rule;
+  keeping its line endings);
+- the temporary file the key sits in until the rename gets the entry `/<file name>.*.tmp` there whenever nothing
+  ignores it already, even when the env file itself is ignored;
+- Git is then asked again about both, and if a rule still keeps either from being ignored, `setup` refuses and
+  names the rule;
 - outside a repository there is nothing to commit the file to, so it is written, and `setup` says once that a
   repository created later must ignore it.
 
