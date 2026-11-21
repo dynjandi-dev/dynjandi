@@ -583,13 +583,16 @@ server, and `src` is on `origin`, which from inside the container is the contain
 `apiOrigin` is only used by `upload` and `getFile`.
 
 **Where it was run.** The recipe above and the end-to-end test (`test:e2e`, `tests/e2e/containers.e2e.test.ts`)
-were run on macOS with Docker Desktop (engine 29.9.2, Compose v5.6.1). On that system, in the pinned
-`node:24.22.3-alpine` image, `host.docker.internal` resolved without `extra_hosts` to Desktop's IPv4 address
-(`192.168.65.254`). With `extra_hosts: ["host.docker.internal:host-gateway"]`, `/etc/hosts` in the container
-gained an IPv6 address (`fdc4:f303:9324::254`) beside it, and `getent hosts host.docker.internal` printed only
-the IPv6 one. That address is not reachable from the default bridge. Node `fetch`, `http.get` with family 4
-and busybox `wget` still reached `dev`; `http.get` with family 6 failed with `ENETUNREACH`. A client that takes
-only the first address the name gives could therefore fail, so leave the line out of a compose file used on
+were run on macOS with Docker Desktop (engine 29.9.2, Compose v5.6.1). The `host-gateway` entry was
+checked separately, with `docker run` on the default bridge and the pinned `node:24.22.3-alpine` image. Without
+it, `host.docker.internal` resolved to Desktop's IPv4 address (`192.168.65.254`). With `--add-host
+host.docker.internal:host-gateway` (the same entry `extra_hosts` writes), `/etc/hosts` gained an IPv6 address
+(`fdc4:f303:9324::254`) beside it, and `getent hosts host.docker.internal` printed only the IPv6 one, which the
+default bridge cannot reach. Node `fetch`, `http.get` with family 4 and busybox `wget` still reached `dev`;
+`http.get` with family 6 failed with `ENETUNREACH`. An earlier `extra_hosts` run left the name reachable, with
+`/etc/hosts` listing the name once with Desktop's IPv4 address and once with an IPv6 one; which one `getent`
+returns on a compose network, and whether the IPv6 one is reachable there, was not checked. From this, a client
+that takes only the first address the name gives could fail, so leave the line out of a compose file used on
 Docker Desktop unless you need it. No other system was run: Linux Engine,
 Docker Desktop on Windows, OrbStack, Colima, Rancher Desktop, Podman, rootless Docker and a remote `DOCKER_HOST`
 are untried, and on those `host.docker.internal` may not resolve in the container.
