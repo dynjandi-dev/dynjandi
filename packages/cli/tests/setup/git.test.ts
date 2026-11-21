@@ -63,6 +63,32 @@ function initRepository(): void {
 }
 
 describe("planGit and applyGit (D7)", () => {
+  it("reads a relative path against cwd, not the process's directory", async () => {
+    initRepository();
+    // The process's own directory is a different repository, or none; either way it is not `root`, the one asked about.
+    const plan = await planGit(".env.local", root);
+    expect(plan).toEqual({
+      kind: "add",
+      gitignorePath: join(root, ".gitignore"),
+      entries: ["/.env.local", "/.env.local.*.tmp"],
+    });
+    expect(await applyGit(plan, ".env.local", root)).toEqual({ kind: "ok" });
+    expect(await isIgnored(".env.local")).toBe(true);
+  });
+
+  it("checks a relative path again in cwd's repository, so an entry that misses the temporary file is refused", async () => {
+    initRepository();
+    // D7: the temporary file must be ignored too, and nothing in `root` ignores it once only `/.env.local` is written.
+    // The process's own repository may ignore it, which is why asking there instead would answer `ok`.
+    const result = await applyGit(
+      { kind: "add", gitignorePath: join(root, ".gitignore"), entries: ["/.env.local"] },
+      ".env.local",
+      root,
+    );
+    expect(result.kind).toBe("refuse");
+    if (result.kind === "refuse") expect(result.reason).toContain("the temporary file");
+  });
+
   it("plans nothing for a file that is already ignored", async () => {
     initRepository();
     await writeFile(join(root, ".gitignore"), ".env.local*\n");

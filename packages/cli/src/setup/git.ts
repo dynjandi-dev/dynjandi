@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
-import { basename, dirname, join, relative } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { temporaryName } from "./env-file.js";
 
 export interface GitResult {
@@ -42,14 +42,16 @@ const spawnGit: GitRunner = (args, cwd) =>
   });
 
 /**
- * D7, read only: what Git needs before the env file may be written. `path` is the env file's path
- * (absolute, or relative to `cwd`).
+ * D7, read only: what Git needs before the env file may be written. `envPath` is the env file's path,
+ * absolute or relative to `cwd`; a relative one is resolved against `cwd`, never the process's directory.
  */
 export async function planGit(
-  path: string,
+  envPath: string,
   cwd: string,
   settings: GitSettings = {},
 ): Promise<GitPlan> {
+  // A relative path means relative to `cwd`, not to the process's directory.
+  const path = resolve(cwd, envPath);
   const run = settings.run ?? spawnGit;
   const directory = dirname(path);
   const name = basename(path);
@@ -106,12 +108,13 @@ function temporaryEntry(name: string): string {
  */
 export async function applyGit(
   plan: GitPlan,
-  path: string,
+  envPath: string,
   cwd: string,
   settings: GitSettings = {},
 ): Promise<GitApplied> {
   if (plan.kind === "refuse") return plan;
   if (plan.kind !== "add") return { kind: "ok" };
+  const path = resolve(cwd, envPath);
   const run = settings.run ?? spawnGit;
   const directory = dirname(path);
 
