@@ -26,6 +26,11 @@ const NODE_IMAGE =
 const START_TIMEOUT_MS = 180_000;
 const STOP_TIMEOUT_MS = 60_000;
 const TEST_TIMEOUT_MS = 120_000;
+// Shorter than the test's own timeout, so execFile's SIGTERM (and Docker's error output) comes before Vitest gives up.
+const APP_TIMEOUT_MS = TEST_TIMEOUT_MS - 15_000;
+// The app container's name, so `afterAll` can remove it. `--init` makes PID 1 forward SIGTERM to `node`; without
+// it the timeout's SIGTERM (sig-proxied by the docker client) is ignored and the container outlives the test.
+const APP_CONTAINER = `dynjandi-e2e-app-${process.pid}`;
 
 interface Ready {
   origin: string;
@@ -83,6 +88,9 @@ beforeAll(async () => {
 }, START_TIMEOUT_MS);
 
 afterAll(async () => {
+  // A timeout kills the docker client, not necessarily the container; remove it by name (absent is fine). First,
+  // so it does not wait on `dev` exiting, which a container still holding a connection could hold up.
+  await execFileAsync("docker", ["rm", "-f", APP_CONTAINER]).catch(() => undefined);
   if (child.exitCode === null && child.signalCode === null) child.kill("SIGTERM");
   await exit;
   await rm(dataDir, { recursive: true, force: true });
@@ -106,6 +114,9 @@ describe("an app in a container against dynjandi dev --containers", () => {
         [
           "run",
           "--rm",
+          "--init",
+          "--name",
+          APP_CONTAINER,
           "--read-only",
           "-v",
           `${REPO}:${REPO}:ro`,
@@ -123,7 +134,7 @@ describe("an app in a container against dynjandi dev --containers", () => {
           "node",
           APP,
         ],
-        { timeout: TEST_TIMEOUT_MS },
+        { timeout: APP_TIMEOUT_MS },
       );
       const seen = JSON.parse(stdout) as {
         service: string;
