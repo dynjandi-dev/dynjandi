@@ -17,7 +17,10 @@ const STEP = 0.001;
 const CENTRE = 0.5;
 
 function clampCoordinate(value: number): number {
-  if (Number.isNaN(value)) return CENTRE;
+  // The type says number, but plain JavaScript can pass anything. Only a number is a coordinate: a string,
+  // null or undefined is not coerced (Number(null) is 0, which would silently pick an edge) but falls back
+  // to the centre, as NaN does. Infinities are numbers and clamp to the nearest edge below.
+  if (typeof value !== "number" || Number.isNaN(value)) return CENTRE;
   // Math.max(0, -0) is +0, so a negative zero never escapes.
   return Math.min(1, Math.max(0, value));
 }
@@ -27,8 +30,9 @@ function roundCoordinate(value: number): number {
 }
 
 /**
- * Pulls each coordinate into 0 to 1. Infinities become the nearest edge and NaN becomes the centre, so the
- * result is always a point `upload` accepts. Does not round.
+ * Pulls each coordinate into 0 to 1. Infinities become the nearest edge, and NaN or anything that is not a
+ * number (from an untyped caller) becomes the centre, so the result is always a point `upload` accepts.
+ * Does not round.
  */
 export function clampPoint(point: FocalPoint): FocalPoint {
   return { x: clampCoordinate(point.x), y: clampCoordinate(point.y) };
