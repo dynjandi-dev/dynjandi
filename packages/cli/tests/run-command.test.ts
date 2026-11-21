@@ -52,7 +52,8 @@ async function waitForFile(path: string): Promise<string> {
   await waitFor(() => {
     try {
       text = readFileSync(path, "utf8");
-      return true;
+      // writeFileSync creates the file before it writes to it, so an empty read is not yet the marker.
+      return text !== "";
     } catch {
       return false;
     }
