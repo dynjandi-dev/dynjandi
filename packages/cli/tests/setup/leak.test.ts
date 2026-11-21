@@ -127,6 +127,11 @@ const scenarios: Array<{
   /** No `DYNJANDI_API_KEY`: the credential is the browser approval. */
   approval?: true;
   /**
+   * The environment the sweep's harness is built with, for a scenario whose credential is not the plain canary.
+   * The sweep's request checks read that harness, so a scenario must run against it and never build its own.
+   */
+  env?: Record<string, string | undefined>;
+  /**
    * `runSetup` is a fresh module graph's; `fresh()` hands out another, for a second run that stands in for a
    * second process and so must not inherit the first one's registry.
    */
@@ -216,10 +221,8 @@ const scenarios: Array<{
   {
     name: "a key with whitespace",
     exit: 3,
-    run: async (_h, runSetup) => {
-      const h = harness({ DYNJANDI_API_KEY: `${API_KEY} extra` });
-      return runSetup([], io, h.settings);
-    },
+    env: { DYNJANDI_API_KEY: `${API_KEY} extra` },
+    run: async (h, runSetup) => runSetup([], io, h.settings),
   },
   {
     name: "a 409 NAME_TAKEN and a project read back",
@@ -397,7 +400,7 @@ async function filesUnder(root: string): Promise<string[]> {
 }
 
 describe("the leak sweep", () => {
-  it.each(scenarios)("$name", async ({ exit, run, approval }) => {
+  it.each(scenarios)("$name", async ({ exit, run, approval, env }) => {
     // `redact()` keeps a module-level registry of every secret the process has held, so a scenario that shares
     // it would be scrubbed by what an earlier one registered, and a path that stopped wrapping a credential in a
     // `Secret` could still pass. A fresh module graph per scenario starts each one with an empty registry.
@@ -410,7 +413,7 @@ describe("the leak sweep", () => {
       }
       return (await import("../../src/setup/run.js")).runSetup;
     };
-    const h = harness(approval === true ? {} : { DYNJANDI_API_KEY: API_KEY });
+    const h = harness(env ?? (approval === true ? {} : { DYNJANDI_API_KEY: API_KEY }));
     const code = await run(h, await fresh(), fresh);
     expect(code).toBe(exit);
 
