@@ -5,7 +5,7 @@ import { render } from "vitest-browser-react";
 import type { DynjandiFocalPicker } from "../../src/element.js";
 import type { FocalPoint } from "../../src/point.js";
 import { FocalPicker } from "../../src/react.js";
-import { part, pngFile, shown } from "./support.js";
+import { hasPart, part, pngFile, shown } from "./support.js";
 
 // The wrapper is rendered with React in Chromium, and clicks and drags go through Playwright's mouse, as in
 // element.browser.test.ts. Every expected point is arithmetic on the displayed image's measured rectangle (a
@@ -154,7 +154,7 @@ describe("FocalPicker", () => {
     );
 
     expect(picker.hasAttribute("src")).toBe(false);
-    expect(part(picker, "error").textContent).toBe("");
+    expect(hasPart(picker, "error")).toBe(false);
     URL.revokeObjectURL(url);
   });
 

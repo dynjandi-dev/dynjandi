@@ -46,7 +46,9 @@ comes back.
 
 The image is the `file` property (a `File` or `Blob`, shown through an object URL the element revokes when
 the file changes or the element is removed) or the `src` attribute or property (a URL). `file` wins when
-both are set. An image that cannot be read shows an error message instead of the surface. The `error` part is a `role="alert"` live region that is always in the page and empty until the image fails, so the message is announced when it appears.
+both are set. An image that cannot be read shows an error message instead of the surface. The message, the
+`error` part, is inserted into an always-present, empty `role="alert"` region when the image fails, so it
+is announced when it appears, and removed again when an image loads or the image is taken away.
 
 ### `value` and events
 
@@ -59,7 +61,8 @@ both are set. An image that cannot be read shows an error message instead of the
 - With no point yet, the first typed entry in one input takes the centre (0.5) for the other axis.
 
 Styling hooks: the parts `surface`, `image`, `marker`, `error`, `fields`, `previews`, `preview`,
-`preview-box`, `preview-image` and `preview-caption`.
+`preview-box`, `preview-image` and `preview-caption`. `error` exists only while the image cannot be loaded,
+so styling it never draws an empty box.
 
 ### Crop previews
 

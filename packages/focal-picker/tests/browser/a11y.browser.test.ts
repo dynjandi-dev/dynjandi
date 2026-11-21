@@ -2,7 +2,7 @@ import axe from "axe-core";
 import { afterEach, describe, expect, test } from "vitest";
 import { page } from "vitest/browser";
 import type { DynjandiFocalPicker } from "../../src/element.js";
-import { mount, part } from "./support.js";
+import { hasPart, mount, part } from "./support.js";
 
 // "No violations" is axe's own verdict, an external reference: nothing here derives an expectation from the
 // element. Every state is run against axe's WCAG 2.0/2.1/2.2 A and AA rule tags plus its best practices.
@@ -51,7 +51,7 @@ describe("axe-core finds no violations", () => {
   test("with an error: the image cannot be read", async () => {
     const picker = await mount({ width: 400 });
     picker.file = new Blob(["this is not an image"], { type: "image/png" });
-    await expect.poll(() => part(picker, "error").textContent).not.toBe("");
+    await expect.poll(() => hasPart(picker, "error")).toBe(true);
     expect(await violations(picker)).toEqual([]);
   });
 

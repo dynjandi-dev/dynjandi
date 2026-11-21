@@ -37,8 +37,7 @@ const STYLE = `
   .marker { outline: 2px solid Canvas; }
 }
 .error { margin: 0; padding: 0.75em 1em; border: 1px solid currentColor; }
-/* Never display:none or [hidden]: the live region must stay in the tree empty, so the text inserted on failure is announced. */
-.error:empty { padding: 0; border: 0; }
+/* The alert region around .error is never display:none or [hidden]: it stays in the tree, empty, so the error inserted into it is announced. */
 .fields { display: flex; flex-wrap: wrap; gap: 0.75em 1.5em; margin-top: 0.75em; }
 .field { display: flex; flex-direction: column; gap: 0.25em; }
 .field input { width: 8em; font: inherit; }
@@ -153,6 +152,7 @@ export class DynjandiFocalPicker extends HTMLElement {
   readonly #surface = document.createElement("div");
   readonly #image = document.createElement("img");
   readonly #marker = document.createElement("div");
+  readonly #alert = document.createElement("div");
   readonly #error = document.createElement("p");
   readonly #previewStrip = document.createElement("div");
   readonly #x = createField("Focal point X (%)");
@@ -176,10 +176,13 @@ export class DynjandiFocalPicker extends HTMLElement {
     this.#marker.hidden = true;
     this.#surface.append(this.#image, this.#marker);
 
+    // A live region announces what is inserted into it, not what it already held, so the region is always
+    // there and empty, and the error part goes into it only when the image fails. A host's ::part(error)
+    // styling then applies only while there is an error.
+    this.#alert.setAttribute("role", "alert");
     this.#error.className = "error";
     this.#error.setAttribute("part", "error");
-    this.#error.setAttribute("role", "alert");
-    // Empty until the image fails: a live region announces text inserted into it, not text it already held.
+    this.#error.textContent = IMAGE_ERROR;
 
     const fields = document.createElement("div");
     fields.className = "fields";
@@ -196,7 +199,7 @@ export class DynjandiFocalPicker extends HTMLElement {
     this.#buildPreviews();
 
     this.#surface.hidden = true;
-    root.append(this.#surface, this.#error, fields, this.#previewStrip);
+    root.append(this.#surface, this.#alert, fields, this.#previewStrip);
 
     this.#surface.addEventListener("pointerdown", (event) => this.#onPointerDown(event));
     this.#surface.addEventListener("pointermove", (event) => this.#onPointerMove(event));
@@ -338,7 +341,7 @@ export class DynjandiFocalPicker extends HTMLElement {
       this.#setSource(null);
       this.#surface.hidden = true;
       this.#previewStrip.hidden = true;
-      this.#error.textContent = "";
+      this.#alert.replaceChildren();
       return;
     }
     this.#setSource(source);
@@ -365,7 +368,8 @@ export class DynjandiFocalPicker extends HTMLElement {
     }
     this.#surface.hidden = !loaded;
     this.#previewStrip.hidden = this.#natural === null;
-    this.#error.textContent = loaded ? "" : IMAGE_ERROR;
+    if (loaded) this.#alert.replaceChildren();
+    else this.#alert.replaceChildren(this.#error);
     this.#renderPreviews();
   }
 
