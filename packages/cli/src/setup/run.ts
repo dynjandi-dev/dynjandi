@@ -92,7 +92,7 @@ export async function runSetup(
     if (error instanceof ApprovalPending) {
       // The link is the result (D18): on stdout, where an agent reads it.
       io.stdout(
-        `${redact(command.options.json ? JSON.stringify({ status: "approval-pending", approval: error.approval }) : printable(error.message))}\n`,
+        `${redact(command.options.json ? JSON.stringify({ status: "approval-pending", approval: error.approval }) : scrub(error.message))}\n`,
       );
     } else {
       const message = error instanceof Error ? error.message : String(error);
