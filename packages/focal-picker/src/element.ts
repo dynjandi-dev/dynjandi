@@ -3,6 +3,7 @@ import { type FocalPoint, roundPoint } from "./point.js";
 
 /** The tag name `./element` registers. */
 export const TAG_NAME = "dynjandi-focal-picker";
+const IMAGE_ERROR = "This image could not be loaded.";
 
 const STYLE = `
 :host { display: block; }
@@ -36,7 +37,8 @@ const STYLE = `
   .marker { outline: 2px solid Canvas; }
 }
 .error { margin: 0; padding: 0.75em 1em; border: 1px solid currentColor; }
-.error[hidden] { display: none; }
+/* Never display:none or [hidden]: the live region must stay in the tree empty, so the text inserted on failure is announced. */
+.error:empty { padding: 0; border: 0; }
 .fields { display: flex; flex-wrap: wrap; gap: 0.75em 1.5em; margin-top: 0.75em; }
 .field { display: flex; flex-direction: column; gap: 0.25em; }
 .field input { width: 8em; font: inherit; }
@@ -177,8 +179,7 @@ export class DynjandiFocalPicker extends HTMLElement {
     this.#error.className = "error";
     this.#error.setAttribute("part", "error");
     this.#error.setAttribute("role", "alert");
-    this.#error.textContent = "This image could not be loaded.";
-    this.#error.hidden = true;
+    // Empty until the image fails: a live region announces text inserted into it, not text it already held.
 
     const fields = document.createElement("div");
     fields.className = "fields";
@@ -337,7 +338,7 @@ export class DynjandiFocalPicker extends HTMLElement {
       this.#setSource(null);
       this.#surface.hidden = true;
       this.#previewStrip.hidden = true;
-      this.#error.hidden = true;
+      this.#error.textContent = "";
       return;
     }
     this.#setSource(source);
@@ -364,7 +365,7 @@ export class DynjandiFocalPicker extends HTMLElement {
     }
     this.#surface.hidden = !loaded;
     this.#previewStrip.hidden = this.#natural === null;
-    this.#error.hidden = loaded;
+    this.#error.textContent = loaded ? "" : IMAGE_ERROR;
     this.#renderPreviews();
   }
 

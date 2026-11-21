@@ -154,7 +154,7 @@ describe("FocalPicker", () => {
     );
 
     expect(picker.hasAttribute("src")).toBe(false);
-    expect(part(picker, "error").checkVisibility()).toBe(false);
+    expect(part(picker, "error").textContent).toBe("");
     URL.revokeObjectURL(url);
   });
 

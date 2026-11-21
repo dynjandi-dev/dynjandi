@@ -51,7 +51,7 @@ describe("axe-core finds no violations", () => {
   test("with an error: the image cannot be read", async () => {
     const picker = await mount({ width: 400 });
     picker.file = new Blob(["this is not an image"], { type: "image/png" });
-    await expect.poll(() => part(picker, "error").hidden).toBe(false);
+    await expect.poll(() => part(picker, "error").textContent).not.toBe("");
     expect(await violations(picker)).toEqual([]);
   });
 

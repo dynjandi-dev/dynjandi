@@ -500,6 +500,39 @@ describe("image source", () => {
     expect(part(picker, "surface").checkVisibility()).toBe(false);
   });
 
+  test("the error is text inserted into a live region that was already empty, so it is announced", async () => {
+    const picker = document.createElement(TAG) as DynjandiFocalPicker;
+    document.body.append(picker);
+    const error = part(picker, "error");
+    expect(error.getAttribute("role")).toBe("alert");
+    expect(error.textContent).toBe("");
+    expect(error.hidden).toBe(false);
+    // Rendered, so it is in the accessibility tree; zero height, so the empty region shows no box.
+    expect(error.checkVisibility()).toBe(true);
+    expect(error.getBoundingClientRect().height).toBe(0);
+
+    picker.file = new File(["this is not an image"], "broken.png", { type: "image/png" });
+
+    await expect.poll(() => error.textContent).toBe("This image could not be loaded.");
+  });
+
+  test("taking the file or the src away clears the error", async () => {
+    const picker = document.createElement(TAG) as DynjandiFocalPicker;
+    document.body.append(picker);
+    const error = part(picker, "error");
+    const broken = "data:image/png;base64,bm90IGFuIGltYWdl";
+
+    picker.file = new File(["this is not an image"], "broken.png", { type: "image/png" });
+    await expect.poll(() => error.textContent).toBe("This image could not be loaded.");
+    picker.file = null;
+    expect(error.textContent).toBe("");
+
+    picker.src = broken;
+    await expect.poll(() => error.textContent).toBe("This image could not be loaded.");
+    picker.removeAttribute("src");
+    expect(error.textContent).toBe("");
+  });
+
   test("the error goes away when a readable image replaces it", async () => {
     const picker = document.createElement(TAG) as DynjandiFocalPicker;
     document.body.append(picker);
@@ -509,7 +542,7 @@ describe("image source", () => {
     picker.file = await pngFile(200, 100);
 
     await expect.poll(() => part(picker, "surface").checkVisibility()).toBe(true);
-    expect(part(picker, "error").checkVisibility()).toBe(false);
+    expect(part(picker, "error").textContent).toBe("");
   });
 });
 
