@@ -51,13 +51,21 @@ export function isAllowedHost(
   );
 }
 
+// DEL and the C1 controls. `JSON.stringify` escapes C0 but not these, and Node accepts U+0080-U+009F in a header
+// value (latin1 obs-text); a terminal that reads them as UTF-8 acts on them (U+009B is CSI).
+const UNESCAPED_CONTROLS = /[\u007f-\u009f]/g;
+
 /**
- * The one stderr line for a refusal: the refused host, JSON-quoted so a hostile value cannot forge a line, and
- * the flag that admits it.
+ * The one stderr line for a refusal: the refused host, JSON-quoted so a hostile value cannot forge a line, with
+ * every control character escaped so it cannot drive the terminal either, and the flag that admits it.
  */
 export function refusalLine(header: string | undefined): string {
   const shown = header === undefined ? "(none)" : header.slice(0, MAX_LOGGED_HOST);
-  return `refused Host ${JSON.stringify(shown)}: to serve that name, start dynjandi dev with --allow-host <name>`;
+  const quoted = JSON.stringify(shown).replace(
+    UNESCAPED_CONTROLS,
+    (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`,
+  );
+  return `refused Host ${quoted}: to serve that name, start dynjandi dev with --allow-host <name>`;
 }
 
 /**

@@ -6,8 +6,8 @@ import { clampPoint, type FocalPoint, roundPoint, stepPoint } from "../src/index
 //   (packages/sdk/src/upload.ts), so nothing may be emitted outside that;
 // - the plan's D5: the emitted point is rounded to 3 decimals (0.1 percent), 0.42318 becoming 0.423;
 // - the number inputs step 0.1 percent, which is 0.001 as a fraction;
-// - a coordinate with no meaning (NaN) falls back to 0.5, the centre, which is where the service crops when
-//   no focal point is given.
+// - a coordinate with no meaning (NaN, or anything that is not a number, from an untyped caller) falls
+//   back to 0.5, the centre, which is where the service crops when no focal point is given.
 // Every figure below was worked out by hand.
 
 describe("clampPoint", () => {
@@ -40,6 +40,34 @@ describe("clampPoint", () => {
     const clamped = clampPoint(point);
     expect(clamped).not.toBe(point);
     expect(point).toEqual({ x: 2, y: 0.5 });
+  });
+});
+
+// Plain-JavaScript callers can pass anything; the types do not stop them. Issue #21.
+const notNumbers: [string, unknown][] = [
+  ["undefined", undefined],
+  ["a string", "abc"],
+  ["a numeric string", "0.3"],
+  ["null", null],
+  ["an object", {}],
+  ["a boolean", true],
+];
+
+describe.each(notNumbers)("a coordinate that is %s", (_name, bad) => {
+  test("clampPoint maps it to the centre and leaves the other coordinate alone", () => {
+    expect(clampPoint({ x: bad, y: 0.2 } as unknown as FocalPoint)).toEqual({ x: 0.5, y: 0.2 });
+    expect(clampPoint({ x: 0.2, y: bad } as unknown as FocalPoint)).toEqual({ x: 0.2, y: 0.5 });
+  });
+
+  test("roundPoint maps it to the centre and leaves the other coordinate alone", () => {
+    expect(roundPoint({ x: bad, y: 0.42318 } as unknown as FocalPoint)).toEqual({
+      x: 0.5,
+      y: 0.423,
+    });
+    expect(roundPoint({ x: 0.42318, y: bad } as unknown as FocalPoint)).toEqual({
+      x: 0.423,
+      y: 0.5,
+    });
   });
 });
 

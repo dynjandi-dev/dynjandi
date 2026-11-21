@@ -245,7 +245,8 @@ Without a renderer flag, `dev` starts the renderer with Docker (see *The rendere
 ### From containers
 
 `--containers` is for an app that runs in a Docker container and calls this server. `dev` runs
-`docker network inspect bridge` once, reads the default bridge's gateway, and listens on:
+`docker network inspect bridge` once, reads the default bridge's gateway (its IPv4 one, when the bridge also
+has an IPv6 subnet), and listens on:
 
 - `127.0.0.1`, as always; and
 - the gateway too, but only when this machine holds that address. That is Docker Engine on Linux, where the
