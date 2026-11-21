@@ -2,9 +2,10 @@ import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { temporaryName } from "../../src/setup/env-file.js";
 import { applyGit, type GitRunner, planGit } from "../../src/setup/git.js";
+import { createEmptyGitConfig, removeEmptyGitConfig } from "../support/git-config.js";
 
 // Expected values come from the plan (D7) and from git itself, which the tests run for real:
 // - tracked: refuse, the fix is `git rm --cached <path>`;
@@ -13,6 +14,7 @@ import { applyGit, type GitRunner, planGit } from "../../src/setup/git.js";
 // - outside a work tree: nothing to commit to, so write it;
 // - a symbolic link: refuse.
 let root: string;
+let gitConfig: string;
 
 function git(...args: string[]): string {
   return execFileSync("git", args, { cwd: root, encoding: "utf8" });
@@ -27,12 +29,24 @@ async function isIgnored(path: string): Promise<boolean> {
   }
 }
 
+beforeAll(async () => {
+  gitConfig = await createEmptyGitConfig();
+});
+
+afterAll(async () => {
+  await removeEmptyGitConfig(gitConfig);
+});
+
 beforeEach(async () => {
+  // The machine's own Git configuration (a global ignore file listing `*.tmp`, say) would change what is ignored.
+  vi.stubEnv("GIT_CONFIG_GLOBAL", gitConfig);
+  vi.stubEnv("GIT_CONFIG_NOSYSTEM", "1");
   // realpath-free: the temp dir is only ever named through `join`, as the code under test does.
   root = await mkdtemp(join(tmpdir(), "dynjandi-git-"));
 });
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
   await rm(root, { recursive: true, force: true });
 });
 
@@ -126,6 +140,33 @@ describe("planGit and applyGit (D7)", () => {
       "DYNJANDI_PROJECT_KEY=x\n",
     );
     expect(git("status", "--porcelain", "--untracked-files=all").trim()).toBe("");
+  });
+
+  it("refuses with the temporary file's pattern named when git ignores only the env file after the entries", async () => {
+    initRepository();
+    const path = join(root, ".env.local");
+    // Answers as git would for a `!*.tmp` no appended entry can beat: the env file is ignored, its temporary file not.
+    const partial: GitRunner = async (args) => {
+      const target = args[args.length - 1] ?? "";
+      if (args[0] === "check-ignore" && args.includes("-v")) {
+        return { code: 0, stdout: `.gitignore:2:!*.tmp\t${target}\n`, stderr: "" };
+      }
+      if (args[0] === "check-ignore")
+        return { code: target.endsWith(".tmp") ? 1 : 0, stdout: "", stderr: "" };
+      return { code: 0, stdout: "true\n", stderr: "" };
+    };
+    const result = await applyGit(
+      { kind: "add", gitignorePath: join(root, ".gitignore"), entries: ["/.env.local.*.tmp"] },
+      path,
+      root,
+      { run: partial },
+    );
+    expect(result).toEqual({
+      kind: "refuse",
+      reason:
+        "Git still does not ignore the temporary file .env.local.*.tmp, which holds the key until the rename; the rule that wins is .gitignore:2:!*.tmp",
+      fix: "remove that rule, or choose another file with --file",
+    });
   });
 
   it("adds an entry that wins over an earlier negation rule", async () => {

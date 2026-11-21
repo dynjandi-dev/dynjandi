@@ -131,12 +131,17 @@ export async function applyGit(
   const againTemporary = await run(["check-ignore", "-q", "--", probe], directory);
   if (again.code === 0 && againTemporary.code === 0) return { kind: "ok" };
 
+  // The probe is a made-up name, so a refusal over it names the pattern and why it matters, never the probe.
   const open = again.code === 0 ? probe : target;
+  const shown =
+    open === probe
+      ? `the temporary file ${displayPath(join(directory, temporaryName(basename(path), "*")), cwd)}, which holds the key until the rename`
+      : displayPath(path, cwd);
   const why = await run(["check-ignore", "-v", "--no-index", "--", open], directory);
   const rule = why.stdout.split("\t")[0]?.trim();
   return {
     kind: "refuse",
-    reason: `Git still does not ignore ${displayPath(join(directory, basename(open)), cwd)}${rule ? `; the rule that wins is ${rule}` : ""}`,
+    reason: `Git still does not ignore ${shown}${rule ? `; the rule that wins is ${rule}` : ""}`,
     fix: "remove that rule, or choose another file with --file",
   };
 }

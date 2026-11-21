@@ -82,7 +82,8 @@ Created the project my-app (3f2a9c) and wrote DYNJANDI_PROJECT_KEY and DYNJANDI_
 `npx @dynjandi/cli` fetches the published package, so nothing needs installing first.
 
 Run it again and it changes nothing: it reads `DYNJANDI_PROJECT_ID` from the env file, finds the same project,
-and says so. An agent should pass `--json`, which prints the result as one JSON object, and `--dry-run` first
+and says so. The one exception is a `.gitignore` that covers the env file but not its temporary file (one an earlier
+version wrote, say): the first re-run adds the temporary file's entry, described under *Which file, and Git*. An agent should pass `--json`, which prints the result as one JSON object, and `--dry-run` first
 if it wants to see what would happen:
 
 ```sh
