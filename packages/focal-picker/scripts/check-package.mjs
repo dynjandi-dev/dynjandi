@@ -63,10 +63,14 @@ try {
       failures.push(`the peer dependency ${name} is not optional`);
     }
   }
-  if (
-    Object.keys(packedManifest.peerDependencies ?? {}).some((name) => !name.startsWith("react"))
-  ) {
-    failures.push("the packed package.json has a peer dependency that is not React");
+  // Exactly `react` and `react-dom`: a prefix test would let `react-router` through.
+  const allowedPeers = ["react", "react-dom"];
+  for (const name of Object.keys(packedManifest.peerDependencies ?? {})) {
+    if (!allowedPeers.includes(name)) {
+      failures.push(
+        `the packed package.json has a peer dependency that is not react or react-dom: ${name}`,
+      );
+    }
   }
 
   if (failures.length === 0) {
