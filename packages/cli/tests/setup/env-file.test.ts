@@ -2,9 +2,15 @@ import { mkdir, mkdtemp, readdir, readFile, rm, stat, symlink, writeFile } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { pickEnvFile, planEnvChange, writeEnvFile } from "../../src/setup/env-file.js";
+import {
+  pickEnvFile,
+  planEnvChange,
+  readProjectId,
+  writeEnvFile,
+} from "../../src/setup/env-file.js";
 
-// Expected values come from the plan (D6, D8, D9), not from the code under test:
+// Expected values come from the plan (D5, D6, D8, D9) and issue #67, not from the code under test:
+// - D5 step 3: the env file's DYNJANDI_PROJECT_ID is read back, with or without `export ` or quotes;
 // - D6: --file, else an existing .env.local, else an existing .env, else a new .env.local;
 // - D8: only the two variable lines (with or without `export `) are replaced, every other byte stays,
 //   a missing variable is appended after a final newline is added, a different value is refused without
@@ -131,6 +137,35 @@ describe("planEnvChange (D8, D9)", () => {
       kind: "append",
       content: `${before}DYNJANDI_PROJECT_KEY=${KEY}\nDYNJANDI_PROJECT_ID=my-project\n`,
     });
+  });
+});
+
+describe("readProjectId (D5 step 3)", () => {
+  it("reads a plain line", () => {
+    expect(readProjectId(`DYNJANDI_PROJECT_KEY=${KEY}\nDYNJANDI_PROJECT_ID=my-project\n`)).toBe(
+      "my-project",
+    );
+  });
+
+  it("reads a line with an export prefix", () => {
+    expect(readProjectId("export DYNJANDI_PROJECT_ID=my-project\n")).toBe("my-project");
+  });
+
+  it("strips double and single quotes", () => {
+    expect(readProjectId('DYNJANDI_PROJECT_ID="my-project"\n')).toBe("my-project");
+    expect(readProjectId("DYNJANDI_PROJECT_ID='my-project'\n")).toBe("my-project");
+  });
+
+  it("reads a CRLF file without the carriage return", () => {
+    expect(readProjectId("DYNJANDI_PROJECT_ID=my-project\r\n")).toBe("my-project");
+  });
+
+  it("is undefined for an empty value, an empty quoted value, a missing line and a comment", () => {
+    expect(readProjectId("DYNJANDI_PROJECT_ID=\n")).toBeUndefined();
+    expect(readProjectId('DYNJANDI_PROJECT_ID=""\n')).toBeUndefined();
+    expect(readProjectId(`DYNJANDI_PROJECT_KEY=${KEY}\n`)).toBeUndefined();
+    expect(readProjectId("# DYNJANDI_PROJECT_ID=my-project\n")).toBeUndefined();
+    expect(readProjectId("")).toBeUndefined();
   });
 });
 
