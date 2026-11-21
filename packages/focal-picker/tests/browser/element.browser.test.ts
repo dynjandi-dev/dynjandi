@@ -537,6 +537,24 @@ describe("image source", () => {
     expect(hasPart(picker, "error")).toBe(false);
   });
 
+  test("a second unreadable image clears the error first, so its error is a new insertion", async () => {
+    const picker = document.createElement(TAG) as DynjandiFocalPicker;
+    document.body.append(picker);
+    const region = alertRegion(picker);
+    const message = "This image could not be loaded.";
+
+    picker.src = "data:image/png;base64,bm90IGFuIGltYWdl";
+    await expect.poll(() => region.textContent).toBe(message);
+
+    // The source changes: the old error is gone at once, while the next image is still loading.
+    picker.src = "data:image/png;base64,YW5vdGhlciBiYWQgb25l";
+    expect(region.textContent).toBe("");
+    expect(hasPart(picker, "error")).toBe(false);
+
+    await expect.poll(() => region.textContent).toBe(message);
+    expect(region.contains(part(picker, "error"))).toBe(true);
+  });
+
   test("the error goes away when a readable image replaces it", async () => {
     const picker = document.createElement(TAG) as DynjandiFocalPicker;
     document.body.append(picker);

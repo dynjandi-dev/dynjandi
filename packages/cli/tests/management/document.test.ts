@@ -192,7 +192,10 @@ describe("the management API's document: browser approval (D18)", () => {
     const op = operation(DEVICE_CODE, "post");
     expect(op).toBeDefined();
     expectNoSecurity(op);
-    expectString(requiredProperty(jsonSchema(at(op, "requestBody")), "client_id"));
+    const body = jsonSchema(at(op, "requestBody"));
+    // `setup` sends `{ client_id }` only, so a second required field would break the browser approval.
+    expect(at(body, "required")).toEqual(["client_id"]);
+    expectString(requiredProperty(body, "client_id"));
 
     const schema = responseSchema(op, "200");
     for (const name of [
@@ -217,6 +220,10 @@ describe("the management API's document: browser approval (D18)", () => {
     expect(at(requiredProperty(body, "grant_type"), "const")).toBe(DEVICE_GRANT);
     expectString(requiredProperty(body, "device_code"));
     expectString(requiredProperty(body, "client_id"));
+    // `setup` sends exactly these three, so a fourth required field would break the poll.
+    expect([...(at(body, "required") as string[])].sort()).toEqual(
+      ["client_id", "device_code", "grant_type"].sort(),
+    );
 
     const schema = responseSchema(op, "200");
     expectString(requiredProperty(schema, "access_token"));
