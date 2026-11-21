@@ -246,29 +246,27 @@ describe("runSetup: the sequence (D10)", () => {
     expect(again.out.join("")).not.toContain(PROJECT_KEY);
   });
 
-  it("reads the id back from an export line and from a quoted value, and reconnects", async () => {
-    for (const line of [
-      `export DYNJANDI_PROJECT_ID=${PROJECT_ID}`,
-      `DYNJANDI_PROJECT_ID="${PROJECT_ID}"`,
-      `DYNJANDI_PROJECT_ID='${PROJECT_ID}'`,
-    ]) {
-      await initRepository();
-      await named("my-app");
-      const content = `DYNJANDI_PROJECT_KEY=${PROJECT_KEY}\n${line}\n`;
-      await writeFile(join(dir, ".env.local"), content);
-      await writeFile(join(dir, ".gitignore"), "*.local\n");
+  it.each([
+    ["an export", `export DYNJANDI_PROJECT_ID=${PROJECT_ID}`],
+    ["a double-quoted", `DYNJANDI_PROJECT_ID="${PROJECT_ID}"`],
+    ["a single-quoted", `DYNJANDI_PROJECT_ID='${PROJECT_ID}'`],
+  ])("reads the id back from %s line, and reconnects", async (_, line) => {
+    await initRepository();
+    await named("my-app");
+    const content = `DYNJANDI_PROJECT_KEY=${PROJECT_KEY}\n${line}\n`;
+    await writeFile(join(dir, ".env.local"), content);
+    await writeFile(join(dir, ".gitignore"), "*.local\n");
 
-      const h = setup();
-      answerGet(h);
-      expect(await h.run("--json")).toBe(0);
+    const h = setup();
+    answerGet(h);
+    expect(await h.run("--json")).toBe(0);
 
-      expect(requestsOf(h)).toEqual([`GET /api/projects/${PROJECT_ID}`]);
-      expect(JSON.parse(h.out.join(""))).toMatchObject({
-        project: { id: PROJECT_ID, action: "use" },
-        envFile: { action: "none" },
-      });
-      expect(await read(".env.local")).toBe(content);
-    }
+    expect(requestsOf(h)).toEqual([`GET /api/projects/${PROJECT_ID}`]);
+    expect(JSON.parse(h.out.join(""))).toMatchObject({
+      project: { id: PROJECT_ID, action: "use" },
+      envFile: { action: "none" },
+    });
+    expect(await read(".env.local")).toBe(content);
   });
 
   it("skips an id that fails the id pattern and falls through to the name lookup", async () => {
