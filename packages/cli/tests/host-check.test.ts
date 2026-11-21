@@ -78,8 +78,17 @@ describe("parseAllowHost", () => {
     expect("problem" in parseAllowHost(text)).toBe(true);
   });
 
+  // No trailing dot and every label valid, so only the length rule can reject it.
   it("rejects a name over 253 characters", () => {
-    expect("problem" in parseAllowHost(`${"a".repeat(60)}.`.repeat(5))).toBe(true);
+    const name = Array(5).fill("a".repeat(60)).join(".");
+    expect(name).toHaveLength(304);
+    expect("problem" in parseAllowHost(name)).toBe(true);
+  });
+
+  it("accepts a name of exactly 253 characters", () => {
+    const name = [63, 63, 63, 61].map((length) => "a".repeat(length)).join(".");
+    expect(name).toHaveLength(253);
+    expect(parseAllowHost(name)).toEqual({ name });
   });
 });
 
