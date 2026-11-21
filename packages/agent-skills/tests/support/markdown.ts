@@ -1,5 +1,8 @@
 export interface FencedBlock {
-  /** The info string after the opening fence, such as `sh` or `ts`. */
+  /**
+   * The language the opening fence names, such as `sh` or `ts`: the info string's first word, lower-cased, so
+   * `Bash` and `sh title="x"` are read as `bash` and `sh`. An untagged fence gives `""`.
+   */
   language: string;
   /** The text between the fences, with its final newline. */
   body: string;
@@ -9,7 +12,7 @@ const FENCE = /^```([^\n]*)\n([\s\S]*?)^```[ \t]*$/gm;
 
 export function fencedBlocks(markdown: string): FencedBlock[] {
   return [...markdown.matchAll(FENCE)].map((match) => ({
-    language: (match[1] ?? "").trim(),
+    language: ((match[1] ?? "").trim().split(/\s+/)[0] ?? "").toLowerCase(),
     body: match[2] ?? "",
   }));
 }
