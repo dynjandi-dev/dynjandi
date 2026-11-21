@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { DynjandiFocalPicker } from "../../src/element.js";
-import { shown } from "./support.js";
+import { alertRegion, hasPart, shown } from "./support.js";
 
 // Real layout and real input: clicks and drags go through Playwright's mouse (userEvent.click and
 // userEvent.dragAndDrop), so Chromium itself raises the pointer events at real coordinates, and typing is
@@ -500,16 +500,54 @@ describe("image source", () => {
     expect(part(picker, "surface").checkVisibility()).toBe(false);
   });
 
+  test("the error is text inserted into a live region that was already empty, so it is announced", async () => {
+    const picker = document.createElement(TAG) as DynjandiFocalPicker;
+    document.body.append(picker);
+    const region = alertRegion(picker);
+    expect(region.textContent).toBe("");
+    expect(region.hidden).toBe(false);
+    // Rendered, so it is in the accessibility tree; zero height, so the empty region shows no box.
+    expect(region.checkVisibility()).toBe(true);
+    expect(region.getBoundingClientRect().height).toBe(0);
+    // No error part yet, so a host's ::part(error) styling draws nothing.
+    expect(hasPart(picker, "error")).toBe(false);
+
+    picker.file = new File(["this is not an image"], "broken.png", { type: "image/png" });
+
+    await expect.poll(() => region.textContent).toBe("This image could not be loaded.");
+    expect(region.contains(part(picker, "error"))).toBe(true);
+  });
+
+  test("taking the file or the src away clears the error", async () => {
+    const picker = document.createElement(TAG) as DynjandiFocalPicker;
+    document.body.append(picker);
+    const region = alertRegion(picker);
+    const broken = "data:image/png;base64,bm90IGFuIGltYWdl";
+
+    picker.file = new File(["this is not an image"], "broken.png", { type: "image/png" });
+    await expect.poll(() => region.textContent).toBe("This image could not be loaded.");
+    picker.file = null;
+    expect(region.textContent).toBe("");
+    expect(hasPart(picker, "error")).toBe(false);
+
+    picker.src = broken;
+    await expect.poll(() => region.textContent).toBe("This image could not be loaded.");
+    picker.removeAttribute("src");
+    expect(region.textContent).toBe("");
+    expect(hasPart(picker, "error")).toBe(false);
+  });
+
   test("the error goes away when a readable image replaces it", async () => {
     const picker = document.createElement(TAG) as DynjandiFocalPicker;
     document.body.append(picker);
     picker.file = new File(["this is not an image"], "broken.png", { type: "image/png" });
-    await expect.element(page.getByRole("alert")).toBeVisible();
+    await expect.poll(() => hasPart(picker, "error")).toBe(true);
 
     picker.file = await pngFile(200, 100);
 
     await expect.poll(() => part(picker, "surface").checkVisibility()).toBe(true);
-    expect(part(picker, "error").checkVisibility()).toBe(false);
+    expect(alertRegion(picker).textContent).toBe("");
+    expect(hasPart(picker, "error")).toBe(false);
   });
 });
 
