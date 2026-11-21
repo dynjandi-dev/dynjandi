@@ -170,6 +170,33 @@ describe("upload with an apiOrigin", () => {
 
     expect(firstRequest(fetchMock).url).toBe(`${ORIGIN}/upload`);
   });
+
+  // Source: README's `process.env` usage types both options string | undefined; an explicit undefined means "not given".
+  test("sends requests to the default origin when origin and apiOrigin are both explicitly undefined", async () => {
+    const fetchMock = fakeFetch(() => jsonResponse(UPLOAD_BODY, 201));
+    const origin: string | undefined = undefined;
+    const apiOrigin: string | undefined = undefined;
+    const client = createClient({ projectKey: PROJECT_KEY, origin, apiOrigin, fetch: fetchMock });
+
+    await client.upload(aFile());
+
+    expect(firstRequest(fetchMock).url).toBe("https://cdn.dynjandi.dev/upload");
+  });
+
+  test("sends requests to a custom origin when apiOrigin is explicitly undefined", async () => {
+    const fetchMock = fakeFetch(() => jsonResponse(UPLOAD_BODY, 201));
+    const apiOrigin: string | undefined = undefined;
+    const client = createClient({
+      projectKey: PROJECT_KEY,
+      origin: ORIGIN,
+      apiOrigin,
+      fetch: fetchMock,
+    });
+
+    await client.upload(aFile());
+
+    expect(firstRequest(fetchMock).url).toBe(`${ORIGIN}/upload`);
+  });
 });
 
 describe("createClient", () => {
