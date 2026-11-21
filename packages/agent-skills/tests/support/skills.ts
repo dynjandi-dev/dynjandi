@@ -145,12 +145,29 @@ export interface Command {
   line: string;
 }
 
-/** The `dev` and `setup` lines of the fenced `sh` blocks, with their prefix and trailing comment stripped. */
+// A fence an agent reads as a shell block: any shell's name, a console transcript, or no language at all.
+// `text` and the like are output, not commands, and stay unchecked.
+const SHELL_LANGUAGES = new Set(["sh", "bash", "shell", "zsh", "console", ""]);
+
+const PROMPT = /^\s*\$\s/;
+
+/**
+ * The `dev` and `setup` lines of the fenced shell blocks (`sh`, `bash`, `shell`, `zsh`, `console`, untagged),
+ * with a leading `$ ` prompt, their prefix and a trailing comment stripped. A `console` block is a transcript,
+ * so only its `$ ` lines are commands; the rest is output.
+ */
 export function commandsIn(markdown: string): Command[] {
   return fencedBlocks(markdown)
-    .filter((block) => block.language === "sh")
-    .flatMap((block) => block.body.split("\n"))
-    .map((line) => line.replace(/\s+#.*$/, "").trim())
+    .filter((block) => SHELL_LANGUAGES.has(block.language))
+    .flatMap((block) =>
+      block.body.split("\n").filter((line) => block.language !== "console" || PROMPT.test(line)),
+    )
+    .map((line) =>
+      line
+        .replace(/\s+#.*$/, "")
+        .replace(/^\s*\$\s+/, "")
+        .trim(),
+    )
     .flatMap((line) => {
       const match = COMMAND_LINE.exec(line);
       const name = match?.[1];
@@ -178,12 +195,14 @@ export function commandProblems(markdown: string): string[] {
 
 const SNIPPET_LANGUAGES: Record<string, string> = {
   ts: ".ts",
-  tsx: ".tsx",
   js: ".js",
-  jsx: ".jsx",
 };
+// `tsx` and `jsx` are code too, but this package's tsconfig sets no `jsx` option, so a file of either would
+// not compile: such a block is refused rather than shown unchecked.
 const CODE_LANGUAGES = new Set([
   ...Object.keys(SNIPPET_LANGUAGES),
+  "tsx",
+  "jsx",
   "typescript",
   "javascript",
   "mjs",
@@ -196,7 +215,9 @@ export function snippetProblems(markdown: string, files: ReadonlyMap<string, str
     if (!CODE_LANGUAGES.has(block.language)) continue;
     const extension = SNIPPET_LANGUAGES[block.language];
     if (extension === undefined) {
-      problems.push(`a \`${block.language}\` block: write the language as ts, tsx, js or jsx`);
+      problems.push(
+        `a \`${block.language}\` block: write the language as ts or js (this package compiles no JSX)`,
+      );
       continue;
     }
     const matches = [...files].some(

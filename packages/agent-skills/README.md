@@ -193,11 +193,13 @@ A skill repeats facts from the [SDK](../sdk/README.md) and [CLI](../cli/README.m
   `name` of 1 to 64 characters (`a-z`, `0-9`, single hyphens) equal to its directory, a `description` of 1 to
   1,024 characters, only the keys `name`, `description`, `license`, `compatibility` and `metadata`, and a
   `SKILL.md` under 500 lines.
-- **Commands.** Every `dynjandi dev` and `dynjandi setup` line in a fenced `sh` block parses through the
-  CLI's own option parsers (`parseDevOptions`, `parseSetupOptions`), so a flag the CLI would refuse fails.
-- **Snippets.** Every `ts`, `tsx`, `js` or `jsx` block in a skill is a file in `tests/snippets/`, shown
-  character for character. `pnpm typecheck` compiles those files against the SDK's source, so a snippet the
-  SDK's types no longer accept fails.
+- **Commands.** Every `dynjandi dev` and `dynjandi setup` line in a fenced shell block (`sh`, `bash`,
+  `shell`, `zsh`, `console` or no language, a leading `$ ` allowed; in `console`, only the `$ ` lines)
+  parses through the CLI's own option parsers (`parseDevOptions`, `parseSetupOptions`), so a flag the CLI
+  would refuse fails.
+- **Snippets.** Every `ts` or `js` block in a skill is a file in `tests/snippets/`, shown character for
+  character; a `tsx` or `jsx` block is refused, as the package compiles no JSX. `pnpm typecheck` compiles
+  those files against the SDK's source, so a snippet the SDK's types no longer accept fails.
 - **Marketplace and install guide.** `.claude-plugin/marketplace.json` has the required fields, its entry's
   `source` holds a `plugin.json` of the same name, neither file has a `version`, and every install command in
   *Install* names a skill or a path and pins a ref, and the text never shows the install-everything or
