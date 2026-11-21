@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, writeFileSync as writeFileSyncNow } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, writeFileSync as writeFileSyncNow } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { main } from "../src/cli.js";
 import { startStubRenderer } from "./support/stub-renderer.js";
+import { waitFor } from "./support/wait.js";
 
 // Expected values come from the plan and from POSIX, never from the code under test:
 // - D18: the command gets DYNJANDI_ORIGIN (`http://127.0.0.1:<port>`) and DYNJANDI_PROJECT_KEY (the key `dev`
@@ -47,14 +48,16 @@ function dev(...extra: string[]): string[] {
 }
 
 async function waitForFile(path: string): Promise<string> {
-  for (let attempt = 0; attempt < 500; attempt += 1) {
+  let text = "";
+  await waitFor(() => {
     try {
-      return await readFile(path, "utf8");
+      text = readFileSync(path, "utf8");
+      return true;
     } catch {
-      await new Promise((done) => setTimeout(done, 10));
+      return false;
     }
-  }
-  throw new Error(`${path} never appeared`);
+  }, `${path} to appear`);
+  return text;
 }
 
 // Writes the two variables and what GET <origin>/health answers to the file named by argv[1].
@@ -207,9 +210,7 @@ describe("dev --json", () => {
   async function runJson(...extra: string[]) {
     const { out, err, io } = capture();
     const exit = main(dev("--port", "0", "--json", ...extra), io);
-    for (let attempt = 0; attempt < 500 && out.length === 0; attempt += 1) {
-      await new Promise((done) => setTimeout(done, 10));
-    }
+    await waitFor(() => out.length > 0, "the ready line");
     process.emit("SIGTERM", "SIGTERM");
     await exit;
     return { out: out.join(""), err: err.join("") };

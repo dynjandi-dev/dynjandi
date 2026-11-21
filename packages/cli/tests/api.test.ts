@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { main } from "../src/cli.js";
 import { startServer } from "../src/dev/server.js";
 import { FileStore } from "../src/dev/store.js";
+import { waitFor } from "./support/wait.js";
 
 // Expected values come from packages/spec/openapi.yaml and the plan, never from the code under test:
 // - messages and statuses: the spec's `POST /upload` 400/401/413/500 and `GET /files/{id}` 401/404 descriptions,
@@ -515,10 +516,7 @@ describe("an upload the client abandons mid-body", () => {
     req.destroy();
 
     const abandoned = () => logs.some((line) => line.startsWith("POST /upload abandoned: "));
-    for (let attempt = 0; attempt < 300 && !abandoned(); attempt += 1) {
-      await new Promise((done) => setTimeout(done, 10));
-    }
-    expect(abandoned()).toBe(true);
+    await waitFor(abandoned, "the abandoned log line");
     expect(logs.join("\n")).not.toContain("413");
   });
 });
@@ -751,9 +749,7 @@ describe("a --project-key value (D1, D12)", () => {
       ["dev", "--port", "0", "--no-renderer", "--data-dir", dataDir, "--project-key", secret],
       { stdout: (text) => void out.push(text), stderr: (text) => void err.push(text) },
     );
-    for (let attempt = 0; attempt < 200 && out.length === 0; attempt += 1) {
-      await new Promise((done) => setTimeout(done, 10));
-    }
+    await waitFor(() => out.length > 0, "the ready line");
     const origin = /http:\/\/127\.0\.0\.1:\d+/.exec(out.join(""))?.[0] ?? "";
     expect(origin).not.toBe("");
 

@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { main } from "../src/cli.js";
 import { type StubRenderer, startStubRenderer } from "./support/stub-renderer.js";
+import { waitFor } from "./support/wait.js";
 
 // Child processes are real, but `docker` is tests/support/fake-docker.mjs, first on PATH, so nothing here
 // reaches a daemon or a network. `spawn` is wrapped only to see how it was called.
@@ -106,14 +107,6 @@ function capture() {
       stderr: (text: string) => void err.push(text),
     },
   };
-}
-
-async function waitFor(condition: () => boolean, what: string): Promise<void> {
-  for (let attempt = 0; attempt < 300; attempt += 1) {
-    if (condition()) return;
-    await new Promise((done) => setTimeout(done, 10));
-  }
-  throw new Error(`never happened: ${what}`);
 }
 
 function dev(extra: string[], settings = SHORT) {
