@@ -35,7 +35,9 @@ the repository and outlives the session that opened it; a line in a working-tree
 the title, the body with its `Size:` and `Priority:`, and any type or relationship you would set, and ask
 whether to open it — one question, which is also where the priority is asked. **No ends it, with nothing
 written.** Adoption asks the same way, since its label and comment reach the reporter. Where the run
-cannot ask, open nothing and report the `/roadmap "…"` line to type.
+cannot ask, open nothing and report the `/roadmap "…"` line to type. Under `/feature-implement --all`, open
+nothing yet: that run makes the ask when it stops. **Declined, held or never asked, the entry is
+*proposed*, not added**, and the caller's report says so, with that line.
 
 **Set two things the file answer has no room for**, both named in
 [`context/tracking.md`](../../../context/tracking.md) and neither read by anything in this workflow's loop:
@@ -68,7 +70,8 @@ its assignee and what it waits on, so the backlog is a single query — no per-i
 cached between runs. Step 5's count is the second, and asks for labels alone.
 
 **Group by tier, because that is the question this command answers.** Planned first, ideas second, and
-each row on one line:
+each row on one line, led by the issue in the form *how an issue is referenced* gives. Shown here with
+GitHub's `#<n>`, which is also the answer where that row is absent:
 
 ```
 PLANNED (2)
@@ -91,9 +94,9 @@ OUTSIDE THE BACKLOG (9)
   an unmarked entry is.
 - **`assigned` is the marker's replacement**, and it is the whole of what this command says about who is
   working on what. No name, no duration, no staleness — that is `/feature-status`.
-- **`waits on #N` is the relationship**, printed on the row it constrains and in whichever group the entry
-  belongs to. **Do not lift a waiting entry into a group of its own**: what tier it is in and what it is
-  waiting on are different facts, and collapsing them is what the two groups exist to prevent. A cycle, or
+- **`waits on <issue>` is the relationship**, printed on the row it constrains and in whichever group the
+  entry belongs to. **Do not lift a waiting entry into a group of its own**: what tier it is in and what it
+  is waiting on are different facts, and collapsing them is what the two groups exist to prevent. A cycle, or
   a backlog where everything is waiting, is worth one line under the count and no more.
 - **An empty group still prints, with `(0)`.** *No plans at all* and *no ideas left* are both answers
   somebody came here for, and a heading that vanishes reads as a backlog that was not looked at.
@@ -147,7 +150,7 @@ costs one edit to remove, and only if the user can see it.
 Someone else's issue can enter the backlog without being retyped:
 
 ```
-/roadmap #123          # adopt an existing issue into the backlog
+/roadmap <issue>       # adopt an existing issue into the backlog, in a form tracking.md accepts
 ```
 
 Apply the backlog label to it and stop. **Copy nothing and rewrite nothing** — the reporter's wording, the

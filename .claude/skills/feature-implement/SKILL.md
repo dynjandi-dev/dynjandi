@@ -229,22 +229,30 @@ Require concrete evidence — file paths, command output — for every verdict, 
 **one bit: does it block this phase or not.** There is no severity scale to assign — see *What happens to a
 defect the gate found* in [`context/workflow.md`](../../../context/workflow.md).
 
+**Before reading the verdict, sort each note by where its defect came from**, per *A defect this work put
+there is never filed* in [`context/workflow.md`](../../../context/workflow.md) — an earlier phase's defect
+included. **A `PASS WITH NOTES` carrying one that blocks is a `FAIL`**, and step 10 fixes it. Nothing this
+feature wrote is ever filed as a bug.
+
 - `PASS` or `PASS WITH NOTES` → the phase's work is done; go to step 11.
 - `FAIL` → go to step 10.
 
-**Every non-blocking observation gets one of two ends, and kind decides which** — not size. The full
-argument is *What happens to a defect the gate found* in
+**Every other non-blocking observation gets one of two ends, and kind decides which** — not size. The
+full argument is *What happens to a defect the gate found* in
 [`context/workflow.md`](../../../context/workflow.md):
 
-- **A real defect, and it is user-visible or a regression would land green** → it is a **bug**. File it
+- **A real defect that was there before this feature, and it is user-visible or a regression would land
+  green** → it is a **bug**. File it
   wherever this project already files bugs, with this project's own labels, and say in the report that you
   did. **Do not apply the backlog label** — see *A bug is not a backlog entry* in
   [`context/workflow.md`](../../../context/workflow.md). The backlog is a list of features and this is not
   one.
 - **Not a defect, but work you would want a `history.md` row for** → that is a backlog entry, and adding
-  one is `/roadmap`'s. **Run it with what you would add**, before step 12, so the entry rides this phase's
-  commit; never append to the backlog by hand. That command applies the worth-adopting test and writes
-  what the ranking reads, and a gate doing it by hand produces neither.
+  one is `/roadmap`'s. **Run it with what you would add**; never append to the backlog by hand. That
+  command applies the worth-adopting test and writes what the ranking reads, and a gate doing it by hand
+  produces neither. **Under the working-tree answer**, run it before step 12, so the entry rides this
+  phase's commit. Under the tracker answer nothing rides it: `/roadmap` asks first, then opens an issue at
+  once or nothing at all, and [`tracker.md`](tracker.md) says what each means here.
 - **Anything else** → one short entry in `context/notes.md`, naming the phase it came from. Create the file
   if it is not there. It is branch-local, it rides this phase's commit the way the ledger row does, and
   `/feature-close` deletes it whole.
@@ -260,6 +268,9 @@ Cap: **two loops per gate, per phase.**
 Under the cap: re-brief with the prior implementation and the validator's feedback **verbatim — do not
 summarise or paraphrase it** — plus the instruction to address only the failing items, refactor nothing
 that passes, and expand no scope. Then re-run the same gate.
+
+**An old defect step 9's sort promoted never reaches the cap.** If one loop does not settle it, back its
+edit out and give it its kind's end, and the verdict stands on the rest.
 
 At the cap: **close the row to `blocked` with the reason in its Note — before you escalate**, not after.
 A phase whose verification cannot pass is blocked by definition. Then hand back to the user with the
@@ -312,8 +323,9 @@ feature and turns every phase after it into a force-push.
 - What changed, and which files — and whether it is committed or waiting in the tree.
 - Gate 1 output, and Gate 2's verdict.
 - Loopback counts, if any.
-- Any non-blocking observation the review raised, and where each one went — a bug, a `/roadmap` you
-  ran, or `notes.md`.
+- Any non-blocking observation the review raised, and where each one went — a bug, the entry `/roadmap`
+  added, or `notes.md`. **An entry it opened nothing for was *proposed*, not added** — a tracker ask
+  declined, held or not made: say so, with the `/roadmap "…"` line to type.
 - The phase's new ledger status, and which phase is next.
 
 **When every phase is `done`, say so and name `/feature-close`.** Do not move files, stamp headers or sweep
@@ -368,6 +380,9 @@ report, and name the line that stopped you**, when:
 the user typing that one.
 
 A Gate 2 `PASS WITH NOTES` continues, and so does a `FAIL` that passes on its loopback. Only the cap stops.
+**A finding step 9 sends to `/roadmap` does not stop it either.** Under the tracker answer, where that
+command asks before opening an issue, the ask waits for the run to stop — [`tracker.md`](tracker.md) says
+what happens to the finding until then.
 
 **Never widen the flag to cover what it does not.** It runs the phases of one plan. It does not pick a
 second feature, re-plan a phase whose scope turned out wrong, or lift any refusal above — a stop list
