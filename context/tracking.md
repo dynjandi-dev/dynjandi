@@ -46,7 +46,8 @@ rewrite of this section rather than of the skills. A command asks for the *fact*
 | what gets planned next | the issue body's `Priority:` line |
 | which features have to land before this one | the issue's **blocked by** relationships |
 | how much a plan may hold | *How much a plan may hold* below — here that ceiling is the body's own hard limit |
-| how a change closes one | `Closes #<n>`, in the pull request body where there is one and in the commit message otherwise |
+| how an issue is referenced | `#<n>`, in a commit, a pull request and a report, and the form a command that takes an issue accepts |
+| how a change closes one | **a keyword** — `Closes #<n>`, in the pull request body where there is one and in the commit message otherwise, acted on by the forge when the change reaches the default branch |
 
 **The ledger is one table, and it is the same one a plan document carries** — `#`, `Phase`, `Depends on`,
 `Status`, `Note`, with a `Files:` line in each phase's own section. Nothing about its shape changes between
